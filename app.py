@@ -46,11 +46,13 @@ class Movement(db.Model):
     quantity = db.Column(db.Integer, nullable=False)
     warehouse = db.Column(db.String(50), nullable=False)
     service = db.Column(db.String(100), nullable=True)
+    patient_name = db.Column(db.String(150), nullable=True)
+    patient_id = db.Column(db.String(50), nullable=True)
     user_name = db.Column(db.String(100), nullable=False)
     notes = db.Column(db.String(200), nullable=True)
 
 # -----------------------------------------------------------------------------
-# PLANTILLA HTML DISEÑO LIMPIO Y PESTAÑAS INDEPENDIENTES
+# PLANTILLA HTML INTEGRADA CON PESTAÑAS Y SECCIONES AMPLIADAS
 # -----------------------------------------------------------------------------
 
 HTML_TEMPLATE = """
@@ -81,7 +83,7 @@ HTML_TEMPLATE = """
             <!-- Pestañas de Navegación -->
             <nav class="flex flex-wrap gap-1.5 text-xs font-bold">
                 <a href="/terminal" class="px-3.5 py-2 rounded-xl transition flex items-center gap-2 {% if view == 'terminal' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
-                    <i class="fa-solid fa-pen-to-square"></i> Captura
+                    <i class="fa-solid fa-pen-to-square"></i> Captura y Surtido
                 </a>
                 <a href="/inventario" class="px-3.5 py-2 rounded-xl transition flex items-center gap-2 {% if view == 'inventario' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
                     <i class="fa-solid fa-boxes-stacked"></i> Inventario
@@ -90,7 +92,7 @@ HTML_TEMPLATE = """
                     <i class="fa-solid fa-clock-rotate-left"></i> Bitácora e Histórico
                 </a>
                 <a href="/usuarios" class="px-3.5 py-2 rounded-xl transition flex items-center gap-2 {% if view == 'usuarios' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
-                    <i class="fa-solid fa-users-gear"></i> Usuarios / PINs
+                    <i class="fa-solid fa-lock"></i> Usuarios / PINs (Admin)
                 </a>
                 <a href="/etiquetas" class="px-3.5 py-2 rounded-xl transition flex items-center gap-2 {% if view == 'etiquetas' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
                     <i class="fa-solid fa-tags"></i> Etiquetas DU
@@ -114,7 +116,7 @@ HTML_TEMPLATE = """
         {% endwith %}
 
         {% if view == 'terminal' %}
-        <!-- PESTAÑA 1: CAPTURA DE MOVIMIENTOS -->
+        <!-- PESTAÑA 1: CAPTURA Y SURTIDO -->
         <div class="space-y-6">
             
             <!-- Acceso Rápido por Tarjeta de Personal -->
@@ -139,79 +141,143 @@ HTML_TEMPLATE = """
                 </div>
             </div>
 
-            <!-- Formulario de Captura Directa -->
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 max-w-2xl mx-auto">
-                <h2 class="text-base font-bold text-slate-900 mb-4 border-b pb-2 flex items-center gap-2">
-                    <i class="fa-solid fa-pen-to-square text-blue-600"></i> Formulario de Registro
-                </h2>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                <!-- Formulario de Registro de Movimiento y Paciente -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-2">
+                    <h2 class="text-base font-bold text-slate-900 mb-4 border-b pb-2 flex items-center gap-2">
+                        <i class="fa-solid fa-prescription-bottle-medical text-blue-600"></i> Registrar Movimiento / Surtido a Paciente
+                    </h2>
 
-                <form action="/register" method="POST" class="space-y-4">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <form action="/register" method="POST" class="space-y-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Usuario Responsable</label>
+                                <select name="user_id" id="userSelect" required class="w-full p-2.5 border rounded-xl text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+                                    <option value="">Seleccione Usuario...</option>
+                                    {% for u in users %}
+                                        <option value="{{ u.id }}">{{ u.name }} ({{ u.role }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">PIN / Contraseña</label>
+                                <input type="password" name="pin" required placeholder="PIN de Seguridad" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                            </div>
+                        </div>
+
+                        <!-- BUSCADOR -->
                         <div>
-                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Usuario</label>
-                            <select name="user_id" id="userSelect" required class="w-full p-2.5 border rounded-xl text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none">
-                                <option value="">Seleccione Usuario...</option>
-                                {% for u in users %}
-                                    <option value="{{ u.id }}">{{ u.name }} ({{ u.role }})</option>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Insumo / Medicamento (Buscador)</label>
+                            <input list="items_list" name="item_search" required placeholder="Escriba código de barras, clave o nombre..." class="w-full p-2.5 border rounded-xl text-sm bg-blue-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none font-medium">
+                            <datalist id="items_list">
+                                {% for item in items %}
+                                    <option value="{{ item.code }} - {{ item.name }}">General: {{ item.stock_general }} | Quirófano: {{ item.stock_quirofano }}</option>
                                 {% endfor %}
+                            </datalist>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Tipo Movimiento</label>
+                                <select name="type" required class="w-full p-2.5 border rounded-xl text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+                                    <option value="Salida">Salida a Paciente / Servicio</option>
+                                    <option value="Traspaso Qx">Traspaso a Quirófano</option>
+                                    <option value="Entrada">Entrada (Stock)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Almacén Origen</label>
+                                <select name="warehouse" required class="w-full p-2.5 border rounded-xl text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+                                    <option value="Almacén General">Almacén General</option>
+                                    <option value="Quirófano">Quirófano</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Cantidad</label>
+                                <input type="number" min="1" name="quantity" required value="1" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Servicio / Cama</label>
+                                <input type="text" name="service" placeholder="Ej. Urgencias / Cama 4" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                            </div>
+                        </div>
+
+                        <!-- DATOS DEL PACIENTE -->
+                        <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                            <h3 class="text-xs font-bold text-blue-900 uppercase flex items-center gap-1.5">
+                                <i class="fa-solid fa-bed-pulse"></i> Datos del Paciente (Para Surtido)
+                            </h3>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-[11px] font-semibold text-slate-600 mb-1">Nombre Completo del Paciente</label>
+                                    <input type="text" name="patient_name" placeholder="Ej. Juan Pérez López" class="w-full p-2 border rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] font-semibold text-slate-600 mb-1">No. Expediente / Cama</label>
+                                    <input type="text" name="patient_id" placeholder="Ej. EXP-9823 / Cama 12" class="w-full p-2 border rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Notas adicionales</label>
+                            <input type="text" name="notes" placeholder="Observaciones opcionales..." class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+
+                        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-md transition duration-200 flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-check"></i> Guardar Movimiento / Surtido
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Formulario para Alta de Nuevo Medicamento -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1">
+                    <h2 class="text-base font-bold text-slate-900 mb-4 border-b pb-2 flex items-center gap-2">
+                        <i class="fa-solid fa-plus-circle text-emerald-600"></i> Dar de Alta Nuevo Medicamento
+                    </h2>
+
+                    <form action="/add_item" method="POST" class="space-y-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Código / Clave</label>
+                            <input type="text" name="code" required placeholder="Ej. MED-005" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nombre / Descripción</label>
+                            <input type="text" name="name" required placeholder="Ej. Omeprazol 40mg Amp" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Categoría</label>
+                            <select name="category" required class="w-full p-2.5 border rounded-xl text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none">
+                                <option value="Medicamento">Medicamento</option>
+                                <option value="Material Curación">Material Curación</option>
+                                <option value="Solución / Inyectable">Solución / Inyectable</option>
                             </select>
                         </div>
 
-                        <div>
-                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">PIN / Contraseña</label>
-                            <input type="password" name="pin" required placeholder="PIN de Seguridad" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Unidad</label>
+                                <input type="text" name="unit" required value="pza" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Stock Inicial</label>
+                                <input type="number" min="0" name="stock_general" required value="50" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+                            </div>
                         </div>
-                    </div>
 
-                    <!-- BUSCADOR -->
-                    <div>
-                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Insumo / Medicamento (Buscador)</label>
-                        <input list="items_list" name="item_search" required placeholder="Escriba código de barras, clave o nombre..." class="w-full p-2.5 border rounded-xl text-sm bg-blue-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none font-medium">
-                        <datalist id="items_list">
-                            {% for item in items %}
-                                <option value="{{ item.code }} - {{ item.name }}">General: {{ item.stock_general }} | Quirófano: {{ item.stock_quirofano }}</option>
-                            {% endfor %}
-                        </datalist>
-                    </div>
+                        <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl shadow-md transition duration-200 flex items-center justify-center gap-2 mt-2">
+                            <i class="fa-solid fa-box-archive"></i> Registrar Medicamento
+                        </button>
+                    </form>
+                </div>
 
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Tipo Movimiento</label>
-                            <select name="type" required class="w-full p-2.5 border rounded-xl text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none">
-                                <option value="Salida">Salida a Servicio</option>
-                                <option value="Traspaso Qx">Traspaso a Quirófano</option>
-                                <option value="Entrada">Entrada (Stock)</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Almacén</label>
-                            <select name="warehouse" required class="w-full p-2.5 border rounded-xl text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none">
-                                <option value="Almacén General">Almacén General</option>
-                                <option value="Quirófano">Quirófano</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Cantidad</label>
-                            <input type="number" min="1" name="quantity" required value="1" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Servicio / Cama</label>
-                            <input type="text" name="service" placeholder="Ej. Urgencias" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Notas adicionales</label>
-                        <input type="text" name="notes" placeholder="Observaciones opcionales..." class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                    </div>
-
-                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-md transition duration-200 flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-check"></i> Guardar Movimiento
-                    </button>
-                </form>
             </div>
 
         </div>
@@ -269,27 +335,24 @@ HTML_TEMPLATE = """
         {% elif view == 'bitacora' %}
         <!-- PESTAÑA 3: BITÁCORA E HISTÓRICO -->
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-            <div class="mb-6 border-b pb-4 flex justify-between items-center">
-                <div>
-                    <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
-                        <i class="fa-solid fa-clock-rotate-left text-blue-600"></i> Bitácora de Movimientos e Histórico
-                    </h2>
-                    <p class="text-xs text-slate-500">Registro cronológico completo de auditoría.</p>
-                </div>
+            <div class="mb-6 border-b pb-4">
+                <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <i class="fa-solid fa-clock-rotate-left text-blue-600"></i> Bitácora de Movimientos y Surtido a Pacientes
+                </h2>
+                <p class="text-xs text-slate-500">Registro cronológico completo de auditoría.</p>
             </div>
 
             <div class="overflow-x-auto">
                 <table class="w-full text-xs text-left text-slate-600">
                     <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b">
                         <tr>
-                            <th class="p-3">Fecha y Hora</th>
+                            <th class="p-3">Fecha</th>
                             <th class="p-3">Tipo</th>
                             <th class="p-3">Medicamento / Insumo</th>
-                            <th class="p-3 text-center">Cantidad</th>
-                            <th class="p-3">Almacén</th>
+                            <th class="p-3 text-center">Cant.</th>
                             <th class="p-3">Servicio</th>
-                            <th class="p-3">Personal Responsable</th>
-                            <th class="p-3">Notas</th>
+                            <th class="p-3">Paciente / Expediente</th>
+                            <th class="p-3">Responsable</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
@@ -303,10 +366,15 @@ HTML_TEMPLATE = """
                             </td>
                             <td class="p-3 font-semibold text-slate-900">{{ mov.item_name }}</td>
                             <td class="p-3 text-center font-bold text-sm">{{ mov.quantity }}</td>
-                            <td class="p-3 text-slate-600">{{ mov.warehouse }}</td>
-                            <td class="p-3 text-slate-500">{{ mov.service or '-' }}</td>
+                            <td class="p-3 text-slate-600">{{ mov.service or '-' }}</td>
+                            <td class="p-3 font-medium text-slate-900">
+                                {% if mov.patient_name %}
+                                    {{ mov.patient_name }} <span class="text-slate-400 text-[10px]">({{ mov.patient_id or 'S/E' }})</span>
+                                {% else %}
+                                    <span class="text-slate-400">-</span>
+                                {% endif %}
+                            </td>
                             <td class="p-3 text-indigo-900 font-bold">{{ mov.user_name }}</td>
-                            <td class="p-3 text-slate-400 italic">{{ mov.notes or '-' }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -315,13 +383,27 @@ HTML_TEMPLATE = """
         </div>
 
         {% elif view == 'usuarios' %}
-        <!-- PESTAÑA 4: GESTIÓN DE USUARIOS Y PINs -->
+        <!-- PESTAÑA 4: GESTIÓN DE USUARIOS (PROTEGIDA) -->
+        {% if not is_admin %}
+        <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 max-w-md mx-auto text-center">
+            <div class="w-16 h-16 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center text-2xl mx-auto mb-4">
+                <i class="fa-solid fa-lock"></i>
+            </div>
+            <h2 class="text-lg font-bold text-slate-900">Acceso Restringido a Administrador</h2>
+            <p class="text-xs text-slate-500 mt-1 mb-6">Ingrese la contraseña del Administrador para acceder a la gestión de usuarios y contraseñas.</p>
+
+            <form action="/auth_admin" method="POST" class="space-y-4">
+                <input type="password" name="admin_pin" required placeholder="Contraseña de Administrador" class="w-full p-3 border rounded-xl text-center text-lg tracking-widest focus:ring-2 focus:ring-blue-500 outline-none">
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition">
+                    Desbloquear Pestaña
+                </button>
+            </form>
+        </div>
+        {% else %}
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
-            <!-- Crear o Actualizar Contraseña -->
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1">
                 <h2 class="text-base font-bold text-slate-900 mb-4 border-b pb-2 flex items-center gap-2">
-                    <i class="fa-solid fa-user-plus text-blue-600"></i> Registrar o Cambiar PIN
+                    <i class="fa-solid fa-user-plus text-blue-600"></i> Registrar o Modificar Usuario
                 </h2>
 
                 <form action="/save_user" method="POST" class="space-y-4">
@@ -343,7 +425,7 @@ HTML_TEMPLATE = """
 
                     <div>
                         <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Asignar PIN / Contraseña</label>
-                        <input type="password" name="pin" required placeholder="PIN de 4 dígitos" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                        <input type="password" name="pin" required placeholder="PIN numérico" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                     </div>
 
                     <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-md transition duration-200 flex items-center justify-center gap-2">
@@ -352,7 +434,6 @@ HTML_TEMPLATE = """
                 </form>
             </div>
 
-            <!-- Lista de Personal Registrado -->
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-2">
                 <h2 class="text-base font-bold text-slate-900 mb-4 border-b pb-2 flex items-center gap-2">
                     <i class="fa-solid fa-users text-blue-600"></i> Personal Registrado
@@ -365,13 +446,13 @@ HTML_TEMPLATE = """
                             <h4 class="font-bold text-slate-900 text-sm">{{ u.name }}</h4>
                             <p class="text-xs text-slate-500">{{ u.role }}</p>
                         </div>
-                        <span class="text-xs font-mono bg-white px-3 py-1 rounded-lg border text-slate-400 font-semibold">PIN: ****</span>
+                        <span class="text-xs font-mono bg-white px-3 py-1 rounded-lg border text-slate-600 font-semibold">PIN: {{ u.pin }}</span>
                     </div>
                     {% endfor %}
                 </div>
             </div>
-
         </div>
+        {% endif %}
 
         {% elif view == 'etiquetas' %}
         <!-- PESTAÑA 5: ETIQUETAS DU -->
@@ -422,7 +503,39 @@ def bitacora():
 @app.route("/usuarios")
 def usuarios():
     users = User.query.order_by(User.name).all()
-    return render_template_string(HTML_TEMPLATE, view="usuarios", users=users)
+    is_admin = request.args.get("admin") == "true"
+    return render_template_string(HTML_TEMPLATE, view="usuarios", users=users, is_admin=is_admin)
+
+@app.route("/auth_admin", methods=["POST"])
+def auth_admin():
+    admin_pin = request.form.get("admin_pin")
+    admin_user = User.query.filter_by(role="Administrador").first()
+    
+    if admin_user and admin_user.pin == admin_pin:
+        flash("Acceso concedido a la gestión de usuarios.", "success")
+        return redirect(url_for("usuarios", admin="true"))
+    else:
+        flash("Contraseña de Administrador incorrecta.", "error")
+        return redirect(url_for("usuarios"))
+
+@app.route("/add_item", methods=["POST"])
+def add_item():
+    code = request.form.get("code", "").strip().upper()
+    name = request.form.get("name", "").strip()
+    category = request.form.get("category")
+    unit = request.form.get("unit", "pza").strip()
+    stock_general = int(request.form.get("stock_general", 0))
+
+    if Item.query.filter_by(code=code).first():
+        flash("El código o clave ya existe en el inventario.", "error")
+        return redirect(url_for("terminal"))
+
+    new_item = Item(code=code, name=name, category=category, unit=unit, stock_general=stock_general, stock_quirofano=0)
+    db.session.add(new_item)
+    db.session.commit()
+
+    flash(f"Medicamento '{name}' registrado exitosamente con código {code}.", "success")
+    return redirect(url_for("terminal"))
 
 @app.route("/save_user", methods=["POST"])
 def save_user():
@@ -432,7 +545,7 @@ def save_user():
 
     if not name or not pin:
         flash("Complete todos los campos requeridos.", "error")
-        return redirect(url_for("usuarios"))
+        return redirect(url_for("usuarios", admin="true"))
 
     user = User.query.filter_by(name=name).first()
     if user:
@@ -445,7 +558,7 @@ def save_user():
         flash(f"Usuario {name} registrado con éxito.", "success")
     
     db.session.commit()
-    return redirect(url_for("usuarios"))
+    return redirect(url_for("usuarios", admin="true"))
 
 @app.route("/etiquetas")
 def etiquetas():
@@ -460,6 +573,8 @@ def register_movement():
     warehouse = request.form.get("warehouse")
     quantity = int(request.form.get("quantity", 1))
     service = request.form.get("service")
+    patient_name = request.form.get("patient_name")
+    patient_id = request.form.get("patient_id")
     notes = request.form.get("notes")
 
     user = User.query.get(user_id)
@@ -506,13 +621,15 @@ def register_movement():
         quantity=quantity,
         warehouse=warehouse,
         service=service,
+        patient_name=patient_name,
+        patient_id=patient_id,
         user_name=user.name,
         notes=notes
     )
     db.session.add(mov)
     db.session.commit()
 
-    flash("Movimiento guardado exitosamente.", "success")
+    flash("Movimiento / Surtido registrado guardado exitosamente.", "success")
     return redirect(url_for("terminal"))
 
 # -----------------------------------------------------------------------------
