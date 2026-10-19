@@ -36,6 +36,8 @@ class Item(db.Model):
     category = db.Column(db.String(50), nullable=False)
     via_administracion = db.Column(db.String(50), nullable=True)
     presentacion = db.Column(db.String(50), nullable=True)
+    lote = db.Column(db.String(50), nullable=True)
+    caducidad = db.Column(db.String(20), nullable=True)
     stock_general = db.Column(db.Integer, default=0)
     stock_quirofano = db.Column(db.Integer, default=0)
     unit = db.Column(db.String(20), default="pza")
@@ -55,7 +57,7 @@ class Movement(db.Model):
     notes = db.Column(db.String(200), nullable=True)
 
 # -----------------------------------------------------------------------------
-# PLANTILLA HTML INTEGRADA CON BUSCADOR EN TIEMPO REAL
+# PLANTILLA HTML INTEGRADA
 # -----------------------------------------------------------------------------
 
 HTML_TEMPLATE = """
@@ -176,7 +178,7 @@ HTML_TEMPLATE = """
                             <input list="items_list" name="item_search" required placeholder="Escriba código de barras, clave o nombre..." class="w-full p-2.5 border rounded-xl text-sm bg-blue-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none font-medium">
                             <datalist id="items_list">
                                 {% for item in items %}
-                                    <option value="{{ item.code }} - {{ item.name }}">General: {{ item.stock_general }} | Quirófano: {{ item.stock_quirofano }}</option>
+                                    <option value="{{ item.code }} - {{ item.name }}">Gen: {{ item.stock_general }} | Qx: {{ item.stock_quirofano }} | Lote: {{ item.lote or 'S/L' }}</option>
                                 {% endfor %}
                             </datalist>
                         </div>
@@ -238,7 +240,7 @@ HTML_TEMPLATE = """
                     </form>
                 </div>
 
-                <!-- Formulario para Alta de Nuevo Medicamento -->
+                <!-- Formulario para Alta de Nuevo Medicamento (Con Lote y Caducidad) -->
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1">
                     <h2 class="text-base font-bold text-slate-900 mb-4 border-b pb-2 flex items-center gap-2">
                         <i class="fa-solid fa-plus-circle text-emerald-600"></i> Dar de Alta Nuevo Medicamento
@@ -297,6 +299,18 @@ HTML_TEMPLATE = """
                             </div>
                         </div>
 
+                        <!-- NUEVOS CAMPOS: LOTE Y CADUCIDAD -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Lote</label>
+                                <input type="text" name="lote" placeholder="Ej. LOT-2026-X" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Fecha Caducidad</label>
+                                <input type="date" name="caducidad" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+                            </div>
+                        </div>
+
                         <div class="grid grid-cols-2 gap-2">
                             <div>
                                 <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Unidad</label>
@@ -319,20 +333,19 @@ HTML_TEMPLATE = """
         </div>
 
         {% elif view == 'inventario' %}
-        <!-- PESTAÑA 2: INVENTARIO COMPLETO CON BUSCADOR EN TIEMPO REAL -->
+        <!-- PESTAÑA 2: INVENTARIO CON MODIFICACIÓN DE INSUMOS -->
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
             <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-6 border-b pb-4">
                 <div>
                     <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
-                        <i class="fa-solid fa-boxes-stacked text-blue-600"></i> Stock General de Inventario
+                        <i class="fa-solid fa-boxes-stacked text-blue-600"></i> Stock General y Edición de Inventario
                     </h2>
-                    <p class="text-xs text-slate-500">Existencias en tiempo real por almacén.</p>
+                    <p class="text-xs text-slate-500">Existencias en tiempo real por almacén y edición de datos.</p>
                 </div>
 
-                <!-- BUSCADOR DE INSUMOS -->
                 <div class="w-full md:w-80 relative">
                     <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-sm"></i>
-                    <input type="text" id="inventorySearch" onkeyup="filterInventory()" placeholder="Buscar por código, nombre o vía..." class="w-full pl-10 pr-4 py-2 border rounded-xl text-xs bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none font-medium">
+                    <input type="text" id="inventorySearch" onkeyup="filterInventory()" placeholder="Buscar por código, nombre, lote..." class="w-full pl-10 pr-4 py-2 border rounded-xl text-xs bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none font-medium">
                 </div>
             </div>
 
@@ -343,22 +356,29 @@ HTML_TEMPLATE = """
                             <th class="p-3">Código</th>
                             <th class="p-3">Descripción</th>
                             <th class="p-3">Categoría / Presentación</th>
-                            <th class="p-3">Vía Administr.</th>
-                            <th class="p-3 text-center">Almacén General</th>
-                            <th class="p-3 text-center">Subalmacén Quirófano</th>
+                            <th class="p-3">Lote / Caducidad</th>
+                            <th class="p-3 text-center">General</th>
+                            <th class="p-3 text-center">Quirófano</th>
+                            <th class="p-3 text-center">Acción</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
                         {% for item in items %}
                         <tr class="hover:bg-slate-50 transition inventory-row">
                             <td class="p-3 font-mono text-xs font-bold text-blue-900 col-code">{{ item.code }}</td>
-                            <td class="p-3 font-bold text-slate-900 col-name">{{ item.name }}</td>
+                            <td class="p-3 font-bold text-slate-900 col-name">
+                                {{ item.name }}
+                                <span class="block text-[11px] text-slate-400 font-normal">Vía: {{ item.via_administracion or 'N/A' }}</span>
+                            </td>
                             <td class="p-3 col-cat">
                                 <span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
                                     {{ item.category }} {% if item.presentacion %}({{ item.presentacion }}){% endif %}
                                 </span>
                             </td>
-                            <td class="p-3 text-xs font-semibold text-slate-700 col-via">{{ item.via_administracion or 'N/A' }}</td>
+                            <td class="p-3 text-xs text-slate-600">
+                                <span class="font-medium text-slate-800">Lote: {{ item.lote or 'S/L' }}</span>
+                                <span class="block text-[10px] text-slate-400">Cad: {{ item.caducidad or 'S/F' }}</span>
+                            </td>
                             <td class="p-3 text-center">
                                 <span class="px-3 py-1 rounded-full text-xs font-bold {% if item.stock_general < 10 %}bg-rose-100 text-rose-700{% else %}bg-emerald-100 text-emerald-800{% endif %}">
                                     {{ item.stock_general }} {{ item.unit }}
@@ -369,10 +389,95 @@ HTML_TEMPLATE = """
                                     {{ item.stock_quirofano }} {{ item.unit }}
                                 </span>
                             </td>
+                            <td class="p-3 text-center">
+                                <button onclick="openEditModal('{{ item.id }}', '{{ item.code }}', '{{ item.name }}', '{{ item.category }}', '{{ item.via_administracion or '' }}', '{{ item.presentacion or '' }}', '{{ item.lote or '' }}', '{{ item.caducidad or '' }}', '{{ item.unit }}', '{{ item.stock_general }}', '{{ item.stock_quirofano }}')" class="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold transition shadow-sm flex items-center gap-1 mx-auto">
+                                    <i class="fa-solid fa-pen"></i> Editar
+                                </button>
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
+            </div>
+        </div>
+
+        <!-- MODAL DE EDICIÓN DE INSUMO -->
+        <div id="editModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+            <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto">
+                <div class="flex justify-between items-center mb-4 border-b pb-2">
+                    <h3 class="font-bold text-lg text-slate-900 flex items-center gap-2">
+                        <i class="fa-solid fa-pen-to-square text-amber-500"></i> Modificar Insumo
+                    </h3>
+                    <button onclick="closeEditModal()" class="text-slate-400 hover:text-slate-600 text-lg">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <form action="/update_item" method="POST" class="space-y-3">
+                    <input type="hidden" name="item_id" id="edit_item_id">
+                    
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Código</label>
+                            <input type="text" name="code" id="edit_code" required class="w-full p-2 border rounded-xl text-xs font-mono font-bold bg-slate-50">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Categoría</label>
+                            <select name="category" id="edit_category" required class="w-full p-2 border rounded-xl text-xs bg-slate-50">
+                                <option value="Medicamento">Medicamento</option>
+                                <option value="Material Curación">Material Curación</option>
+                                <option value="Solución / Inyectable">Solución / Inyectable</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nombre / Descripción</label>
+                        <input type="text" name="name" id="edit_name" required class="w-full p-2 border rounded-xl text-xs font-bold">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Vía Administr.</label>
+                            <input type="text" name="via_administracion" id="edit_via" class="w-full p-2 border rounded-xl text-xs">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Presentación</label>
+                            <input type="text" name="presentacion" id="edit_presentacion" class="w-full p-2 border rounded-xl text-xs">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Lote</label>
+                            <input type="text" name="lote" id="edit_lote" class="w-full p-2 border rounded-xl text-xs">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Fecha Caducidad</label>
+                            <input type="date" name="caducidad" id="edit_caducidad" class="w-full p-2 border rounded-xl text-xs">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Unidad</label>
+                            <input type="text" name="unit" id="edit_unit" required class="w-full p-2 border rounded-xl text-xs">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Stock General</label>
+                            <input type="number" name="stock_general" id="edit_stock_general" required class="w-full p-2 border rounded-xl text-xs font-bold">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Stock Quirófano</label>
+                            <input type="number" name="stock_quirofano" id="edit_stock_quirofano" required class="w-full p-2 border rounded-xl text-xs font-bold">
+                        </div>
+                    </div>
+
+                    <div class="flex gap-2 pt-3">
+                        <button type="button" onclick="closeEditModal()" class="w-1/2 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition">Cancelar</button>
+                        <button type="submit" class="w-1/2 py-2 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl text-xs transition">Guardar Cambios</button>
+                    </div>
+                </form>
             </div>
         </div>
 
@@ -520,7 +625,6 @@ HTML_TEMPLATE = """
             if(elem) elem.value = id;
         }
 
-        // Buscador dinámico para la tabla de inventario
         function filterInventory() {
             var input = document.getElementById("inventorySearch");
             var filter = input.value.toLowerCase();
@@ -534,6 +638,25 @@ HTML_TEMPLATE = """
                     rows[i].style.display = "none";
                 }
             }
+        }
+
+        function openEditModal(id, code, name, category, via, presentacion, lote, caducidad, unit, general, quirofano) {
+            document.getElementById('edit_item_id').value = id;
+            document.getElementById('edit_code').value = code;
+            document.getElementById('edit_name').value = name;
+            document.getElementById('edit_category').value = category;
+            document.getElementById('edit_via').value = via;
+            document.getElementById('edit_presentacion').value = presentacion;
+            document.getElementById('edit_lote').value = lote;
+            document.getElementById('edit_caducidad').value = caducidad;
+            document.getElementById('edit_unit').value = unit;
+            document.getElementById('edit_stock_general').value = general;
+            document.getElementById('edit_stock_quirofano').value = quirofano;
+            document.getElementById('editModal').classList.remove('hidden');
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').classList.add('hidden');
         }
     </script>
 </body>
@@ -586,6 +709,8 @@ def add_item():
     category = request.form.get("category")
     via_administracion = request.form.get("via_administracion")
     presentacion = request.form.get("presentacion")
+    lote = request.form.get("lote", "").strip()
+    caducidad = request.form.get("caducidad", "").strip()
     unit = request.form.get("unit", "pza").strip()
     stock_general = int(request.form.get("stock_general", 0))
 
@@ -599,6 +724,8 @@ def add_item():
         category=category, 
         via_administracion=via_administracion,
         presentacion=presentacion,
+        lote=lote,
+        caducidad=caducidad,
         unit=unit, 
         stock_general=stock_general, 
         stock_quirofano=0
@@ -608,6 +735,29 @@ def add_item():
 
     flash(f"Medicamento '{name}' registrado exitosamente con código {code}.", "success")
     return redirect(url_for("terminal"))
+
+@app.route("/update_item", methods=["POST"])
+def update_item():
+    item_id = request.form.get("item_id")
+    item = Item.query.get(item_id)
+    if not item:
+        flash("Insumo no encontrado.", "error")
+        return redirect(url_for("inventario"))
+
+    item.code = request.form.get("code", "").strip().upper()
+    item.name = request.form.get("name", "").strip()
+    item.category = request.form.get("category")
+    item.via_administracion = request.form.get("via_administracion")
+    item.presentacion = request.form.get("presentacion")
+    item.lote = request.form.get("lote", "").strip()
+    item.caducidad = request.form.get("caducidad", "").strip()
+    item.unit = request.form.get("unit", "pza").strip()
+    item.stock_general = int(request.form.get("stock_general", 0))
+    item.stock_quirofano = int(request.form.get("stock_quirofano", 0))
+
+    db.session.commit()
+    flash(f"Insumo '{item.name}' actualizado correctamente.", "success")
+    return redirect(url_for("inventario"))
 
 @app.route("/save_user", methods=["POST"])
 def save_user():
@@ -718,6 +868,8 @@ def seed_database():
             db.session.execute(text("ALTER TABLE movement ADD COLUMN IF NOT EXISTS patient_id VARCHAR(50);"))
             db.session.execute(text("ALTER TABLE item ADD COLUMN IF NOT EXISTS via_administracion VARCHAR(50);"))
             db.session.execute(text("ALTER TABLE item ADD COLUMN IF NOT EXISTS presentacion VARCHAR(50);"))
+            db.session.execute(text("ALTER TABLE item ADD COLUMN IF NOT EXISTS lote VARCHAR(50);"))
+            db.session.execute(text("ALTER TABLE item ADD COLUMN IF NOT EXISTS caducidad VARCHAR(20);"))
             db.session.commit()
         except Exception:
             db.session.rollback()
@@ -734,11 +886,11 @@ def seed_database():
 
         if Item.query.count() == 0:
             items_list = [
-                Item(code="MED-001", name="Paracetamol 500mg Tab", category="Medicamento", via_administracion="Oral", presentacion="Tableta", stock_general=150, stock_quirofano=20),
-                Item(code="MED-002", name="Propofol 200mg/20ml Amp", category="Medicamento", via_administracion="Intravenosa", presentacion="Ampolleta", stock_general=40, stock_quirofano=15),
-                Item(code="MED-003", name="Fentanilo 0.5mg/10ml Amp", category="Medicamento", via_administracion="Intravenosa", presentacion="Ampolleta", stock_general=30, stock_quirofano=10),
-                Item(code="MAT-001", name="Jeringa 10ml c/Aguja", category="Material Curación", via_administracion="N/A", presentacion="Otro", stock_general=300, stock_quirofano=50),
-                Item(code="MAT-002", name="Equipo Venoclisis Normogotero", category="Material Curación", via_administracion="N/A", presentacion="Otro", stock_general=100, stock_quirofano=25)
+                Item(code="MED-001", name="Paracetamol 500mg Tab", category="Medicamento", via_administracion="Oral", presentacion="Tableta", lote="LOT-9821", caducidad="2027-12-31", stock_general=150, stock_quirofano=20),
+                Item(code="MED-002", name="Propofol 200mg/20ml Amp", category="Medicamento", via_administracion="Intravenosa", presentacion="Ampolleta", lote="LOT-4410", caducidad="2027-08-15", stock_general=40, stock_quirofano=15),
+                Item(code="MED-003", name="Fentanilo 0.5mg/10ml Amp", category="Medicamento", via_administracion="Intravenosa", presentacion="Ampolleta", lote="LOT-1102", caducidad="2026-11-20", stock_general=30, stock_quirofano=10),
+                Item(code="MAT-001", name="Jeringa 10ml c/Aguja", category="Material Curación", via_administracion="N/A", presentacion="Otro", lote="LOT-0012", caducidad="2028-05-01", stock_general=300, stock_quirofano=50),
+                Item(code="MAT-002", name="Equipo Venoclisis Normogotero", category="Material Curación", via_administracion="N/A", presentacion="Otro", lote="LOT-0099", caducidad="2028-01-10", stock_general=100, stock_quirofano=25)
             ]
             db.session.add_all(items_list)
 
