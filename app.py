@@ -6,42 +6,6 @@ from flask_sqlalchemy import SQLAlchemy
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "farmacia_secret_key_123")
 
-# Configuración de Base de Datos PostgreSQL / SQLite
-db_url = os.environ.get("DATABASE_URL", "sqlite:///farmacia.db")
-if db_url.startswith("postgres://"):
-    db_url = db_url.replace("postgres://", "postgresql://", 1)
-
-app.config["SQLALCHEMY_DATABASE_URI"] = db_url
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-
-db = SQLAlchemy(app)
-
-# -----------------------------------------------------------------------------
-# MODELOS DE BASE DE DATOS
-# -----------------------------------------------------------------------------
-
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    role = db.Column(db.¡Con gusto! Vamos a actualizar el programa con los dos primeros requerimientos y dejar la estructura lista para cuando agreguemos las etiquetas:
-
-1. **Buscador interactivo en la captura de insumos:** Se integra un campo de texto/búsqueda con sugerencias automáticas (HTML `<datalist>`) para que el usuario pueda escribir la clave, el código de barras o el nombre del insumo y seleccionarlo fácilmente sin depender solo del escáner.
-2. **Restricción de vistas (Movimientos y Bitácora):** La sección de auditoría/bitácora y reporte de movimientos queda visible **únicamente para usuarios con rol de Administrador / Farmacéutico Titular**, protegiendo la información sensible del personal general.
-3. **Pestaña para Generación de Etiquetas:** Se agrega la nueva sección/pestaña *"Etiquetas DU"* en la interfaz para conectar la plantilla posteriormente.
-
----
-
-### Código actualizado de `app.py`:
-
-```python
-import os
-from datetime import datetime
-from flask import Flask, render_template_string, request, redirect, url_for, flash
-from flask_sqlalchemy import SQLAlchemy
-
-app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "farmacia_secret_key_123")
-
 # Configuración de Base de Datos
 db_url = os.environ.get("DATABASE_URL", "sqlite:///farmacia.db")
 if db_url.startswith("postgres://"):
@@ -94,7 +58,7 @@ HTML_TEMPLATE = """
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Farmacia Hospitalaria - Control e Inventario</title>
-    <script src="[https://cdn.tailwindcss.com](https://cdn.tailwindcss.com)"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 min-h-screen text-gray-800">
     
