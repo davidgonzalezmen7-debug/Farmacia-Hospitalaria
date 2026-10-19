@@ -34,6 +34,8 @@ class Item(db.Model):
     code = db.Column(db.String(50), unique=True, nullable=False)
     name = db.Column(db.String(150), nullable=False)
     category = db.Column(db.String(50), nullable=False)
+    via_administracion = db.Column(db.String(50), nullable=True)
+    presentacion = db.Column(db.String(50), nullable=True)
     stock_general = db.Column(db.Integer, default=0)
     stock_quirofano = db.Column(db.Integer, default=0)
     unit = db.Column(db.String(20), default="pza")
@@ -53,7 +55,7 @@ class Movement(db.Model):
     notes = db.Column(db.String(200), nullable=True)
 
 # -----------------------------------------------------------------------------
-# PLANTILLA HTML INTEGRADA CON SECCIONES SEGURAS
+# PLANTILLA HTML INTEGRADA CON BUSCADOR EN TIEMPO REAL
 # -----------------------------------------------------------------------------
 
 HTML_TEMPLATE = """
@@ -120,6 +122,7 @@ HTML_TEMPLATE = """
         <!-- PESTAÑA 1: CAPTURA Y SURTIDO -->
         <div class="space-y-6">
             
+            <!-- Seleccionar Personal -->
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                 <div class="mb-4">
                     <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -167,7 +170,7 @@ HTML_TEMPLATE = """
                             </div>
                         </div>
 
-                        <!-- BUSCADOR -->
+                        <!-- BUSCADOR PARA SURTIDO -->
                         <div>
                             <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Insumo / Medicamento (Buscador)</label>
                             <input list="items_list" name="item_search" required placeholder="Escriba código de barras, clave o nombre..." class="w-full p-2.5 border rounded-xl text-sm bg-blue-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none font-medium">
@@ -249,7 +252,7 @@ HTML_TEMPLATE = """
 
                         <div>
                             <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nombre / Descripción</label>
-                            <input type="text" name="name" required placeholder="Ej. Omeprazol 40mg Amp" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+                            <input type="text" name="name" required placeholder="Ej. Omeprazol 40mg" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
                         </div>
 
                         <div>
@@ -259,6 +262,39 @@ HTML_TEMPLATE = """
                                 <option value="Material Curación">Material Curación</option>
                                 <option value="Solución / Inyectable">Solución / Inyectable</option>
                             </select>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Vía Administr.</label>
+                                <select name="via_administracion" required class="w-full p-2.5 border rounded-xl text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none">
+                                    <option value="Oral">Oral</option>
+                                    <option value="Intravenosa">Intravenosa (IV)</option>
+                                    <option value="Intramuscular">Intramuscular (IM)</option>
+                                    <option value="Subcutánea">Subcutánea</option>
+                                    <option value="Tópica">Tópica</option>
+                                    <option value="Oftálmica">Oftálmica</option>
+                                    <option value="Nasal">Nasal</option>
+                                    <option value="Inhalatoria">Inhalatoria</option>
+                                    <option value="Sublingual">Sublingual</option>
+                                    <option value="Otra">Otra</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Presentación</label>
+                                <select name="presentacion" required class="w-full p-2.5 border rounded-xl text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none">
+                                    <option value="Tableta">Tableta</option>
+                                    <option value="Cápsula">Cápsula</option>
+                                    <option value="Ampolleta">Ampolleta</option>
+                                    <option value="Frasco Ámpula">Frasco Ámpula</option>
+                                    <option value="Solución">Solución</option>
+                                    <option value="Jarabe">Jarabe</option>
+                                    <option value="Crema">Crema</option>
+                                    <option value="Ungüento">Ungüento</option>
+                                    <option value="Parche">Parche</option>
+                                    <option value="Otro">Otro</option>
+                                </select>
+                            </div>
                         </div>
 
                         <div class="grid grid-cols-2 gap-2">
@@ -272,7 +308,7 @@ HTML_TEMPLATE = """
                             </div>
                         </div>
 
-                        <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl shadow-md transition duration-200 flex items-center justify-center gap-2 mt-2">
+                        <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl shadow-md transition duration-200 flex items-center justify-center gap-2 mt-4">
                             <i class="fa-solid fa-box-archive"></i> Registrar Medicamento
                         </button>
                     </form>
@@ -283,7 +319,7 @@ HTML_TEMPLATE = """
         </div>
 
         {% elif view == 'inventario' %}
-        <!-- PESTAÑA 2: INVENTARIO COMPLETO -->
+        <!-- PESTAÑA 2: INVENTARIO COMPLETO CON BUSCADOR EN TIEMPO REAL -->
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
             <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-6 border-b pb-4">
                 <div>
@@ -292,29 +328,37 @@ HTML_TEMPLATE = """
                     </h2>
                     <p class="text-xs text-slate-500">Existencias en tiempo real por almacén.</p>
                 </div>
+
+                <!-- BUSCADOR DE INSUMOS -->
+                <div class="w-full md:w-80 relative">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-sm"></i>
+                    <input type="text" id="inventorySearch" onkeyup="filterInventory()" placeholder="Buscar por código, nombre o vía..." class="w-full pl-10 pr-4 py-2 border rounded-xl text-xs bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none font-medium">
+                </div>
             </div>
 
             <div class="overflow-x-auto">
-                <table class="w-full text-sm text-left text-slate-600">
+                <table class="w-full text-sm text-left text-slate-600" id="inventoryTable">
                     <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b">
                         <tr>
                             <th class="p-3">Código</th>
                             <th class="p-3">Descripción</th>
-                            <th class="p-3">Categoría</th>
+                            <th class="p-3">Categoría / Presentación</th>
+                            <th class="p-3">Vía Administr.</th>
                             <th class="p-3 text-center">Almacén General</th>
                             <th class="p-3 text-center">Subalmacén Quirófano</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
                         {% for item in items %}
-                        <tr class="hover:bg-slate-50 transition">
-                            <td class="p-3 font-mono text-xs font-bold text-blue-900">{{ item.code }}</td>
-                            <td class="p-3 font-bold text-slate-900">{{ item.name }}</td>
-                            <td class="p-3">
+                        <tr class="hover:bg-slate-50 transition inventory-row">
+                            <td class="p-3 font-mono text-xs font-bold text-blue-900 col-code">{{ item.code }}</td>
+                            <td class="p-3 font-bold text-slate-900 col-name">{{ item.name }}</td>
+                            <td class="p-3 col-cat">
                                 <span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
-                                    {{ item.category }}
+                                    {{ item.category }} {% if item.presentacion %}({{ item.presentacion }}){% endif %}
                                 </span>
                             </td>
+                            <td class="p-3 text-xs font-semibold text-slate-700 col-via">{{ item.via_administracion or 'N/A' }}</td>
                             <td class="p-3 text-center">
                                 <span class="px-3 py-1 rounded-full text-xs font-bold {% if item.stock_general < 10 %}bg-rose-100 text-rose-700{% else %}bg-emerald-100 text-emerald-800{% endif %}">
                                     {{ item.stock_general }} {{ item.unit }}
@@ -349,328 +393,4 @@ HTML_TEMPLATE = """
                             <th class="p-3">Fecha</th>
                             <th class="p-3">Tipo</th>
                             <th class="p-3">Medicamento / Insumo</th>
-                            <th class="p-3 text-center">Cant.</th>
-                            <th class="p-3">Servicio</th>
-                            <th class="p-3">Paciente / Expediente</th>
-                            <th class="p-3">Responsable</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100">
-                        {% for mov in movements %}
-                        <tr class="hover:bg-slate-50">
-                            <td class="p-3 text-slate-400 font-mono">{{ mov.timestamp.strftime('%d/%m/%Y %H:%M') if mov.timestamp else 'N/A' }}</td>
-                            <td class="p-3 font-bold text-slate-800">
-                                <span class="px-2 py-0.5 rounded text-[10px] uppercase font-bold {% if mov.type == 'Entrada' %}bg-emerald-100 text-emerald-800{% elif mov.type == 'Salida' %}bg-rose-100 text-rose-800{% else %}bg-blue-100 text-blue-800{% endif %}">
-                                    {{ mov.type }}
-                                </span>
-                            </td>
-                            <td class="p-3 font-semibold text-slate-900">{{ mov.item_name }}</td>
-                            <td class="p-3 text-center font-bold text-sm">{{ mov.quantity }}</td>
-                            <td class="p-3 text-slate-600">{{ mov.service or '-' }}</td>
-                            <td class="p-3 font-medium text-slate-900">
-                                {% if mov.patient_name %}
-                                    {{ mov.patient_name }} <span class="text-slate-400 text-[10px]">({{ mov.patient_id or 'S/E' }})</span>
-                                {% else %}
-                                    <span class="text-slate-400">-</span>
-                                {% endif %}
-                            </td>
-                            <td class="p-3 text-indigo-900 font-bold">{{ mov.user_name }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        {% elif view == 'usuarios' %}
-        <!-- PESTAÑA 4: GESTIÓN DE USUARIOS (PROTEGIDA) -->
-        {% if not is_admin %}
-        <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 max-w-md mx-auto text-center">
-            <div class="w-16 h-16 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center text-2xl mx-auto mb-4">
-                <i class="fa-solid fa-lock"></i>
-            </div>
-            <h2 class="text-lg font-bold text-slate-900">Acceso Restringido a Administrador</h2>
-            <p class="text-xs text-slate-500 mt-1 mb-6">Ingrese la contraseña del Administrador para acceder a la gestión de usuarios y contraseñas.</p>
-
-            <form action="/auth_admin" method="POST" class="space-y-4">
-                <input type="password" name="admin_pin" required placeholder="Contraseña de Administrador" class="w-full p-3 border rounded-xl text-center text-lg tracking-widest focus:ring-2 focus:ring-blue-500 outline-none">
-                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition">
-                    Desbloquear Pestaña
-                </button>
-            </form>
-        </div>
-        {% else %}
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1">
-                <h2 class="text-base font-bold text-slate-900 mb-4 border-b pb-2 flex items-center gap-2">
-                    <i class="fa-solid fa-user-plus text-blue-600"></i> Registrar o Modificar Usuario
-                </h2>
-
-                <form action="/save_user" method="POST" class="space-y-4">
-                    <div>
-                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nombre Completo</label>
-                        <input type="text" name="name" required placeholder="Ej. Dr. Juan Pérez" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Rol / Cargo</label>
-                        <select name="role" required class="w-full p-2.5 border rounded-xl text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none">
-                            <option value="Enfermería Quirófano">Enfermería Quirófano</option>
-                            <option value="Enfermería Urgencias">Enfermería Urgencias</option>
-                            <option value="Médico Anestesiólogo">Médico Anestesiólogo</option>
-                            <option value="Farmacéutico">Farmacéutico</option>
-                            <option value="Administrador">Administrador</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Asignar PIN / Contraseña</label>
-                        <input type="password" name="pin" required placeholder="PIN numérico" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                    </div>
-
-                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-md transition duration-200 flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-user-check"></i> Guardar Usuario y PIN
-                    </button>
-                </form>
-            </div>
-
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-2">
-                <h2 class="text-base font-bold text-slate-900 mb-4 border-b pb-2 flex items-center gap-2">
-                    <i class="fa-solid fa-users text-blue-600"></i> Personal Registrado
-                </h2>
-                
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {% for u in users %}
-                    <div class="p-4 rounded-xl border border-slate-100 bg-slate-50 flex items-center justify-between">
-                        <div>
-                            <h4 class="font-bold text-slate-900 text-sm">{{ u.name }}</h4>
-                            <p class="text-xs text-slate-500">{{ u.role }}</p>
-                        </div>
-                        <span class="text-xs font-mono bg-white px-3 py-1 rounded-lg border text-slate-600 font-semibold">PIN: {{ u.pin }}</span>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-        {% endif %}
-
-        {% elif view == 'etiquetas' %}
-        <!-- PESTAÑA 5: ETIQUETAS DU -->
-        <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 text-center">
-            <h2 class="text-xl font-bold text-slate-900 mb-2 flex items-center justify-center gap-2">
-                <i class="fa-solid fa-tags text-blue-600"></i> Módulo de Impresión de Etiquetas DU
-            </h2>
-            <p class="text-xs text-slate-500 max-w-md mx-auto mb-6">Módulo listo para vincular la plantilla de impresión de medicamentos en formato Dosis Unitaria.</p>
-            <div class="p-8 bg-blue-50 rounded-2xl border-2 border-dashed border-blue-200 inline-block">
-                <i class="fa-solid fa-print text-4xl text-blue-500 mb-2"></i>
-                <p class="text-sm font-bold text-slate-700">Impresión Estándar Configurada</p>
-            </div>
-        </div>
-        {% endif %}
-
-    </main>
-
-    <script>
-        function selectUser(id) {
-            document.getElementById('userSelect').value = id;
-        }
-    </script>
-</body>
-</html>
-"""
-
-# -----------------------------------------------------------------------------
-# RUTAS DE LA APLICACIÓN
-# -----------------------------------------------------------------------------
-
-@app.route("/")
-@app.route("/terminal")
-def terminal():
-    items = Item.query.order_by(Item.name).all()
-    users = User.query.order_by(User.name).all()
-    return render_template_string(HTML_TEMPLATE, view="terminal", items=items, users=users)
-
-@app.route("/inventario")
-def inventario():
-    items = Item.query.order_by(Item.name).all()
-    return render_template_string(HTML_TEMPLATE, view="inventario", items=items)
-
-@app.route("/bitacora")
-def bitacora():
-    movements = Movement.query.order_by(Movement.timestamp.desc()).all()
-    return render_template_string(HTML_TEMPLATE, view="bitacora", movements=movements)
-
-@app.route("/usuarios")
-def usuarios():
-    users = User.query.order_by(User.name).all()
-    is_admin = request.args.get("admin") == "true"
-    return render_template_string(HTML_TEMPLATE, view="usuarios", users=users, is_admin=is_admin)
-
-@app.route("/auth_admin", methods=["POST"])
-def auth_admin():
-    admin_pin = request.form.get("admin_pin")
-    admin_user = User.query.filter_by(role="Administrador").first()
-    
-    if admin_pin == "5678" or (admin_user and admin_user.pin == admin_pin):
-        flash("Acceso concedido a la gestión de usuarios.", "success")
-        return redirect(url_for("usuarios", admin="true"))
-    else:
-        flash("Contraseña de Administrador incorrecta.", "error")
-        return redirect(url_for("usuarios"))
-
-@app.route("/add_item", methods=["POST"])
-def add_item():
-    code = request.form.get("code", "").strip().upper()
-    name = request.form.get("name", "").strip()
-    category = request.form.get("category")
-    unit = request.form.get("unit", "pza").strip()
-    stock_general = int(request.form.get("stock_general", 0))
-
-    if Item.query.filter_by(code=code).first():
-        flash("El código o clave ya existe en el inventario.", "error")
-        return redirect(url_for("terminal"))
-
-    new_item = Item(code=code, name=name, category=category, unit=unit, stock_general=stock_general, stock_quirofano=0)
-    db.session.add(new_item)
-    db.session.commit()
-
-    flash(f"Medicamento '{name}' registrado exitosamente con código {code}.", "success")
-    return redirect(url_for("terminal"))
-
-@app.route("/save_user", methods=["POST"])
-def save_user():
-    name = request.form.get("name", "").strip()
-    role = request.form.get("role")
-    pin = request.form.get("pin", "").strip()
-
-    if not name or not pin:
-        flash("Complete todos los campos requeridos.", "error")
-        return redirect(url_for("usuarios", admin="true"))
-
-    user = User.query.filter_by(name=name).first()
-    if user:
-        user.role = role
-        user.pin = pin
-        flash(f"PIN/Contraseña actualizada para {name}.", "success")
-    else:
-        new_user = User(name=name, role=role, pin=pin)
-        db.session.add(new_user)
-        flash(f"Usuario {name} registrado con éxito.", "success")
-    
-    db.session.commit()
-    return redirect(url_for("usuarios", admin="true"))
-
-@app.route("/etiquetas")
-def etiquetas():
-    return render_template_string(HTML_TEMPLATE, view="etiquetas")
-
-@app.route("/register", methods=["POST"])
-def register_movement():
-    user_id = request.form.get("user_id")
-    pin = request.form.get("pin")
-    item_search = request.form.get("item_search", "").strip()
-    mov_type = request.form.get("type")
-    warehouse = request.form.get("warehouse")
-    quantity = int(request.form.get("quantity", 1))
-    service = request.form.get("service")
-    patient_name = request.form.get("patient_name")
-    patient_id = request.form.get("patient_id")
-    notes = request.form.get("notes")
-
-    user = User.query.get(user_id)
-    if not user or user.pin != pin:
-        flash("PIN o contraseña de usuario incorrecta.", "error")
-        return redirect(url_for("terminal"))
-
-    item_code = item_search.split(" - ")[0] if " - " in item_search else item_search
-    item = Item.query.filter((Item.code == item_code) | (Item.name.ilike(f"%{item_search}%"))).first()
-
-    if not item:
-        flash("Insumo no encontrado. Seleccione una opción válida del buscador.", "error")
-        return redirect(url_for("terminal"))
-
-    if mov_type == "Entrada":
-        if warehouse == "Almacén General":
-            item.stock_general += quantity
-        else:
-            item.stock_quirofano += quantity
-
-    elif mov_type == "Salida":
-        if warehouse == "Almacén General":
-            if item.stock_general < quantity:
-                flash(f"Stock insuficiente en Almacén General ({item.stock_general} disponibles).", "error")
-                return redirect(url_for("terminal"))
-            item.stock_general -= quantity
-        else:
-            if item.stock_quirofano < quantity:
-                flash(f"Stock insuficiente en Quirófano ({item.stock_quirofano} disponibles).", "error")
-                return redirect(url_for("terminal"))
-            item.stock_quirofano -= quantity
-
-    elif mov_type == "Traspaso Qx":
-        if item.stock_general < quantity:
-            flash("Stock insuficiente en Almacén General para el traspaso.", "error")
-            return redirect(url_for("terminal"))
-        item.stock_general -= quantity
-        item.stock_quirofano += quantity
-
-    mov = Movement(
-        item_code=item.code,
-        item_name=item.name,
-        type=mov_type,
-        quantity=quantity,
-        warehouse=warehouse,
-        service=service,
-        patient_name=patient_name,
-        patient_id=patient_id,
-        user_name=user.name,
-        notes=notes
-    )
-    db.session.add(mov)
-    db.session.commit()
-
-    flash("Movimiento / Surtido registrado guardado exitosamente.", "success")
-    return redirect(url_for("terminal"))
-
-# -----------------------------------------------------------------------------
-# DATOS SEMILLA E INICIALIZACIÓN DE MIGRACIONES AUTOMÁTICAS
-# -----------------------------------------------------------------------------
-
-def seed_database():
-    with app.app_context():
-        db.create_all()
-
-        # Migración automática segura de columnas faltantes en PostgreSQL
-        try:
-            db.session.execute(text("ALTER TABLE movement ADD COLUMN IF NOT EXISTS patient_name VARCHAR(150);"))
-            db.session.execute(text("ALTER TABLE movement ADD COLUMN IF NOT EXISTS patient_id VARCHAR(50);"))
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-        
-        if User.query.count() == 0:
-            users_list = [
-                User(name="David Gonzalez Mendoza", role="Administrador", pin="5678"),
-                User(name="Dra. Sofia Ramos", role="Farmacéutico", pin="4321"),
-                User(name="Hannia Martinez Salas", role="Enfermería Quirófano", pin="1234"),
-                User(name="Carlos Rivera López", role="Enfermería Urgencias", pin="1111"),
-                User(name="Dra. María Elena Castro", role="Médico Anestesiólogo", pin="2222")
-            ]
-            db.session.add_all(users_list)
-
-        if Item.query.count() == 0:
-            items_list = [
-                Item(code="MED-001", name="Paracetamol 500mg Tab", category="Medicamento", stock_general=150, stock_quirofano=20),
-                Item(code="MED-002", name="Propofol 200mg/20ml Amp", category="Medicamento", stock_general=40, stock_quirofano=15),
-                Item(code="MED-003", name="Fentanilo 0.5mg/10ml Amp", category="Medicamento", stock_general=30, stock_quirofano=10),
-                Item(code="MAT-001", name="Jeringa 10ml c/Aguja", category="Material", stock_general=300, stock_quirofano=50),
-                Item(code="MAT-002", name="Equipo Venoclisis Normogotero", category="Material", stock_general=100, stock_quirofano=25)
-            ]
-            db.session.add_all(items_list)
-
-        db.session.commit()
-
-seed_database()
-
-if __name__ == "__main__":
-    app.run(debug=True)
+                            <th class="p-3 text
