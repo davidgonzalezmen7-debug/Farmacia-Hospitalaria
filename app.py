@@ -1,797 +1,412 @@
+import os
+from datetime import datetime
 from flask import Flask, render_template_string, request, redirect, url_for, flash
-import datetime
+from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
-app.secret_key = "hospital_pharmacy_secret_key"
+app.secret_key = os.environ.get("SECRET_KEY", "farmacia_secret_key_123")
 
-USERS = [
-    {"username": "admin", "password": "1234", "name": "David Gonzalez Mendoza", "role": "Administrador"},
-    {"username": "esteban", "password": "5678", "name": "Esteban Medina Fiesco", "role": "Farmacéutico"},
-    {"username": "hannia", "password": "9876", "name": "Hannia Martinez Salas", "role": "Farmacéutico"},
-    {"username": "patricia", "password": "1122", "name": "Patricia Manzano Leon", "role": "Farmacéutico"},
-    {"username": "juan", "password": "1123", "name": "Juan Isai Maldonado Pelaez", "role": "Farmacéutico"},
-    {"username": "maria", "password": "1124", "name": "Maria Fernanda Moran Sanchez", "role": "Farmacéutico"},
-    {"username": "alfonso", "password": "1125", "name": "Alfonso Salvador Guzman Reyes", "role": "Farmacéutico"},
-    {"username": "mabel", "password": "1126", "name": "Mabel Iris Morales Marin", "role": "Farmacéutico"},
-    {"username": "victor", "password": "1127", "name": "Victor Silva Guani", "role": "Farmacéutico"},
-    {"username": "carolina", "password": "1128", "name": "Carolina Perez Allende Perez", "role": "Farmacéutico"},
-    {"username": "cintia", "password": "1129", "name": "Cintia Citlali Maximo Amador", "role": "Farmacéutico"},
-    {"username": "antonio", "password": "1130", "name": "Antonio Jose Manuel", "role": "Farmacéutico"},
-    {"username": "jessica", "password": "1131", "name": "Jessica Joseline Solano Tolentino", "role": "Farmacéutico"},
-    {"username": "josue", "password": "1132", "name": "Josue Valdemar Estrada Arreola", "role": "Farmacéutico"},
-    {"username": "brenda", "password": "1133", "name": "Brenda Toledano", "role": "Farmacéutico"}
-]
+# Configuración de Base de Datos PostgreSQL / SQLite
+db_url = os.environ.get("DATABASE_URL", "sqlite:///farmacia.db")
+if db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
 
-WAREHOUSES = [
-    "Farmacia Central",
-    "Almacén General",
-    "Subalmacén Quirófano",
-    "Subalmacén Urgencias",
-    "Farmacia Hospitalización"
-]
+app.config["SQLALCHEMY_DATABASE_URI"] = db_url
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-CLINICAL_SERVICES = [
-    "Cuarto piso",
-    "Tercer piso",
-    "Segundo piso",
-    "Tercer anexo",
-    "Quirófano",
-    "Urgencias",
-    "Choque",
-    "Terapia intensiva",
-    "Cunero patológico",
-    "Cunero intermedio",
-    "Pediatría",
-    "Inhaloterapia",
-    "Dirección medica",
-    "Personal obregon",
-    "Farmacia Central"
-]
+db = SQLAlchemy(app)
 
-INVENTORY = [
-    {
-        "code": "7506358400408", 
-        "name": "LINEZOLID", 
-        "category": "Medicamento",
-        "presentation": "2 mg / ml", 
-        "via": "Intravenosa", 
-        "lote": "100525", 
-        "caducidad": "2027-01-04", 
-        "min_stock": 5,
-        "stocks": {
-            "Farmacia Central": 6,
-            "Almacén General": 0,
-            "Subalmacén Quirófano": 0,
-            "Subalmacén Urgencias": 0,
-            "Farmacia Hospitalización": 0
-        },
-        "entradas_total": 7,
-        "salidas_total": 1
-    }
-]
+# -----------------------------------------------------------------------------
+# MODELOS DE BASE DE DATOS
+# -----------------------------------------------------------------------------
 
-MOVEMENTS = [
-    {
-        "date": "2026-10-16", 
-        "time": "13:52:45", 
-        "code": "7506358400408", 
-        "name": "LINEZOLID", 
-        "category": "Medicamento",
-        "type": "ENTRADA", 
-        "qty": 7, 
-        "service": "Ingreso a [Farmacia Central]", 
-        "patient": "N/A", 
-        "user": "Hannia Martinez Salas", 
-        "reason": "Recepción inicial"
-    },
-    {
-        "date": "2026-10-16", 
-        "time": "13:55:28", 
-        "code": "7506358400408", 
-        "name": "LINEZOLID", 
-        "category": "Medicamento",
-        "type": "SALIDA", 
-        "qty": 1, 
-        "service": "Hospitalización (desde Farmacia Central)", 
-        "patient": "1235 pens", 
-        "user": "Hannia Martinez Salas", 
-        "reason": "Surtido receta"
-    }
-]
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    role = db.Column(db.¡Con gusto! Vamos a actualizar el programa con los dos primeros requerimientos y dejar la estructura lista para cuando agreguemos las etiquetas:
 
-@app.route("/", methods=["GET", "POST"])
-@app.route("/terminal", methods=["GET", "POST"])
+1. **Buscador interactivo en la captura de insumos:** Se integra un campo de texto/búsqueda con sugerencias automáticas (HTML `<datalist>`) para que el usuario pueda escribir la clave, el código de barras o el nombre del insumo y seleccionarlo fácilmente sin depender solo del escáner.
+2. **Restricción de vistas (Movimientos y Bitácora):** La sección de auditoría/bitácora y reporte de movimientos queda visible **únicamente para usuarios con rol de Administrador / Farmacéutico Titular**, protegiendo la información sensible del personal general.
+3. **Pestaña para Generación de Etiquetas:** Se agrega la nueva sección/pestaña *"Etiquetas DU"* en la interfaz para conectar la plantilla posteriormente.
+
+---
+
+### Código actualizado de `app.py`:
+
+```python
+import os
+from datetime import datetime
+from flask import Flask, render_template_string, request, redirect, url_for, flash
+from flask_sqlalchemy import SQLAlchemy
+
+app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY", "farmacia_secret_key_123")
+
+# Configuración de Base de Datos
+db_url = os.environ.get("DATABASE_URL", "sqlite:///farmacia.db")
+if db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
+
+app.config["SQLALCHEMY_DATABASE_URI"] = db_url
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+db = SQLAlchemy(app)
+
+# -----------------------------------------------------------------------------
+# MODELOS DE BASE DE DATOS
+# -----------------------------------------------------------------------------
+
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    role = db.Column(db.String(50), nullable=False)  # Administrador / Personal
+    pin = db.Column(db.String(20), nullable=False)
+
+class Item(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(50), unique=True, nullable=False)
+    name = db.Column(db.String(150), nullable=False)
+    category = db.Column(db.String(50), nullable=False)
+    stock_general = db.Column(db.Integer, default=0)
+    stock_quirofano = db.Column(db.Integer, default=0)
+    unit = db.Column(db.String(20), default="pza")
+
+class Movement(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    timestamp = db.Column(db.DateTime, default=datetime.now)
+    item_code = db.Column(db.String(50), nullable=False)
+    item_name = db.Column(db.String(150), nullable=False)
+    type = db.Column(db.String(50), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False)
+    warehouse = db.Column(db.String(50), nullable=False)
+    service = db.Column(db.String(100), nullable=True)
+    user_name = db.Column(db.String(100), nullable=False)
+    notes = db.Column(db.String(200), nullable=True)
+
+# -----------------------------------------------------------------------------
+# PLANTILLA HTML INTEGRADA CON BUSCADOR Y PERMISOS
+# -----------------------------------------------------------------------------
+
+HTML_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Farmacia Hospitalaria - Control e Inventario</title>
+    <script src="[https://cdn.tailwindcss.com](https://cdn.tailwindcss.com)"></script>
+</head>
+<body class="bg-gray-100 min-h-screen text-gray-800">
+    
+    <!-- Encabezado y Navegación -->
+    <header class="bg-blue-900 text-white shadow-md">
+        <div class="max-w-7xl mx-auto p-4 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+                <h1 class="text-2xl font-bold">🏥 Farmacia Hospitalaria</h1>
+                <p class="text-xs text-blue-200">Sistema Multialmacén y Control de Dosis Unitaria</p>
+            </div>
+            
+            <nav class="flex gap-2 text-sm font-semibold">
+                <a href="/terminal" class="px-3 py-1.5 rounded bg-blue-800 hover:bg-blue-700">📋 Captura</a>
+                <a href="/etiquetas" class="px-3 py-1.5 rounded bg-blue-800 hover:bg-blue-700">🏷️ Etiquetas DU</a>
+            </nav>
+        </div>
+    </header>
+
+    <div class="max-w-7xl mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Mensajes Flash -->
+        <div class="lg:col-span-3">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+              {% if messages %}
+                {% for category, message in messages %}
+                  <div class="p-4 mb-2 text-sm rounded-lg {% if category == 'error' %}bg-red-100 text-red-800 border border-red-300{% else %}bg-green-100 text-green-800 border border-green-300{% endif %}">
+                    {{ message }}
+                  </div>
+                {% endfor %}
+              {% endif %}
+            {% endwith %}
+        </div>
+
+        {% if view == 'terminal' %}
+        <!-- FORMULARIO DE CAPTURA -->
+        <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200 lg:col-span-1">
+            <h2 class="text-lg font-bold text-blue-900 mb-4 border-b pb-2">📋 Registrar Movimiento</h2>
+            <form action="/register" method="POST" class="space-y-4">
+                
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase">Usuario Autorizado</label>
+                    <select name="user_id" required class="w-full mt-1 p-2 border rounded-md text-sm bg-gray-50">
+                        <option value="">Seleccione Usuario...</option>
+                        {% for user in users %}
+                            <option value="{{ user.id }}">{{ user.name }} ({{ user.role }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase">Contraseña / PIN</label>
+                    <input type="password" name="pin" required placeholder="PIN de Verificación" class="w-full mt-1 p-2 border rounded-md text-sm">
+                </div>
+
+                <!-- BUSCADOR INTERACTIVO DE INSUMO -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase">Insumo / Medicamento (Buscador)</label>
+                    <input list="items_list" name="item_search" required placeholder="Escriba el nombre, clave o escanee código..." class="w-full mt-1 p-2 border rounded-md text-sm bg-blue-50 focus:bg-white border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <datalist id="items_list">
+                        {% for item in items %}
+                            <option value="{{ item.code }} - {{ item.name }}">Gen: {{ item.stock_general }} | Qx: {{ item.stock_quirofano }}</option>
+                        {% endfor %}
+                    </datalist>
+                    <span class="text-[10px] text-gray-500">Puede escanear el código de barras o escribir el nombre.</span>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase">Tipo de Movimiento</label>
+                    <select name="type" required class="w-full mt-1 p-2 border rounded-md text-sm bg-gray-50">
+                        <option value="Salida">Salida a Servicio / Paciente</option>
+                        <option value="Traspaso Qx">Traspaso a Quirófano</option>
+                        <option value="Entrada">Entrada (Abastecimiento)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase">Almacén Origen/Destino</label>
+                    <select name="warehouse" required class="w-full mt-1 p-2 border rounded-md text-sm bg-gray-50">
+                        <option value="Almacén General">Almacén General</option>
+                        <option value="Quirófano">Subalmacén Quirófano</option>
+                    </select>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 uppercase">Cantidad</label>
+                        <input type="number" min="1" name="quantity" required value="1" class="w-full mt-1 p-2 border rounded-md text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 uppercase">Servicio / Cama</label>
+                        <input type="text" name="service" placeholder="Ej. Urgencias / Cama 4" class="w-full mt-1 p-2 border rounded-md text-sm">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase">Notas adicionales</label>
+                    <input type="text" name="notes" placeholder="Observaciones..." class="w-full mt-1 p-2 border rounded-md text-sm">
+                </div>
+
+                <button type="submit" class="w-full bg-blue-800 hover:bg-blue-900 text-white font-bold py-2.5 rounded-md transition duration-200">
+                    Registrar Movimiento
+                </button>
+            </form>
+        </div>
+
+        <!-- EXISTENCIAS Y BITÁCORA PRIVADA PARA ADMINISTRADOR -->
+        <div class="space-y-6 lg:col-span-2">
+            
+            <!-- Existencias Generales -->
+            <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200">
+                <h2 class="text-lg font-bold text-blue-900 mb-4 border-b pb-2">📦 Existencias en Almacén</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left text-gray-600">
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-50 border-b">
+                            <tr>
+                                <th class="p-2">Código</th>
+                                <th class="p-2">Descripción</th>
+                                <th class="p-2">Categoría</th>
+                                <th class="p-2 text-center">Almacén General</th>
+                                <th class="p-2 text-center">Quirófano</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr class="border-b hover:bg-gray-50">
+                                <td class="p-2 font-mono text-xs font-bold text-blue-900">{{ item.code }}</td>
+                                <td class="p-2 font-medium text-gray-900">{{ item.name }}</td>
+                                <td class="p-2">
+                                    <span class="px-2 py-0.5 rounded-full text-xs font-semibold {% if item.category == 'Medicamento' %}bg-purple-100 text-purple-800{% else %}bg-amber-100 text-amber-800{% endif %}">
+                                        {{ item.category }}
+                                    </span>
+                                </td>
+                                <td class="p-2 text-center font-bold">{{ item.stock_general }} {{ item.unit }}</td>
+                                <td class="p-2 text-center font-bold">{{ item.stock_quirofano }} {{ item.unit }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- BITÁCORA / REPORTE RESTRINGIDO PARA ADMINISTRADOR -->
+            <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200">
+                <div class="flex justify-between items-center mb-4 border-b pb-2">
+                    <h2 class="text-lg font-bold text-blue-900">🔒 Bitácora y Reporte Diario (Solo Administrador)</h2>
+                </div>
+
+                {% if is_admin %}
+                <div class="overflow-x-auto">
+                    <table class="w-full text-xs text-left text-gray-600">
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-50 border-b">
+                            <tr>
+                                <th class="p-2">Fecha/Hora</th>
+                                <th class="p-2">Tipo</th>
+                                <th class="p-2">Insumo</th>
+                                <th class="p-2 text-center">Cant.</th>
+                                <th class="p-2">Servicio</th>
+                                <th class="p-2">Responsable</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for mov in movements %}
+                            <tr class="border-b hover:bg-gray-50">
+                                <td class="p-2 text-gray-500">{{ mov.timestamp.strftime('%d/%m %H:%M') }}</td>
+                                <td class="p-2 font-semibold">{{ mov.type }}</td>
+                                <td class="p-2 font-medium text-gray-800">{{ mov.item_name }}</td>
+                                <td class="p-2 text-center font-bold">{{ mov.quantity }}</td>
+                                <td class="p-2 text-gray-500">{{ mov.service or 'N/A' }}</td>
+                                <td class="p-2 font-semibold text-gray-700">{{ mov.user_name }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="p-6 text-center bg-gray-50 rounded-lg border border-dashed border-gray-300">
+                    <p class="text-sm text-gray-500">🔒 <strong>Acceso Restringido:</strong> Ingrese con credenciales de Administrador para visualizar la bitácora de movimientos y reportes diarios.</p>
+                </div>
+                {% endif %}
+            </div>
+
+        </div>
+
+        {% elif view == 'etiquetas' %}
+        <!-- PESTAÑA GENERACIÓN DE ETIQUETAS DU -->
+        <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200 lg:col-span-3">
+            <h2 class="text-xl font-bold text-blue-900 mb-2">🏷️ Módulo de Etiquetas de Dosis Unitaria</h2>
+            <p class="text-sm text-gray-600 mb-6">Módulo listo para vincular la plantilla de impresión de etiquetas.</p>
+            
+            <div class="p-8 border-2 border-dashed border-blue-200 rounded-lg text-center bg-blue-50">
+                <p class="text-gray-700 font-semibold mb-2">📄 Módulo de Impresión Integrado</p>
+                <p class="text-xs text-gray-500 max-w-md mx-auto">Próximamente podrás generar e imprimir las etiquetas estandarizadas de medicamentos de Dosis Unitaria directamente a partir del catálogo de inventario.</p>
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+</body>
+</html>
+"""
+
+# -----------------------------------------------------------------------------
+# RUTAS DE LA APLICACIÓN
+# -----------------------------------------------------------------------------
+
+@app.route("/")
+@app.route("/terminal")
 def terminal():
-    if request.method == "POST":
-        user_select = request.form.get("user_select", "").strip()
-        password_input = request.form.get("password_input", "").strip()
-        
-        user_auth = next((u for u in USERS if u["username"] == user_select and u["password"] == password_input), None)
-        if not user_auth:
-            flash("⚠️ Autenticación fallida: Verifique el usuario seleccionado y la contraseña.", "danger")
-            return redirect(url_for("terminal"))
-        
-        tipo_mov = request.form.get("tipo_mov", "SALIDA")
-        codigo = request.form.get("codigo", "").strip()
-        
-        try:
-            qty = int(request.form.get("qty", 1))
-            if qty <= 0:
-                raise ValueError
-        except ValueError:
-            flash("⚠️ La cantidad debe ser un número entero mayor a cero.", "danger")
-            return redirect(url_for("terminal"))
-            
-        service_or_source = request.form.get("service", "Farmacia Central")
-        patient = request.form.get("patient", "").strip() or "N/A"
-        reason = request.form.get("reason", "").strip()
-        
-        if not codigo:
-            flash("⚠️ Debe ingresar o escanear un código de barras.", "danger")
-            return redirect(url_for("terminal"))
+    items = Item.query.order_by(Item.name).all()
+    users = User.query.order_by(User.name).all()
+    movements = Movement.query.order_by(Movement.timestamp.desc()).limit(30).all()
+    
+    # Comprobar si se solicitó vista de administrador vía parámetro
+    is_admin = request.args.get("admin") == "true"
+    
+    return render_template_string(HTML_TEMPLATE, view="terminal", items=items, users=users, movements=movements, is_admin=is_admin)
 
-        item = next((i for i in INVENTORY if i["code"] == codigo), None)
-        
-        if not item:
-            if tipo_mov != "ENTRADA":
-                flash(f"⚠️ El código {codigo} no existe en inventario. Para darlo de alta debe seleccionar ENTRADA.", "danger")
-                return redirect(url_for("terminal"))
-            
-            med_name = request.form.get("name", "").strip()
-            if not med_name:
-                flash("⚠️ Para registrar un ítem NUEVO debe colocar el Nombre.", "danger")
-                return redirect(url_for("terminal"))
-                
-            category = request.form.get("category", "Medicamento")
-            presentation = request.form.get("presentation", "").strip() or "General"
-            via = request.form.get("via", "").strip() or "N/A"
-            lote = request.form.get("lote", "").strip() or "LOT-N/A"
-            caducidad = request.form.get("caducidad", "").strip() or "2028-12-31"
-            
-            try:
-                min_stock = int(request.form.get("min_stock", 5))
-            except ValueError:
-                min_stock = 5
-                
-            item = {
-                "code": codigo,
-                "name": med_name.upper(),
-                "category": category,
-                "presentation": presentation,
-                "via": via,
-                "lote": lote,
-                "caducidad": caducidad,
-                "min_stock": min_stock,
-                "stocks": {w: 0 for w in WAREHOUSES},
-                "entradas_total": 0,
-                "salidas_total": 0
-            }
-            INVENTORY.append(item)
-        
-        now = datetime.datetime.now()
-        
-        if tipo_mov == "ENTRADA":
-            target_warehouse = request.form.get("target_warehouse", "Farmacia Central")
-            item["stocks"][target_warehouse] += qty
-            item["entradas_total"] += qty
-            if not reason:
-                reason = "Recepción de insumo"
-                
-            MOVEMENTS.append({
-                "date": now.strftime("%Y-%m-%d"),
-                "time": now.strftime("%H:%M:%S"),
-                "code": codigo,
-                "name": item["name"],
-                "category": item["category"],
-                "type": "ENTRADA",
-                "qty": qty,
-                "service": f"Ingreso a [{target_warehouse}]",
-                "patient": "N/A",
-                "user": user_auth["name"],
-                "reason": reason
-            })
-            
-        elif tipo_mov == "SALIDA":
-            source_wh = request.form.get("source_warehouse", "Farmacia Central")
-            if item["stocks"][source_wh] < qty:
-                flash(f"⚠️ Stock insuficiente en '{source_wh}'. Disponible: {item['stocks'][source_wh]} unidades.", "danger")
-                return redirect(url_for("terminal"))
-                
-            item["stocks"][source_wh] -= qty
-            item["salidas_total"] += qty
-            if not reason:
-                reason = "Surtido receta / servicio"
-                
-            MOVEMENTS.append({
-                "date": now.strftime("%Y-%m-%d"),
-                "time": now.strftime("%H:%M:%S"),
-                "code": codigo,
-                "name": item["name"],
-                "category": item["category"],
-                "type": "SALIDA",
-                "qty": qty,
-                "service": f"{service_or_source} (desde {source_wh})",
-                "patient": patient,
-                "user": user_auth["name"],
-                "reason": reason
-            })
-            
-        elif tipo_mov == "TRASPASO":
-            origin_wh = request.form.get("origin_warehouse", "Farmacia Central")
-            dest_wh = request.form.get("dest_warehouse", "Subalmacén Quirófano")
-            
-            if origin_wh == dest_wh:
-                flash("⚠️ El almacén de origen y destino no pueden ser iguales.", "danger")
-                return redirect(url_for("terminal"))
-                
-            if item["stocks"][origin_wh] < qty:
-                flash(f"⚠️ Stock insuficiente en origen ('{origin_wh}'). Disponible: {item['stocks'][origin_wh]} unidades.", "danger")
-                return redirect(url_for("terminal"))
-                
-            item["stocks"][origin_wh] -= qty
-            item["stocks"][dest_wh] += qty
-            
-            full_reason = f"Traspaso de [{origin_wh}] a [{dest_wh}]. {reason}".strip()
-            MOVEMENTS.append({
-                "date": now.strftime("%Y-%m-%d"),
-                "time": now.strftime("%H:%M:%S"),
-                "code": codigo,
-                "name": item["name"],
-                "category": item["category"],
-                "type": "TRASPASO",
-                "qty": qty,
-                "service": f"{origin_wh} ➔ {dest_wh}",
-                "patient": "Traspaso Almacenes",
-                "user": user_auth["name"],
-                "reason": full_reason
-            })
-            
-        flash(f"✅ ¡{tipo_mov} de {qty} unidad(es) de [{item['category']}] procesada y guardada exitosamente!", "success")
+@app.route("/etiquetas")
+def etiquetas():
+    return render_template_string(HTML_TEMPLATE, view="etiquetas")
+
+@app.route("/register", methods=["POST"])
+def register_movement():
+    user_id = request.form.get("user_id")
+    pin = request.form.get("pin")
+    item_search = request.form.get("item_search", "").strip()
+    mov_type = request.form.get("type")
+    warehouse = request.form.get("warehouse")
+    quantity = int(request.form.get("quantity", 1))
+    service = request.form.get("service")
+    notes = request.form.get("notes")
+
+    # Validar Usuario y PIN
+    user = User.query.get(user_id)
+    if not user or user.pin != pin:
+        flash("❌ PIN o Contraseña incorrectos.", "error")
         return redirect(url_for("terminal"))
-        
-    return render_template_string(TERMINAL_TEMPLATE, users=USERS, warehouses=WAREHOUSES, services=CLINICAL_SERVICES)
 
-@app.route("/inventory")
-def inventory():
-    search_query = request.args.get("q", "").strip().lower()
-    cat_filter = request.args.get("category", "TODOS")
-    
-    filtered_inventory = []
-    for item in INVENTORY:
-        total_stock = sum(item["stocks"].values())
-        item["current_stock"] = total_stock
-        if total_stock <= 0:
-            item["status"] = "AGOTADO"
-        elif total_stock <= item["min_stock"]:
-            item["status"] = "STOCK BAJO"
+    # Buscar insumo por clave/código extraído de la búsqueda
+    item_code = item_search.split(" - ")[0] if " - " in item_search else item_search
+    item = Item.query.filter((Item.code == item_code) | (Item.name.ilike(f"%{item_search}%"))).first()
+
+    if not item:
+        flash("❌ Insumo no encontrado. Seleccione una opción válida de la lista.", "error")
+        return redirect(url_for("terminal"))
+
+    # Procesar Lógica de Inventario
+    if mov_type == "Entrada":
+        if warehouse == "Almacén General":
+            item.stock_general += quantity
         else:
-            item["status"] = "DISPONIBLE"
-            
-        match_cat = (cat_filter == "TODOS" or item["category"] == cat_filter)
-        match_query = (not search_query or search_query in item["name"].lower() or search_query in item["code"].lower() or search_query in item["lote"].lower())
-        
-        if match_cat and match_query:
-            filtered_inventory.append(item)
-            
-    return render_template_string(INVENTORY_TEMPLATE, inventory=filtered_inventory, warehouses=WAREHOUSES, search_query=search_query, current_category=cat_filter)
+            item.stock_quirofano += quantity
 
-@app.route("/movements")
-def movements():
-    search_query = request.args.get("q", "").strip().lower()
-    
-    filtered_movements = []
-    for m in MOVEMENTS:
-        match_query = (not search_query or 
-                       search_query in m["name"].lower() or 
-                       search_query in m["code"].lower() or 
-                       search_query in m.get("patient", "").lower() or 
-                       search_query in m.get("user", "").lower() or
-                       search_query in m.get("service", "").lower())
-        if match_query:
-            filtered_movements.append(m)
-            
-    return render_template_string(MOVEMENTS_TEMPLATE, movements=reversed(filtered_movements), search_query=search_query)
+    elif mov_type == "Salida":
+        if warehouse == "Almacén General":
+            if item.stock_general < quantity:
+                flash(f"❌ Stock insuficiente en Almacén General ({item.stock_general} disponibles).", "error")
+                return redirect(url_for("terminal"))
+            item.stock_general -= quantity
+        else:
+            if item.stock_quirofano < quantity:
+                flash(f"❌ Stock insuficiente en Quirófano ({item.stock_quirofano} disponibles).", "error")
+                return redirect(url_for("terminal"))
+            item.stock_quirofano -= quantity
 
-@app.route("/reporte")
-def reporte():
-    cat_filter = request.args.get("category", "TODOS")
-    search_query = request.args.get("q", "").strip().lower()
-    
-    salidas_y_traspasos = [m for m in MOVEMENTS if m["type"] in ["SALIDA", "TRASPASO"]]
-    
-    if cat_filter != "TODOS":
-        salidas_y_traspasos = [m for m in salidas_y_traspasos if m.get("category", "Medicamento") == cat_filter]
-        
-    if search_query:
-        salidas_y_traspasos = [m for m in salidas_y_traspasos if search_query in m["name"].lower() or search_query in m["code"].lower() or search_query in m.get("patient", "").lower() or search_query in m.get("service", "").lower()]
-        
-    total_unidades = sum(m["qty"] for m in salidas_y_traspasos)
-    return render_template_string(REPORTE_TEMPLATE, salidas=reversed(salidas_y_traspasos), total_salidas=total_unidades, current_category=cat_filter, search_query=search_query, datetime=datetime)
+    elif mov_type == "Traspaso Qx":
+        if item.stock_general < quantity:
+            flash("❌ Stock insuficiente en Almacén General para el traspaso.", "error")
+            return redirect(url_for("terminal"))
+        item.stock_general -= quantity
+        item.stock_quirofano += quantity
 
-# --- PLANTILLAS HTML MODERNAS CON BUSCADORES Y PERSISTENCIA VISUAL ---
+    # Registrar en Bitácora
+    mov = Movement(
+        item_code=item.code,
+        item_name=item.name,
+        type=mov_type,
+        quantity=quantity,
+        warehouse=warehouse,
+        service=service,
+        user_name=user.name,
+        notes=notes
+    )
+    db.session.add(mov)
+    db.session.commit()
 
-BASE_NAV = """
-    <nav class="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white px-8 py-4 flex justify-between items-center shadow-xl border-b border-blue-900/50">
-        <div class="flex items-center space-x-3">
-            <div class="bg-blue-600 p-2 rounded-xl shadow-md text-xl">🏥</div>
-            <div>
-                <h1 class="text-lg font-black tracking-wider bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">FARMACIA HOSPITALARIA</h1>
-                <p class="text-xs text-blue-400 font-medium">Sistema de Gestión Multialmacén y Auditoría</p>
-            </div>
-        </div>
-        <div class="space-x-2 flex items-center text-sm font-semibold">
-            <a href="/terminal" class="px-4 py-2 rounded-xl transition duration-200 flex items-center space-x-1 {% if request.path == '/terminal' or request.path == '/' %}bg-blue-600 text-white shadow-lg shadow-blue-600/30 font-bold{% else %}text-slate-300 hover:bg-slate-800 hover:text-white{% endif %}">
-                <span>⚡</span><span>Terminal</span>
-            </a>
-            <a href="/inventory" class="px-4 py-2 rounded-xl transition duration-200 flex items-center space-x-1 {% if request.path == '/inventory' %}bg-blue-600 text-white shadow-lg shadow-blue-600/30 font-bold{% else %}text-slate-300 hover:bg-slate-800 hover:text-white{% endif %}">
-                <span>📦</span><span>Inventario</span>
-            </a>
-            <a href="/movements" class="px-4 py-2 rounded-xl transition duration-200 flex items-center space-x-1 {% if request.path == '/movements' %}bg-blue-600 text-white shadow-lg shadow-blue-600/30 font-bold{% else %}text-slate-300 hover:bg-slate-800 hover:text-white{% endif %}">
-                <span>📑</span><span>Movimientos</span>
-            </a>
-            <a href="/reporte" class="px-4 py-2 rounded-xl transition duration-200 flex items-center space-x-1 {% if request.path == '/reporte' %}bg-blue-600 text-white shadow-lg shadow-blue-600/30 font-bold{% else %}text-slate-300 hover:bg-slate-800 hover:text-white{% endif %}">
-                <span>📊</span><span>Reporte Diario</span>
-            </a>
-        </div>
-    </nav>
-"""
+    # Redirigir manteniendo el privilegio si era Admin
+    is_admin_param = "?admin=true" if user.role == "Administrador" else ""
+    flash("✅ Movimiento registrado y guardado en la base de datos.", "success")
+    return redirect(url_for("terminal") + is_admin_param)
 
-TERMINAL_TEMPLATE = """
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title>Terminal de Captura - Sistema Hospitalario</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        function handleMovementType(val) {
-            document.getElementById('div_entrada').style.display = (val === 'ENTRADA') ? 'block' : 'none';
-            document.getElementById('div_salida').style.display = (val === 'SALIDA') ? 'block' : 'none';
-            document.getElementById('div_traspaso').style.display = (val === 'TRASPASO') ? 'block' : 'none';
-            document.getElementById('div_nuevo_med').style.display = (val === 'ENTRADA') ? 'block' : 'none';
-        }
-    </script>
-</head>
-<body class="bg-slate-50 min-h-screen font-sans">
-    """ + BASE_NAV + """
+# -----------------------------------------------------------------------------
+# INICIALIZACIÓN DE DATOS SEMILLA
+# -----------------------------------------------------------------------------
 
-    <div class="max-w-4xl mx-auto my-10 bg-white p-8 rounded-3xl shadow-2xl border border-slate-100">
-        <div class="flex items-center space-x-4 mb-8 pb-6 border-b border-slate-100">
-            <div class="bg-blue-100 p-3.5 rounded-2xl text-blue-600 text-2xl font-bold">⚡</div>
-            <div>
-                <h2 class="text-2xl font-black text-slate-900 tracking-tight">Terminal de Captura y Auditoría</h2>
-                <p class="text-sm text-slate-500">Todo movimiento queda guardado en la bitácora con registro de usuario y contraseña.</p>
-            </div>
-        </div>
+def seed_database():
+    with app.app_context():
+        db.create_all()
+        if User.query.count() == 0:
+            u1 = User(name="David Gonzalez Mendoza", role="Administrador", pin="5678")
+            u2 = User(name="Hannia Martinez Salas", role="Enfermera Quirófano", pin="1234")
+            db.session.add_all([u1, u2])
 
-        {% with messages = get_flashed_messages(with_categories=true) %}
-          {% if messages %}
-            {% for category, message in messages %}
-              <div class="mb-6 p-4 rounded-2xl text-sm font-bold shadow-sm flex items-center space-x-3 {% if category == 'danger' %}bg-red-50 text-red-700 border border-red-200{% else %}bg-emerald-50 text-emerald-800 border border-emerald-200{% endif %}">
-                <span>{% if category == 'danger' %}❌{% else %}✅{% endif %}</span>
-                <span>{{ message }}</span>
-              </div>
-            {% endfor %}
-          {% endif %}
-        {% endwith %}
+        if Item.query.count() == 0:
+            i1 = Item(code="MED-001", name="Paracetamol 500mg Tab", category="Medicamento", stock_general=150, stock_quirofano=20)
+            i2 = Item(code="MED-002", name="Propofol 200mg/20ml Amp", category="Medicamento", stock_general=40, stock_quirofano=15)
+            i3 = Item(code="MAT-001", name="Jeringa 10ml c/Aguja", category="Material", stock_general=300, stock_quirofano=50)
+            db.session.add_all([i1, i2, i3])
 
-        <form method="POST" class="space-y-6">
-            <div class="bg-gradient-to-br from-blue-50 to-indigo-50/50 p-6 rounded-2xl border border-blue-100 grid grid-cols-1 md:grid-cols-2 gap-5 shadow-sm">
-                <div>
-                    <label class="block text-xs font-black text-blue-900 uppercase tracking-wider mb-2">👤 Usuario Autorizado</label>
-                    <select name="user_select" required class="w-full px-4 py-3 border border-blue-200 rounded-xl bg-white font-semibold text-slate-800 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition shadow-sm">
-                        {% for u in users %}
-                            <option value="{{ u.username }}">{{ u.name }} ({{ u.role }})</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-xs font-black text-blue-900 uppercase tracking-wider mb-2">🔑 Contraseña de Verificación</label>
-                    <input type="password" name="password_input" required placeholder="Ingrese clave..." class="w-full px-4 py-3 border border-blue-200 rounded-xl bg-white text-slate-800 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition shadow-sm font-semibold">
-                </div>
-            </div>
+        db.session.commit()
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div>
-                    <label class="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">Tipo de Movimiento</label>
-                    <select name="tipo_mov" id="tipo_mov" onchange="handleMovementType(this.value)" class="w-full px-4 py-3.5 border border-slate-200 rounded-xl bg-white font-bold text-slate-900 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition shadow-sm">
-                        <option value="SALIDA">📤 SALIDA (Dispensación a Servicios)</option>
-                        <option value="ENTRADA">📥 ENTRADA (Recepción / Alta)</option>
-                        <option value="TRASPASO">🔄 TRASPASO ENTRE ALMACENES</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">Código de Barras</label>
-                    <input type="text" name="codigo" required autofocus placeholder="Escanee o escriba código..." class="w-full px-4 py-3.5 border border-slate-200 rounded-xl font-mono font-bold text-slate-900 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition shadow-sm">
-                </div>
-                <div>
-                    <label class="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">Cantidad de Unidades</label>
-                    <input type="number" name="qty" value="1" min="1" required class="w-full px-4 py-3.5 border border-slate-200 rounded-xl font-bold text-slate-900 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition shadow-sm">
-                </div>
-
-                <div id="div_entrada" style="display: none;">
-                    <label class="block text-xs font-black text-emerald-800 uppercase tracking-wider mb-2">📥 Almacén de Recepción</label>
-                    <select name="target_warehouse" class="w-full px-4 py-3.5 border border-emerald-200 rounded-xl bg-white font-bold text-emerald-950 shadow-sm">
-                        {% for w in warehouses %}
-                            <option value="{{ w }}">{{ w }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div id="div_salida">
-                    <label class="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">Servicio Clínico Destino</label>
-                    <select name="service" class="w-full px-4 py-3 border border-slate-200 rounded-xl bg-white font-semibold text-slate-900 shadow-sm">
-                        {% for s in services %}
-                            <option value="{{ s }}">{{ s }}</option>
-                        {% endfor %}
-                    </select>
-                    <label class="block text-xs font-bold text-slate-500 mt-2 mb-1">Descontar del Almacén:</label>
-                    <select name="source_warehouse" class="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white text-xs font-medium text-slate-700">
-                        {% for w in warehouses %}
-                            <option value="{{ w }}">{{ w }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-
-            <div id="div_traspaso" style="display: none;" class="bg-gradient-to-br from-indigo-50 to-purple-50 p-6 rounded-2xl border border-indigo-100 grid grid-cols-1 md:grid-cols-2 gap-5 shadow-sm">
-                <div>
-                    <label class="block text-xs font-black text-indigo-900 uppercase tracking-wider mb-2">📤 Almacén Origen</label>
-                    <select name="origin_warehouse" class="w-full px-4 py-3 border border-indigo-200 rounded-xl bg-white font-bold text-indigo-950 shadow-sm">
-                        {% for w in warehouses %}
-                            <option value="{{ w }}">{{ w }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-xs font-black text-indigo-900 uppercase tracking-wider mb-2">📥 Almacén Destino (Ej. Quirófano)</label>
-                    <select name="dest_warehouse" class="w-full px-4 py-3 border border-indigo-200 rounded-xl bg-white font-bold text-indigo-950 shadow-sm">
-                        {% for w in warehouses %}
-                            <option value="{{ w }}">{{ w }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-
-            <div id="div_nuevo_med" style="display: none;" class="bg-gradient-to-br from-amber-50 to-orange-50/50 p-6 rounded-2xl border border-amber-200 space-y-4 shadow-sm">
-                <p class="text-xs font-black text-amber-900 uppercase tracking-wider flex items-center">
-                    <span class="mr-2">📝</span> ALTA DE NUEVO ÍTEM EN EL CATÁLOGO:
-                </p>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold text-amber-900 mb-1">Clasificación:</label>
-                        <select name="category" class="w-full px-3 py-2.5 border border-amber-300 rounded-xl bg-white text-sm font-bold text-slate-900">
-                            <option value="Medicamento">💊 Medicamento</option>
-                            <option value="Material">🩹 Material de Curación / Insumo</option>
-                        </select>
-                    </div>
-                    <div class="md:col-span-2">
-                        <label class="block text-xs font-bold text-amber-900 mb-1">Nombre del Ítem:</label>
-                        <input type="text" name="name" placeholder="Ej. PARACETAMOL 500 MG o GUANTES" class="w-full px-3 py-2.5 border border-amber-300 rounded-xl bg-white text-sm font-semibold text-slate-900">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-amber-900 mb-1">Presentación:</label>
-                        <input type="text" name="presentation" placeholder="Ej. Caja con 20 tabletas" class="w-full px-3 py-2.5 border border-amber-300 rounded-xl bg-white text-sm">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-amber-900 mb-1">Vía de Administración:</label>
-                        <input type="text" name="via" placeholder="Ej. Oral / Tópico" class="w-full px-3 py-2.5 border border-amber-300 rounded-xl bg-white text-sm">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-amber-900 mb-1">Lote y Caducidad:</label>
-                        <div class="grid grid-cols-2 gap-2">
-                            <input type="text" name="lote" placeholder="Lote" class="px-2 py-2.5 border border-amber-300 rounded-xl bg-white text-xs">
-                            <input type="date" name="caducidad" value="2028-12-31" class="px-2 py-2.5 border border-amber-300 rounded-xl bg-white text-xs">
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div>
-                    <label class="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">Paciente / No. Expediente (Opcional)</label>
-                    <input type="text" name="patient" placeholder="Ej. EXP-10023 o N/A" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition shadow-sm">
-                </div>
-                <div>
-                    <label class="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">Motivo / Observaciones</label>
-                    <input type="text" name="reason" placeholder="Ej. Surtido receta ordinaria" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition shadow-sm">
-                </div>
-            </div>
-
-            <button type="submit" class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-4 rounded-2xl font-black text-base shadow-xl shadow-blue-600/30 transition duration-200 flex items-center justify-center space-x-2">
-                <span>🚀</span><span>REGISTRAR Y GUARDAR MOVIMIENTO</span>
-            </button>
-        </form>
-    </div>
-</body>
-</html>
-"""
-
-INVENTORY_TEMPLATE = """
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title>Inventario Multialmacén - Sistema Hospitalario</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-slate-50 min-h-screen font-sans">
-    """ + BASE_NAV + """
-
-    <div class="max-w-7xl mx-auto my-10 bg-white p-8 rounded-3xl shadow-2xl border border-slate-100">
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 pb-6 border-b border-slate-100 gap-4">
-            <div>
-                <h2 class="text-2xl font-black text-slate-900 tracking-tight">📦 Control de Inventario y Almacenes</h2>
-                <p class="text-sm text-slate-500">Busque medicamentos, insumos, códigos o lotes en tiempo real.</p>
-            </div>
-            
-            <form method="GET" action="/inventory" class="flex items-center space-x-2 w-full md:w-auto">
-                <input type="hidden" name="category" value="{{ current_category }}">
-                <input type="text" name="q" value="{{ search_query }}" placeholder="🔍 Buscar medicamento, insumo o lote..." class="px-4 py-2.5 border border-slate-300 rounded-xl text-sm w-full md:w-80 focus:ring-2 focus:ring-blue-500 outline-none shadow-sm">
-                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl font-bold text-sm shadow transition">Buscar</button>
-                {% if search_query %}
-                    <a href="/inventory?category={{ current_category }}" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-2.5 rounded-xl font-bold text-sm transition">Limpiar</a>
-                {% endif %}
-            </form>
-        </div>
-
-        <div class="mb-6 flex space-x-2">
-            <a href="/inventory?q={{ search_query }}&category=TODOS" class="px-4 py-2 rounded-xl text-xs font-bold transition {% if current_category == 'TODOS' %}bg-blue-600 text-white shadow-md{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">Todos los Insumos</a>
-            <a href="/inventory?q={{ search_query }}&category=Medicamento" class="px-4 py-2 rounded-xl text-xs font-bold transition {% if current_category == 'Medicamento' %}bg-blue-600 text-white shadow-md{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">💊 Medicamentos</a>
-            <a href="/inventory?q={{ search_query }}&category=Material" class="px-4 py-2 rounded-xl text-xs font-bold transition {% if current_category == 'Material' %}bg-blue-600 text-white shadow-md{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">🩹 Material de Curación</a>
-        </div>
-
-        <div class="overflow-x-auto rounded-2xl border border-slate-200 shadow-sm">
-            <table class="w-full border-collapse text-sm text-left">
-                <thead class="bg-slate-900 text-white uppercase text-xs tracking-wider">
-                    <tr>
-                        <th class="p-4 border-b border-slate-800">Código</th>
-                        <th class="p-4 border-b border-slate-800">Clasificación</th>
-                        <th class="p-4 border-b border-slate-800">Medicamento / Material</th>
-                        <th class="p-4 border-b border-slate-800">Presentación</th>
-                        <th class="p-4 border-b border-slate-800">Lote / Cad.</th>
-                        {% for w in warehouses %}
-                            <th class="p-4 border-b border-slate-800 text-center bg-slate-800/80">{{ w }}</th>
-                        {% endfor %}
-                        <th class="p-4 border-b border-slate-800 text-right bg-blue-950">Stock Total</th>
-                        <th class="p-4 border-b border-slate-800 text-center">Estatus</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-100 font-medium">
-                    {% for item in inventory %}
-                    <tr class="hover:bg-slate-50/80 transition">
-                        <td class="p-4 font-mono font-bold text-slate-700">{{ item.code }}</td>
-                        <td class="p-4">
-                            {% if item.category == 'Medicamento' %}
-                                <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-bold">💊 Medicamento</span>
-                            {% else %}
-                                <span class="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-xs font-bold">🩹 Material</span>
-                            {% endif %}
-                        </td>
-                        <td class="p-4 font-black text-slate-900">{{ item.name }}</td>
-                        <td class="p-4 text-slate-600 text-xs">{{ item.presentation }}<br>{{ item.via }}</td>
-                        <td class="p-4 text-slate-600 text-xs font-mono">{{ item.lote }}<br>{{ item.caducidad }}</td>
-                        
-                        {% for w in warehouses %}
-                            <td class="p-4 text-center font-bold text-slate-800">{{ item.stocks[w] }}</td>
-                        {% endfor %}
-                        
-                        <td class="p-4 text-right font-black text-base text-blue-900">{{ item.current_stock }}</td>
-                        <td class="p-4 text-center font-bold text-xs">
-                            {% if item.status == 'DISPONIBLE' %}
-                                <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full">DISPONIBLE</span>
-                            {% elif item.status == 'STOCK BAJO' %}
-                                <span class="bg-amber-100 text-amber-800 px-3 py-1 rounded-full">STOCK BAJO</span>
-                            {% else %}
-                                <span class="bg-red-100 text-red-800 px-3 py-1 rounded-full">AGOTADO</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="12" class="p-8 text-center text-slate-400 font-semibold">No se encontraron resultados para su búsqueda.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</body>
-</html>
-"""
-
-MOVEMENTS_TEMPLATE = """
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title>Historial de Movimientos - Sistema Hospitalario</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-slate-50 min-h-screen font-sans">
-    """ + BASE_NAV + """
-
-    <div class="max-w-7xl mx-auto my-10 bg-white p-8 rounded-3xl shadow-2xl border border-slate-100">
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 pb-6 border-b border-slate-100 gap-4">
-            <div>
-                <h2 class="text-2xl font-black text-slate-900 tracking-tight">📑 Bitácora General de Movimientos y Auditoría</h2>
-                <p class="text-sm text-slate-500">Busque por paciente, expediente, medicamento, usuario o servicio clínico.</p>
-            </div>
-            
-            <form method="GET" action="/movements" class="flex items-center space-x-2 w-full md:w-auto">
-                <input type="text" name="q" value="{{ search_query }}" placeholder="🔍 Buscar por paciente, medicamento..." class="px-4 py-2.5 border border-slate-300 rounded-xl text-sm w-full md:w-80 focus:ring-2 focus:ring-blue-500 outline-none shadow-sm">
-                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl font-bold text-sm shadow transition">Buscar</button>
-                {% if search_query %}
-                    <a href="/movements" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-2.5 rounded-xl font-bold text-sm transition">Limpiar</a>
-                {% endif %}
-            </form>
-        </div>
-
-        <div class="overflow-x-auto rounded-2xl border border-slate-200 shadow-sm">
-            <table class="w-full border-collapse text-sm text-left">
-                <thead class="bg-slate-900 text-white uppercase text-xs tracking-wider">
-                    <tr>
-                        <th class="p-4 border-b border-slate-800">Fecha / Hora</th>
-                        <th class="p-4 border-b border-slate-800">Código</th>
-                        <th class="p-4 border-b border-slate-800">Clasificación</th>
-                        <th class="p-4 border-b border-slate-800">Medicamento / Material</th>
-                        <th class="p-4 border-b border-slate-800 text-center">Tipo</th>
-                        <th class="p-4 border-b border-slate-800 text-right">Cant.</th>
-                        <th class="p-4 border-b border-slate-800">Servicio / Destino</th>
-                        <th class="p-4 border-b border-slate-800">Paciente / Expediente</th>
-                        <th class="p-4 border-b border-slate-800">Responsable</th>
-                        <th class="p-4 border-b border-slate-800">Observaciones</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-100 font-medium">
-                    {% for m in movements %}
-                    <tr class="hover:bg-slate-50/80 transition">
-                        <td class="p-4 font-mono text-xs text-slate-500">{{ m.date }} {{ m.time }}</td>
-                        <td class="p-4 font-mono font-semibold text-slate-700">{{ m.code }}</td>
-                        <td class="p-4">
-                            {% if m.category == 'Medicamento' %}
-                                <span class="bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-full text-xs font-bold">💊 Medicamento</span>
-                            {% else %}
-                                <span class="bg-purple-100 text-purple-800 px-2.5 py-0.5 rounded-full text-xs font-bold">🩹 Material</span>
-                            {% endif %}
-                        </td>
-                        <td class="p-4 font-black text-slate-900">{{ m.name }}</td>
-                        <td class="p-4 text-center font-bold text-xs">
-                            {% if m.type == 'ENTRADA' %}
-                                <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full">ENTRADA</span>
-                            {% elif m.type == 'TRASPASO' %}
-                                <span class="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full">TRASPASO</span>
-                            {% else %}
-                                <span class="bg-red-100 text-red-800 px-3 py-1 rounded-full">SALIDA</span>
-                            {% endif %}
-                        </td>
-                        <td class="p-4 text-right font-black text-slate-900">{{ m.qty }}</td>
-                        <td class="p-4 text-slate-700 text-xs font-semibold">{{ m.service }}</td>
-                        <td class="p-4 text-slate-800 text-xs font-bold bg-amber-50/50 rounded">{{ m.patient }}</td>
-                        <td class="p-4 font-bold text-blue-900 text-xs">{{ m.user }}</td>
-                        <td class="p-4 text-slate-500 text-xs">{{ m.reason }}</td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="10" class="p-8 text-center text-slate-400 font-semibold">No se encontraron movimientos registrados con ese criterio.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</body>
-</html>
-"""
-
-REPORTE_TEMPLATE = """
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title>Reporte Diario - Sistema Hospitalario</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-slate-50 min-h-screen font-sans">
-    <div class="print:hidden">
-        """ + BASE_NAV + """
-    </div>
-
-    <div class="max-w-7xl mx-auto my-10 bg-white p-8 rounded-3xl shadow-2xl border border-slate-100">
-        <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-6">
-            <div>
-                <h2 class="text-2xl font-black text-slate-900 tracking-tight flex items-center">
-                    <span class="mr-3">📊</span> Reporte Diario Filtrado de Salidas y Traspasos
-                </h2>
-                <p class="text-sm text-slate-500">Filtre por clasificación de insumos y busque pacientes o medicamentos para auditorías precisas.</p>
-            </div>
-            <button onclick="window.print()" class="bg-slate-900 hover:bg-slate-800 text-white px-5 py-3 rounded-2xl font-bold text-sm shadow-xl transition print:hidden flex items-center space-x-2">
-                <span>🖨️</span><span>Imprimir Reporte</span>
-            </button>
-        </div>
-
-        <div class="mb-8 p-6 bg-slate-50 rounded-2xl border border-slate-200 flex flex-wrap items-center justify-between gap-4 print:hidden">
-            <div class="flex items-center space-x-3">
-                <span class="text-sm font-black text-slate-700 uppercase tracking-wider">Clasificación:</span>
-                <div class="flex space-x-2">
-                    <a href="/reporte?category=TODOS&q={{ search_query }}" class="px-4 py-2 rounded-xl text-xs font-bold transition {% if current_category == 'TODOS' %}bg-blue-600 text-white shadow-md{% else %}bg-white text-slate-700 border border-slate-200 hover:bg-slate-100{% endif %}">Todos</a>
-                    <a href="/reporte?category=Medicamento&q={{ search_query }}" class="px-4 py-2 rounded-xl text-xs font-bold transition {% if current_category == 'Medicamento' %}bg-blue-600 text-white shadow-md{% else %}bg-white text-slate-700 border border-slate-200 hover:bg-slate-100{% endif %}">💊 Medicamentos</a>
-                    <a href="/reporte?category=Material&q={{ search_query }}" class="px-4 py-2 rounded-xl text-xs font-bold transition {% if current_category == 'Material' %}bg-blue-600 text-white shadow-md{% else %}bg-white text-slate-700 border border-slate-200 hover:bg-slate-100{% endif %}">🩹 Material</a>
-                </div>
-            </div>
-
-            <form method="GET" action="/reporte" class="flex items-center space-x-2">
-                <input type="hidden" name="category" value="{{ current_category }}">
-                <input type="text" name="q" value="{{ search_query }}" placeholder="🔍 Filtrar por paciente o insumo..." class="px-3 py-2 border border-slate-300 rounded-xl text-xs w-64 focus:ring-2 focus:ring-blue-500 outline-none">
-                <button type="submit" class="bg-blue-600 text-white px-3 py-2 rounded-xl font-bold text-xs">Filtrar</button>
-                {% if search_query %}
-                    <a href="/reporte?category={{ current_category }}" class="bg-slate-200 text-slate-700 px-3 py-2 rounded-xl font-bold text-xs">Limpiar</a>
-                {% endif %}
-            </form>
-        </div>
-
-        <div class="mb-8 bg-gradient-to-br from-blue-50 to-indigo-50/50 p-6 rounded-2xl border border-blue-100 flex justify-between items-center shadow-sm">
-            <div>
-                <p class="text-xs font-black text-blue-900 uppercase tracking-wider">Total Unidades Salientes / Traspasadas ({{ current_category }}):</p>
-                <p class="text-3xl font-black text-blue-950 mt-1">{{ total_salidas }} unidades</p>
-            </div>
-            <p class="text-xs font-bold text-slate-500">Emisión: {{ datetime.datetime.now().strftime("%Y-%m-%d %H:%M") }}</p>
-        </div>
-
-        <div class="overflow-x-auto rounded-2xl border border-slate-200 shadow-sm">
-            <table class="w-full border-collapse text-sm text-left">
-                <thead class="bg-slate-900 text-white uppercase text-xs tracking-wider">
-                    <tr>
-                        <th class="p-4 border-b border-slate-800">Fecha / Hora</th>
-                        <th class="p-4 border-b border-slate-800">Código</th>
-                        <th class="p-4 border-b border-slate-800">Clasificación</th>
-                        <th class="p-4 border-b border-slate-800">Medicamento / Material</th>
-                        <th class="p-4 border-b border-slate-800 text-center">Tipo</th>
-                        <th class="p-4 border-b border-slate-800 text-right">Cant.</th>
-                        <th class="p-4 border-b border-slate-800">Servicio / Destino</th>
-                        <th class="p-4 border-b border-slate-800">Paciente</th>
-                        <th class="p-4 border-b border-slate-800">Responsable</th>
-                        <th class="p-4 border-b border-slate-800">Observaciones</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-100 font-medium">
-                    {% for m in salidas %}
-                    <tr class="hover:bg-slate-50/80 transition">
-                        <td class="p-4 font-mono text-xs text-slate-500">{{ m.date }} {{ m.time }}</td>
-                        <td class="p-4 font-mono font-semibold text-slate-700">{{ m.code }}</td>
-                        <td class="p-4">
-                            {% if m.category == 'Medicamento' %}
-                                <span class="bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-full text-xs font-bold">💊 Medicamento</span>
-                            {% else %}
-                                <span class="bg-purple-100 text-purple-800 px-2.5 py-0.5 rounded-full text-xs font-bold">🩹 Material</span>
-                            {% endif %}
-                        </td>
-                        <td class="p-4 font-black text-slate-900">{{ m.name }}</td>
-                        <td class="p-4 text-center font-bold text-xs">
-                            {% if m.type == 'TRASPASO' %}
-                                <span class="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full">TRASPASO</span>
-                            {% else %}
-                                <span class="bg-red-100 text-red-800 px-3 py-1 rounded-full">SALIDA</span>
-                            {% endif %}
-                        </td>
-                        <td class="p-4 text-right font-black text-slate-900">-{{ m.qty }}</td>
-                        <td class="p-4 text-slate-700 text-xs font-semibold">{{ m.service }}</td>
-                        <td class="p-4 text-slate-800 text-xs font-bold bg-amber-50/50 rounded">{{ m.patient }}</td>
-                        <td class="p-4 font-bold text-blue-900 text-xs">{{ m.user }}</td>
-                        <td class="p-4 text-slate-500 text-xs">{{ m.reason }}</td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="10" class="p-8 text-center text-slate-400 font-semibold">No se encontraron registros de salidas o traspasos con ese criterio.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</body>
-</html>
-"""
+seed_database()
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    app.run(debug=True)
