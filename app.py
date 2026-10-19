@@ -6,7 +6,7 @@ from flask_sqlalchemy import SQLAlchemy
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "farmacia_secret_key_123")
 
-# Configuración de Base de Datos (Adaptada para psycopg2)
+# Configuración de Base de Datos (Adaptada para PostgreSQL / psycopg2)
 db_url = os.environ.get("DATABASE_URL", "sqlite:///farmacia.db")
 if db_url.startswith("postgres://"):
     db_url = db_url.replace("postgres://", "postgresql+psycopg2://", 1)
@@ -38,7 +38,7 @@ class Item(db.Model):
     unit = db.Column(db.String(20), default="pza")
 
 class Movement(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.Integer, primary_primary=True, primary_key=True)
     timestamp = db.Column(db.DateTime, default=datetime.now)
     item_code = db.Column(db.String(50), nullable=False)
     item_name = db.Column(db.String(150), nullable=False)
@@ -50,7 +50,7 @@ class Movement(db.Model):
     notes = db.Column(db.String(200), nullable=True)
 
 # -----------------------------------------------------------------------------
-# PLANTILLA HTML INTEGRADA CON BUSCADOR Y PERMISOS
+# PLANTILLA HTML INTEGRADA
 # -----------------------------------------------------------------------------
 
 HTML_TEMPLATE = """
@@ -69,11 +69,11 @@ HTML_TEMPLATE = """
         <div class="max-w-7xl mx-auto p-4 flex flex-col md:flex-row justify-between items-center gap-4">
             <div>
                 <h1 class="text-2xl font-bold">🏥 Farmacia Hospitalaria</h1>
-                <p class="text-xs text-blue-200">Sistema Multialmacén y Control de Dosis Unitaria</p>
+                <p class="text-xs text-blue-200">Terminal Compartida de Captura e Inventario Multi-Almacén</p>
             </div>
             
             <nav class="flex gap-2 text-sm font-semibold">
-                <a href="/terminal" class="px-3 py-1.5 rounded bg-blue-800 hover:bg-blue-700">📋 Captura</a>
+                <a href="/terminal{% if is_admin %}?admin=true{% endif %}" class="px-3 py-1.5 rounded bg-blue-800 hover:bg-blue-700">📋 Captura</a>
                 <a href="/etiquetas" class="px-3 py-1.5 rounded bg-blue-800 hover:bg-blue-700">🏷️ Etiquetas DU</a>
             </nav>
         </div>
@@ -95,15 +95,15 @@ HTML_TEMPLATE = """
         </div>
 
         {% if view == 'terminal' %}
-        <!-- FORMULARIO DE CAPTURA -->
+        <!-- FORMULARIO DE CAPTURA COMPARTIDO -->
         <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200 lg:col-span-1">
             <h2 class="text-lg font-bold text-blue-900 mb-4 border-b pb-2">📋 Registrar Movimiento</h2>
             <form action="/register" method="POST" class="space-y-4">
                 
                 <div>
-                    <label class="block text-xs font-semibold text-gray-600 uppercase">Usuario Autorizado</label>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase">Personal / Usuario Autorizado</label>
                     <select name="user_id" required class="w-full mt-1 p-2 border rounded-md text-sm bg-gray-50">
-                        <option value="">Seleccione Usuario...</option>
+                        <option value="">Seleccione Personal...</option>
                         {% for user in users %}
                             <option value="{{ user.id }}">{{ user.name }} ({{ user.role }})</option>
                         {% endfor %}
@@ -111,20 +111,20 @@ HTML_TEMPLATE = """
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold text-gray-600 uppercase">Contraseña / PIN</label>
-                    <input type="password" name="pin" required placeholder="PIN de Verificación" class="w-full mt-1 p-2 border rounded-md text-sm">
+                    <label class="block text-xs font-semibold text-gray-600 uppercase">PIN de Verificación</label>
+                    <input type="password" name="pin" required placeholder="Ingrese PIN personal" class="w-full mt-1 p-2 border rounded-md text-sm">
                 </div>
 
                 <!-- BUSCADOR INTERACTIVO DE INSUMO -->
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 uppercase">Insumo / Medicamento (Buscador)</label>
-                    <input list="items_list" name="item_search" required placeholder="Escriba el nombre, clave o escanee código..." class="w-full mt-1 p-2 border rounded-md text-sm bg-blue-50 focus:bg-white border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <input list="items_list" name="item_search" required placeholder="Escriba nombre, clave o escanee código..." class="w-full mt-1 p-2 border rounded-md text-sm bg-blue-50 focus:bg-white border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
                     <datalist id="items_list">
                         {% for item in items %}
-                            <option value="{{ item.code }} - {{ item.name }}">Gen: {{ item.stock_general }} | Qx: {{ item.stock_quirofano }}</option>
+                            <option value="{{ item.code }} - {{ item.name }}">General: {{ item.stock_general }} | Qx: {{ item.stock_quirofano }}</option>
                         {% endfor %}
                     </datalist>
-                    <span class="text-[10px] text-gray-500">Puede escanear el código de barras o escribir el nombre.</span>
+                    <span class="text-[10px] text-gray-500">Escanee el código de barras o busque por descripción.</span>
                 </div>
 
                 <div>
@@ -166,7 +166,7 @@ HTML_TEMPLATE = """
             </form>
         </div>
 
-        <!-- EXISTENCIAS Y BITÁCORA PRIVADA PARA ADMINISTRADOR -->
+        <!-- VISTA DE EXISTENCIAS Y REPORTE RESTRINGIDO -->
         <div class="space-y-6 lg:col-span-2">
             
             <!-- Existencias Generales -->
@@ -202,10 +202,10 @@ HTML_TEMPLATE = """
                 </div>
             </div>
 
-            <!-- BITÁCORA / REPORTE RESTRINGIDO PARA ADMINISTRADOR -->
+            <!-- BITÁCORA Y REPORTE RESTRINGIDO PARA ADMINISTRADOR -->
             <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200">
                 <div class="flex justify-between items-center mb-4 border-b pb-2">
-                    <h2 class="text-lg font-bold text-blue-900">🔒 Bitácora y Reporte Diario (Solo Administrador)</h2>
+                    <h2 class="text-lg font-bold text-blue-900">🔒 Bitácora de Movimientos y Reporte Diario</h2>
                 </div>
 
                 {% if is_admin %}
@@ -237,7 +237,7 @@ HTML_TEMPLATE = """
                 </div>
                 {% else %}
                 <div class="p-6 text-center bg-gray-50 rounded-lg border border-dashed border-gray-300">
-                    <p class="text-sm text-gray-500">🔒 <strong>Acceso Restringido:</strong> Ingrese con credenciales de Administrador para visualizar la bitácora de movimientos y reportes diarios.</p>
+                    <p class="text-sm text-gray-500">🔒 <strong>Acceso Restringido:</strong> La bitácora y reporte diario solo son visibles para el personal con rol de <strong>Administrador / Farmacia Titular</strong> al autenticarse.</p>
                 </div>
                 {% endif %}
             </div>
@@ -248,11 +248,11 @@ HTML_TEMPLATE = """
         <!-- PESTAÑA GENERACIÓN DE ETIQUETAS DU -->
         <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200 lg:col-span-3">
             <h2 class="text-xl font-bold text-blue-900 mb-2">🏷️ Módulo de Etiquetas de Dosis Unitaria</h2>
-            <p class="text-sm text-gray-600 mb-6">Módulo listo para vincular la plantilla de impresión de etiquetas.</p>
+            <p class="text-sm text-gray-600 mb-6">Sección para generación e impresión estandarizada de etiquetas.</p>
             
             <div class="p-8 border-2 border-dashed border-blue-200 rounded-lg text-center bg-blue-50">
-                <p class="text-gray-700 font-semibold mb-2">📄 Módulo de Impresión Integrado</p>
-                <p class="text-xs text-gray-500 max-w-md mx-auto">Próximamente podrás generar e imprimir las etiquetas estandarizadas de medicamentos de Dosis Unitaria directamente a partir del catálogo de inventario.</p>
+                <p class="text-gray-700 font-semibold mb-2">📄 Plantilla Integrada</p>
+                <p class="text-xs text-gray-500 max-w-md mx-auto">Próximamente podrás seleccionar cualquier medicamento del catálogo e imprimir sus etiquetas en formato estándar de Dosis Unitaria.</p>
             </div>
         </div>
         {% endif %}
@@ -271,9 +271,9 @@ HTML_TEMPLATE = """
 def terminal():
     items = Item.query.order_by(Item.name).all()
     users = User.query.order_by(User.name).all()
-    movements = Movement.query.order_by(Movement.timestamp.desc()).limit(30).all()
+    movements = Movement.query.order_by(Movement.timestamp.desc()).limit(50).all()
     
-    # Comprobar si se solicitó vista de administrador vía parámetro
+    # Comprobar estado de administrador
     is_admin = request.args.get("admin") == "true"
     
     return render_template_string(HTML_TEMPLATE, view="terminal", items=items, users=users, movements=movements, is_admin=is_admin)
@@ -299,12 +299,12 @@ def register_movement():
         flash("❌ PIN o Contraseña incorrectos.", "error")
         return redirect(url_for("terminal"))
 
-    # Buscar insumo por clave/código extraído de la búsqueda
+    # Buscar insumo por clave/código
     item_code = item_search.split(" - ")[0] if " - " in item_search else item_search
     item = Item.query.filter((Item.code == item_code) | (Item.name.ilike(f"%{item_search}%"))).first()
 
     if not item:
-        flash("❌ Insumo no encontrado. Seleccione una opción válida de la lista.", "error")
+        flash("❌ Insumo no encontrado. Seleccione una opción válida del buscador.", "error")
         return redirect(url_for("terminal"))
 
     # Procesar Lógica de Inventario
@@ -347,28 +347,40 @@ def register_movement():
     db.session.add(mov)
     db.session.commit()
 
-    # Redirigir manteniendo el privilegio si era Admin
+    # Si quien registra es Administrador, mantenemos la vista activa
     is_admin_param = "?admin=true" if user.role == "Administrador" else ""
-    flash("✅ Movimiento registrado y guardado en la base de datos.", "success")
+    flash("✅ Movimiento registrado correctamente.", "success")
     return redirect(url_for("terminal") + is_admin_param)
 
 # -----------------------------------------------------------------------------
-# INICIALIZACIÓN DE DATOS SEMILLA
+# INICIALIZACIÓN DE DATOS SEMILLA (PERSONAL E INVENTARIO)
 # -----------------------------------------------------------------------------
 
 def seed_database():
     with app.app_context():
         db.create_all()
+        
+        # Restauración y Población de Personal
         if User.query.count() == 0:
-            u1 = User(name="David Gonzalez Mendoza", role="Administrador", pin="5678")
-            u2 = User(name="Hannia Martinez Salas", role="Enfermera Quirófano", pin="1234")
-            db.session.add_all([u1, u2])
+            users_list = [
+                User(name="David Gonzalez Mendoza", role="Administrador", pin="5678"),
+                User(name="Hannia Martinez Salas", role="Enfermera Quirófano", pin="1234"),
+                User(name="Carlos Rivera López", role="Enfermero Urgencias", pin="1111"),
+                User(name="Dra. María Elena Castro", role="Anestesióloga", pin="2222"),
+                User(name="Dra. Sofia Ramos", role="Farmacia Titular", pin="4321")
+            ]
+            db.session.add_all(users_list)
 
+        # Inventario de Muestra
         if Item.query.count() == 0:
-            i1 = Item(code="MED-001", name="Paracetamol 500mg Tab", category="Medicamento", stock_general=150, stock_quirofano=20)
-            i2 = Item(code="MED-002", name="Propofol 200mg/20ml Amp", category="Medicamento", stock_general=40, stock_quirofano=15)
-            i3 = Item(code="MAT-001", name="Jeringa 10ml c/Aguja", category="Material", stock_general=300, stock_quirofano=50)
-            db.session.add_all([i1, i2, i3])
+            items_list = [
+                Item(code="MED-001", name="Paracetamol 500mg Tab", category="Medicamento", stock_general=150, stock_quirofano=20),
+                Item(code="MED-002", name="Propofol 200mg/20ml Amp", category="Medicamento", stock_general=40, stock_quirofano=15),
+                Item(code="MED-003", name="Fentanilo 0.5mg/10ml Amp", category="Medicamento", stock_general=30, stock_quirofano=10),
+                Item(code="MAT-001", name="Jeringa 10ml c/Aguja", category="Material", stock_general=300, stock_quirofano=50),
+                Item(code="MAT-002", name="Equipo de Venoclisis Normogotero", category="Material", stock_general=100, stock_quirofano=25)
+            ]
+            db.session.add_all(items_list)
 
         db.session.commit()
 
