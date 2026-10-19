@@ -240,7 +240,7 @@ HTML_TEMPLATE = """
                     </form>
                 </div>
 
-                <!-- Formulario para Alta de Nuevo Medicamento (Con Lote y Caducidad) -->
+                <!-- Formulario para Alta de Nuevo Medicamento -->
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1">
                     <h2 class="text-base font-bold text-slate-900 mb-4 border-b pb-2 flex items-center gap-2">
                         <i class="fa-solid fa-plus-circle text-emerald-600"></i> Dar de Alta Nuevo Medicamento
@@ -299,7 +299,6 @@ HTML_TEMPLATE = """
                             </div>
                         </div>
 
-                        <!-- NUEVOS CAMPOS: LOTE Y CADUCIDAD -->
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             <div>
                                 <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Lote</label>
@@ -333,14 +332,14 @@ HTML_TEMPLATE = """
         </div>
 
         {% elif view == 'inventario' %}
-        <!-- PESTAÑA 2: INVENTARIO CON MODIFICACIÓN DE INSUMOS -->
+        <!-- PESTAÑA 2: INVENTARIO CON EDICIÓN PROTEGIDA POR ADMINISTRADOR -->
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
             <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-6 border-b pb-4">
                 <div>
                     <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
-                        <i class="fa-solid fa-boxes-stacked text-blue-600"></i> Stock General y Edición de Inventario
+                        <i class="fa-solid fa-boxes-stacked text-blue-600"></i> Stock General e Inventario
                     </h2>
-                    <p class="text-xs text-slate-500">Existencias en tiempo real por almacén y edición de datos.</p>
+                    <p class="text-xs text-slate-500">Existencias en tiempo real por almacén. Edición exclusiva de Administrador.</p>
                 </div>
 
                 <div class="w-full md:w-80 relative">
@@ -359,7 +358,7 @@ HTML_TEMPLATE = """
                             <th class="p-3">Lote / Caducidad</th>
                             <th class="p-3 text-center">General</th>
                             <th class="p-3 text-center">Quirófano</th>
-                            <th class="p-3 text-center">Acción</th>
+                            <th class="p-3 text-center">Acción (Admin)</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
@@ -391,7 +390,7 @@ HTML_TEMPLATE = """
                             </td>
                             <td class="p-3 text-center">
                                 <button onclick="openEditModal('{{ item.id }}', '{{ item.code }}', '{{ item.name }}', '{{ item.category }}', '{{ item.via_administracion or '' }}', '{{ item.presentacion or '' }}', '{{ item.lote or '' }}', '{{ item.caducidad or '' }}', '{{ item.unit }}', '{{ item.stock_general }}', '{{ item.stock_quirofano }}')" class="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold transition shadow-sm flex items-center gap-1 mx-auto">
-                                    <i class="fa-solid fa-pen"></i> Editar
+                                    <i class="fa-solid fa-lock"></i> Editar
                                 </button>
                             </td>
                         </tr>
@@ -401,12 +400,12 @@ HTML_TEMPLATE = """
             </div>
         </div>
 
-        <!-- MODAL DE EDICIÓN DE INSUMO -->
+        <!-- MODAL DE EDICIÓN PROTEGIDO POR CONTRASEÑA DE ADMINISTRADOR -->
         <div id="editModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
             <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto">
                 <div class="flex justify-between items-center mb-4 border-b pb-2">
                     <h3 class="font-bold text-lg text-slate-900 flex items-center gap-2">
-                        <i class="fa-solid fa-pen-to-square text-amber-500"></i> Modificar Insumo
+                        <i class="fa-solid fa-pen-to-square text-amber-500"></i> Modificar Insumo (Administrador)
                     </h3>
                     <button onclick="closeEditModal()" class="text-slate-400 hover:text-slate-600 text-lg">
                         <i class="fa-solid fa-xmark"></i>
@@ -416,6 +415,12 @@ HTML_TEMPLATE = """
                 <form action="/update_item" method="POST" class="space-y-3">
                     <input type="hidden" name="item_id" id="edit_item_id">
                     
+                    <!-- REQUERIR PIN ADMINISTRADOR PARA AUTORIZAR CAMBIOS -->
+                    <div class="p-3 bg-amber-50 rounded-xl border border-amber-200">
+                        <label class="block text-xs font-bold text-amber-900 uppercase mb-1">🔒 PIN / Contraseña de Administrador</label>
+                        <input type="password" name="admin_pin" required placeholder="Ingrese PIN de Administrador (5678)" class="w-full p-2 border rounded-lg text-xs bg-white font-bold outline-none focus:ring-2 focus:ring-amber-500">
+                    </div>
+
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Código</label>
@@ -738,6 +743,14 @@ def add_item():
 
 @app.route("/update_item", methods=["POST"])
 def update_item():
+    admin_pin = request.form.get("admin_pin")
+    admin_user = User.query.filter_by(role="Administrador").first()
+
+    # Validar PIN de Administrador
+    if admin_pin != "5678" and (not admin_user or admin_user.pin != admin_pin):
+        flash("❌ Acceso denegado: PIN de Administrador incorrecto.", "error")
+        return redirect(url_for("inventario"))
+
     item_id = request.form.get("item_id")
     item = Item.query.get(item_id)
     if not item:
@@ -756,7 +769,7 @@ def update_item():
     item.stock_quirofano = int(request.form.get("stock_quirofano", 0))
 
     db.session.commit()
-    flash(f"Insumo '{item.name}' actualizado correctamente.", "success")
+    flash(f"✅ Insumo '{item.name}' actualizado correctamente por el Administrador.", "success")
     return redirect(url_for("inventario"))
 
 @app.route("/save_user", methods=["POST"])
