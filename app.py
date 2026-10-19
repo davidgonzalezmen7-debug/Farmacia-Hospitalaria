@@ -57,7 +57,7 @@ class Movement(db.Model):
     notes = db.Column(db.String(200), nullable=True)
 
 # -----------------------------------------------------------------------------
-# PLANTILLA HTML INTEGRADA CON FILTROS DE FECHA Y RESUMEN DE TOTALES
+# PLANTILLA HTML INTEGRADA
 # -----------------------------------------------------------------------------
 
 HTML_TEMPLATE = """
@@ -591,3 +591,438 @@ HTML_TEMPLATE = """
                                 <td class="p-3 font-bold text-slate-900">{{ mov.item_name }}</td>
                                 <td class="p-3 text-center font-bold text-sm text-slate-900">{{ mov.quantity }}</td>
                                 <td class="p-3 text-slate-600">
+                                    {{ mov.service or 'N/A' }}
+                                    <span class="block text-[10px] text-slate-400 font-normal">Orig: {{ mov.warehouse }}</span>
+                                </td>
+                                <td class="p-3 font-medium text-slate-900">
+                                    {% if mov.patient_name %}
+                                        {{ mov.patient_name }} <span class="text-slate-400 text-[10px]">({{ mov.patient_id or 'S/E' }})</span>
+                                    {% else %}
+                                        <span class="text-slate-400">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="p-3 text-indigo-900 font-bold">{{ mov.user_name }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="7" class="p-8 text-center text-slate-400 italic">
+                                    No se encontraron registros de movimientos con los filtros seleccionados.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+
+        {% elif view == 'usuarios' %}
+        <!-- PESTAÑA 4: GESTIÓN DE USUARIOS (PROTEGIDA) -->
+        {% if not is_admin %}
+        <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 max-w-md mx-auto text-center">
+            <div class="w-16 h-16 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center text-2xl mx-auto mb-4">
+                <i class="fa-solid fa-lock"></i>
+            </div>
+            <h2 class="text-lg font-bold text-slate-900">Acceso Restringido a Administrador</h2>
+            <p class="text-xs text-slate-500 mt-1 mb-6">Ingrese la contraseña del Administrador para acceder a la gestión de usuarios y contraseñas.</p>
+
+            <form action="/auth_admin" method="POST" class="space-y-4">
+                <input type="password" name="admin_pin" required placeholder="Contraseña de Administrador" class="w-full p-3 border rounded-xl text-center text-lg tracking-widest focus:ring-2 focus:ring-blue-500 outline-none">
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition">
+                    Desbloquear Pestaña
+                </button>
+            </form>
+        </div>
+        {% else %}
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1">
+                <h2 class="text-base font-bold text-slate-900 mb-4 border-b pb-2 flex items-center gap-2">
+                    <i class="fa-solid fa-user-plus text-blue-600"></i> Registrar o Modificar Usuario
+                </h2>
+
+                <form action="/save_user" method="POST" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nombre Completo</label>
+                        <input type="text" name="name" required placeholder="Ej. Dr. Juan Pérez" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Rol / Cargo</label>
+                        <select name="role" required class="w-full p-2.5 border rounded-xl text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+                            <option value="Enfermería Quirófano">Enfermería Quirófano</option>
+                            <option value="Enfermería Urgencias">Enfermería Urgencias</option>
+                            <option value="Médico Anestesiólogo">Médico Anestesiólogo</option>
+                            <option value="Farmacéutico">Farmacéutico</option>
+                            <option value="Administrador">Administrador</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Asignar PIN / Contraseña</label>
+                        <input type="password" name="pin" required placeholder="PIN numérico" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-md transition duration-200 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-user-check"></i> Guardar Usuario y PIN
+                    </button>
+                </form>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-2">
+                <h2 class="text-base font-bold text-slate-900 mb-4 border-b pb-2 flex items-center gap-2">
+                    <i class="fa-solid fa-users text-blue-600"></i> Personal Registrado
+                </h2>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {% for u in users %}
+                    <div class="p-4 rounded-xl border border-slate-100 bg-slate-50 flex items-center justify-between">
+                        <div>
+                            <h4 class="font-bold text-slate-900 text-sm">{{ u.name }}</h4>
+                            <p class="text-xs text-slate-500">{{ u.role }}</p>
+                        </div>
+                        <span class="text-xs font-mono bg-white px-3 py-1 rounded-lg border text-slate-600 font-semibold">PIN: {{ u.pin }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% elif view == 'etiquetas' %}
+        <!-- PESTAÑA 5: ETIQUETAS DU -->
+        <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 text-center">
+            <h2 class="text-xl font-bold text-slate-900 mb-2 flex items-center justify-center gap-2">
+                <i class="fa-solid fa-tags text-blue-600"></i> Módulo de Impresión de Etiquetas DU
+            </h2>
+            <p class="text-xs text-slate-500 max-w-md mx-auto mb-6">Módulo listo para vincular la plantilla de impresión de medicamentos en formato Dosis Unitaria.</p>
+            <div class="p-8 bg-blue-50 rounded-2xl border-2 border-dashed border-blue-200 inline-block">
+                <i class="fa-solid fa-print text-4xl text-blue-500 mb-2"></i>
+                <p class="text-sm font-bold text-slate-700">Impresión Estándar Configurada</p>
+            </div>
+        </div>
+        {% endif %}
+
+    </main>
+
+    <script>
+        function selectUser(id) {
+            var elem = document.getElementById('userSelect');
+            if(elem) elem.value = id;
+        }
+
+        function filterInventory() {
+            var input = document.getElementById("inventorySearch");
+            var filter = input.value.toLowerCase();
+            var rows = document.getElementsByClassName("inventory-row");
+
+            for (var i = 0; i < rows.length; i++) {
+                var text = rows[i].innerText.toLowerCase();
+                if (text.includes(filter)) {
+                    rows[i].style.display = "";
+                } else {
+                    rows[i].style.display = "none";
+                }
+            }
+        }
+
+        function openEditModal(id, code, name, category, via, presentacion, lote, caducidad, unit, general, quirofano) {
+            document.getElementById('edit_item_id').value = id;
+            document.getElementById('edit_code').value = code;
+            document.getElementById('edit_name').value = name;
+            document.getElementById('edit_category').value = category;
+            document.getElementById('edit_via').value = via;
+            document.getElementById('edit_presentacion').value = presentacion;
+            document.getElementById('edit_lote').value = lote;
+            document.getElementById('edit_caducidad').value = caducidad;
+            document.getElementById('edit_unit').value = unit;
+            document.getElementById('edit_stock_general').value = general;
+            document.getElementById('edit_stock_quirofano').value = quirofano;
+            document.getElementById('editModal').classList.remove('hidden');
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
+"""
+
+# -----------------------------------------------------------------------------
+# RUTAS DE LA APLICACIÓN
+# -----------------------------------------------------------------------------
+
+@app.route("/")
+@app.route("/terminal")
+def terminal():
+    items = Item.query.order_by(Item.name).all()
+    users = User.query.order_by(User.name).all()
+    return render_template_string(HTML_TEMPLATE, view="terminal", items=items, users=users)
+
+@app.route("/inventario")
+def inventario():
+    items = Item.query.order_by(Item.name).all()
+    return render_template_string(HTML_TEMPLATE, view="inventario", items=items)
+
+@app.route("/bitacora")
+def bitacora():
+    filter_date = request.args.get("filter_date", "").strip()
+    filter_type = request.args.get("filter_type", "").strip()
+    search_item = request.args.get("search_item", "").strip()
+
+    query = Movement.query
+
+    if filter_date:
+        try:
+            target_date = datetime.strptime(filter_date, "%Y-%m-%d").date()
+            query = query.filter(db.func.date(Movement.timestamp) == target_date)
+        except ValueError:
+            pass
+
+    if filter_type:
+        query = query.filter(Movement.type == filter_type)
+
+    if search_item:
+        query = query.filter(Movement.item_name.ilike(f"%{search_item}%"))
+
+    movements = query.order_by(Movement.timestamp.desc()).all()
+
+    total_salidas = sum(m.quantity for m in movements if m.type == "Salida")
+    total_entradas = sum(m.quantity for m in movements if m.type == "Entrada")
+    total_traspasos = sum(m.quantity for m in movements if m.type == "Traspaso Qx")
+
+    return render_template_string(
+        HTML_TEMPLATE, 
+        view="bitacora", 
+        movements=movements,
+        selected_date=filter_date,
+        selected_type=filter_type,
+        search_item=search_item,
+        total_salidas=total_salidas,
+        total_entradas=total_entradas,
+        total_traspasos=total_traspasos
+    )
+
+@app.route("/usuarios")
+def usuarios():
+    users = User.query.order_by(User.name).all()
+    is_admin = request.args.get("admin") == "true"
+    return render_template_string(HTML_TEMPLATE, view="usuarios", users=users, is_admin=is_admin)
+
+@app.route("/auth_admin", methods=["POST"])
+def auth_admin():
+    admin_pin = request.form.get("admin_pin")
+    admin_user = User.query.filter_by(role="Administrador").first()
+    
+    if admin_pin == "5678" or (admin_user and admin_user.pin == admin_pin):
+        flash("Acceso concedido a la gestión de usuarios.", "success")
+        return redirect(url_for("usuarios", admin="true"))
+    else:
+        flash("Contraseña de Administrador incorrecta.", "error")
+        return redirect(url_for("usuarios"))
+
+@app.route("/add_item", methods=["POST"])
+def add_item():
+    code = request.form.get("code", "").strip().upper()
+    name = request.form.get("name", "").strip()
+    category = request.form.get("category")
+    via_administracion = request.form.get("via_administracion")
+    presentacion = request.form.get("presentacion")
+    lote = request.form.get("lote", "").strip()
+    caducidad = request.form.get("caducidad", "").strip()
+    unit = request.form.get("unit", "pza").strip()
+    stock_general = int(request.form.get("stock_general", 0))
+
+    if Item.query.filter_by(code=code).first():
+        flash("El código o clave ya existe en el inventario.", "error")
+        return redirect(url_for("terminal"))
+
+    new_item = Item(
+        code=code, 
+        name=name, 
+        category=category, 
+        via_administracion=via_administracion,
+        presentacion=presentacion,
+        lote=lote,
+        caducidad=caducidad,
+        unit=unit, 
+        stock_general=stock_general, 
+        stock_quirofano=0
+    )
+    db.session.add(new_item)
+    db.session.commit()
+
+    flash(f"Medicamento '{name}' registrado exitosamente con código {code}.", "success")
+    return redirect(url_for("terminal"))
+
+@app.route("/update_item", methods=["POST"])
+def update_item():
+    admin_pin = request.form.get("admin_pin")
+    admin_user = User.query.filter_by(role="Administrador").first()
+
+    if admin_pin != "5678" and (not admin_user or admin_user.pin != admin_pin):
+        flash("❌ Acceso denegado: PIN de Administrador incorrecto.", "error")
+        return redirect(url_for("inventario"))
+
+    item_id = request.form.get("item_id")
+    item = Item.query.get(item_id)
+    if not item:
+        flash("Insumo no encontrado.", "error")
+        return redirect(url_for("inventario"))
+
+    item.code = request.form.get("code", "").strip().upper()
+    item.name = request.form.get("name", "").strip()
+    item.category = request.form.get("category")
+    item.via_administracion = request.form.get("via_administracion")
+    item.presentacion = request.form.get("presentacion")
+    item.lote = request.form.get("lote", "").strip()
+    item.caducidad = request.form.get("caducidad", "").strip()
+    item.unit = request.form.get("unit", "pza").strip()
+    item.stock_general = int(request.form.get("stock_general", 0))
+    item.stock_quirofano = int(request.form.get("stock_quirofano", 0))
+
+    db.session.commit()
+    flash(f"✅ Insumo '{item.name}' actualizado correctamente por el Administrador.", "success")
+    return redirect(url_for("inventario"))
+
+@app.route("/save_user", methods=["POST"])
+def save_user():
+    name = request.form.get("name", "").strip()
+    role = request.form.get("role")
+    pin = request.form.get("pin", "").strip()
+
+    if not name or not pin:
+        flash("Complete todos los campos requeridos.", "error")
+        return redirect(url_for("usuarios", admin="true"))
+
+    user = User.query.filter_by(name=name).first()
+    if user:
+        user.role = role
+        user.pin = pin
+        flash(f"PIN/Contraseña actualizada para {name}.", "success")
+    else:
+        new_user = User(name=name, role=role, pin=pin)
+        db.session.add(new_user)
+        flash(f"Usuario {name} registrado con éxito.", "success")
+    
+    db.session.commit()
+    return redirect(url_for("usuarios", admin="true"))
+
+@app.route("/etiquetas")
+def etiquetas():
+    return render_template_string(HTML_TEMPLATE, view="etiquetas")
+
+@app.route("/register", methods=["POST"])
+def register_movement():
+    user_id = request.form.get("user_id")
+    pin = request.form.get("pin")
+    item_search = request.form.get("item_search", "").strip()
+    mov_type = request.form.get("type")
+    warehouse = request.form.get("warehouse")
+    quantity = int(request.form.get("quantity", 1))
+    service = request.form.get("service")
+    patient_name = request.form.get("patient_name")
+    patient_id = request.form.get("patient_id")
+    notes = request.form.get("notes")
+
+    user = User.query.get(user_id)
+    if not user or user.pin != pin:
+        flash("PIN o contraseña de usuario incorrecta.", "error")
+        return redirect(url_for("terminal"))
+
+    item_code = item_search.split(" - ")[0] if " - " in item_search else item_search
+    item = Item.query.filter((Item.code == item_code) | (Item.name.ilike(f"%{item_search}%"))).first()
+
+    if not item:
+        flash("Insumo no encontrado. Seleccione una opción válida del buscador.", "error")
+        return redirect(url_for("terminal"))
+
+    if mov_type == "Entrada":
+        if warehouse == "Almacén General":
+            item.stock_general += quantity
+        else:
+            item.stock_quirofano += quantity
+
+    elif mov_type == "Salida":
+        if warehouse == "Almacén General":
+            if item.stock_general < quantity:
+                flash(f"Stock insuficiente en Almacén General ({item.stock_general} disponibles).", "error")
+                return redirect(url_for("terminal"))
+            item.stock_general -= quantity
+        else:
+            if item.stock_quirofano < quantity:
+                flash(f"Stock insuficiente en Quirófano ({item.stock_quirofano} disponibles).", "error")
+                return redirect(url_for("terminal"))
+            item.stock_quirofano -= quantity
+
+    elif mov_type == "Traspaso Qx":
+        if item.stock_general < quantity:
+            flash("Stock insuficiente en Almacén General para el traspaso.", "error")
+            return redirect(url_for("terminal"))
+        item.stock_general -= quantity
+        item.stock_quirofano += quantity
+
+    mov = Movement(
+        item_code=item.code,
+        item_name=item.name,
+        type=mov_type,
+        quantity=quantity,
+        warehouse=warehouse,
+        service=service,
+        patient_name=patient_name,
+        patient_id=patient_id,
+        user_name=user.name,
+        notes=notes
+    )
+    db.session.add(mov)
+    db.session.commit()
+
+    flash("Movimiento / Surtido registrado guardado exitosamente.", "success")
+    return redirect(url_for("terminal"))
+
+# -----------------------------------------------------------------------------
+# DATOS SEMILLA E INICIALIZACIÓN DE MIGRACIONES AUTOMÁTICAS
+# -----------------------------------------------------------------------------
+
+def seed_database():
+    with app.app_context():
+        db.create_all()
+
+        try:
+            db.session.execute(text("ALTER TABLE movement ADD COLUMN IF NOT EXISTS patient_name VARCHAR(150);"))
+            db.session.execute(text("ALTER TABLE movement ADD COLUMN IF NOT EXISTS patient_id VARCHAR(50);"))
+            db.session.execute(text("ALTER TABLE item ADD COLUMN IF NOT EXISTS via_administracion VARCHAR(50);"))
+            db.session.execute(text("ALTER TABLE item ADD COLUMN IF NOT EXISTS presentacion VARCHAR(50);"))
+            db.session.execute(text("ALTER TABLE item ADD COLUMN IF NOT EXISTS lote VARCHAR(50);"))
+            db.session.execute(text("ALTER TABLE item ADD COLUMN IF NOT EXISTS caducidad VARCHAR(20);"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+        
+        if User.query.count() == 0:
+            users_list = [
+                User(name="David Gonzalez Mendoza", role="Administrador", pin="5678"),
+                User(name="Dra. Sofia Ramos", role="Farmacéutico", pin="4321"),
+                User(name="Hannia Martinez Salas", role="Enfermería Quirófano", pin="1234"),
+                User(name="Carlos Rivera López", role="Enfermería Urgencias", pin="1111"),
+                User(name="Dra. María Elena Castro", role="Médico Anestesiólogo", pin="2222")
+            ]
+            db.session.add_all(users_list)
+
+        if Item.query.count() == 0:
+            items_list = [
+                Item(code="MED-001", name="Paracetamol 500mg Tab", category="Medicamento", via_administracion="Oral", presentacion="Tableta", lote="LOT-9821", caducidad="2027-12-31", stock_general=150, stock_quirofano=20),
+                Item(code="MED-002", name="Propofol 200mg/20ml Amp", category="Medicamento", via_administracion="Intravenosa", presentacion="Ampolleta", lote="LOT-4410", caducidad="2027-08-15", stock_general=40, stock_quirofano=15),
+                Item(code="MED-003", name="Fentanilo 0.5mg/10ml Amp", category="Medicamento", via_administracion="Intravenosa", presentacion="Ampolleta", lote="LOT-1102", caducidad="2026-11-20", stock_general=30, stock_quirofano=10),
+                Item(code="MAT-001", name="Jeringa 10ml c/Aguja", category="Material Curación", via_administracion="N/A", presentacion="Otro", lote="LOT-0012", caducidad="2028-05-01", stock_general=300, stock_quirofano=50),
+                Item(code="MAT-002", name="Equipo Venoclisis Normogotero", category="Material Curación", via_administracion="N/A", presentacion="Otro", lote="LOT-0099", caducidad="2028-01-10", stock_general=100, stock_quirofano=25)
+            ]
+            db.session.add_all(items_list)
+
+        db.session.commit()
+
+seed_database()
+
+if __name__ == "__main__":
+    app.run(debug=True)
