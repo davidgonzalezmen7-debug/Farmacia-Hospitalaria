@@ -38,6 +38,7 @@ class Item(db.Model):
     presentacion = db.Column(db.String(50), nullable=True)
     lote = db.Column(db.String(50), nullable=True)
     caducidad = db.Column(db.String(20), nullable=True)
+    etiqueta = db.Column(db.String(50), default="Ninguna") # Alto Riesgo, Controlado, Antibiótico, etc.
     stock_general = db.Column(db.Integer, default=0)
     stock_quirofano = db.Column(db.Integer, default=0)
     unit = db.Column(db.String(20), default="pza")
@@ -56,6 +57,16 @@ class Movement(db.Model):
     user_name = db.Column(db.String(100), nullable=False)
     notes = db.Column(db.String(200), nullable=True)
 
+class ControlledLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    timestamp = db.Column(db.DateTime, default=datetime.now)
+    item_name = db.Column(db.String(150), nullable=False)
+    patient_name = db.Column(db.String(150), nullable=False)
+    prescription_num = db.Column(db.String(50), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False)
+    doctor_name = db.Column(db.String(150), nullable=True)
+    user_name = db.Column(db.String(100), nullable=False)
+
 # -----------------------------------------------------------------------------
 # PLANTILLA HTML DIVIDIDA
 # -----------------------------------------------------------------------------
@@ -68,6 +79,21 @@ HTML_HEADER = """<!DOCTYPE html>
     <title>Farmacia Hospitalaria - Control de Inventario</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @media print {
+            header, nav, .no-print, button, form {
+                display: none !important;
+            }
+            body {
+                background-color: white !important;
+            }
+            .print-container {
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+        }
+    </style>
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800 font-sans">
     <header class="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white shadow-lg sticky top-0 z-40">
@@ -88,6 +114,9 @@ HTML_HEADER = """<!DOCTYPE html>
                 <a href="/inventario" class="px-3.5 py-2 rounded-xl transition flex items-center gap-2 {% if view == 'inventario' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
                     <i class="fa-solid fa-boxes-stacked"></i> Inventario
                 </a>
+                <a href="/controlados" class="px-3.5 py-2 rounded-xl transition flex items-center gap-2 {% if view == 'controlados' %}bg-rose-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-rose-100{% endif %}">
+                    <i class="fa-solid fa-capsules"></i> Controlados
+                </a>
                 <a href="/bitacora" class="px-3.5 py-2 rounded-xl transition flex items-center gap-2 {% if view == 'bitacora' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
                     <i class="fa-solid fa-clock-rotate-left"></i> Bitácora e Histórico
                 </a>
@@ -100,11 +129,11 @@ HTML_HEADER = """<!DOCTYPE html>
             </nav>
         </div>
     </header>
-    <main class="max-w-7xl mx-auto p-4 md:p-6">
+    <main class="max-w-7xl mx-auto p-4 md:p-6 print-container">
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
             {% for category, message in messages %}
-              <div class="p-4 mb-4 text-sm rounded-xl shadow-sm flex items-center gap-3 {% if category == 'error' %}bg-rose-100 text-rose-800 border border-rose-300{% else %}bg-emerald-100 text-emerald-800 border border-emerald-300{% endif %}">
+              <div class="p-4 mb-4 text-sm rounded-xl shadow-sm flex items-center gap-3 no-print {% if category == 'error' %}bg-rose-100 text-rose-800 border border-rose-300{% else %}bg-emerald-100 text-emerald-800 border border-emerald-300{% endif %}">
                 <i class="fa-solid {% if category == 'error' %}fa-circle-xmark{% else %}fa-circle-check{% endif %} text-lg"></i>
                 <span class="font-medium">{{ message }}</span>
               </div>
@@ -164,7 +193,7 @@ HTML_VIEW_TERMINAL = """
                             <input list="items_list" name="item_search" required placeholder="Escriba código de barras, clave o nombre..." class="w-full p-2.5 border rounded-xl text-sm bg-blue-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none font-medium">
                             <datalist id="items_list">
                                 {% for item in items %}
-                                    <option value="{{ item.code }} - {{ item.name }} (Lote: {{ item.lote or 'S/L' }})">Gen: {{ item.stock_general }} | Qx: {{ item.stock_quirofano }}</option>
+                                    <option value="{{ item.code }} - {{ item.name }} (Lote: {{ item.lote or 'S/L' }})">Gen: {{ item.stock_general }} | Qx: {{ item.stock_quirofano }} | {{ item.etiqueta }}</option>
                                 {% endfor %}
                             </datalist>
                         </div>
@@ -247,6 +276,16 @@ HTML_VIEW_TERMINAL = """
                                 <option value="Solución / Inyectable">Solución / Inyectable</option>
                             </select>
                         </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Etiqueta Especial</label>
+                            <select name="etiqueta" class="w-full p-2.5 border rounded-xl text-sm bg-amber-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none font-bold">
+                                <option value="Ninguna">Ninguna</option>
+                                <option value="Alto Riesgo">🔴 Alto Riesgo</option>
+                                <option value="Controlado">🟣 Medicamento Controlado</option>
+                                <option value="Antibiótico">🟡 Antibiótico</option>
+                                <option value="Refrigeración">🔵 Refrigeración</option>
+                            </select>
+                        </div>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             <div>
                                 <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Vía Administr.</label>
@@ -317,7 +356,7 @@ HTML_VIEW_INVENTARIO = """
                     <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
                         <i class="fa-solid fa-boxes-stacked text-blue-600"></i> Stock General e Inventario
                     </h2>
-                    <p class="text-xs text-slate-500">Existencias por lote. Alertas automáticas por próximas caducidades.</p>
+                    <p class="text-xs text-slate-500">Existencias por lote. Alertas automáticas por próximas caducidades y etiquetas de seguridad.</p>
                 </div>
                 <div class="w-full md:w-80 relative">
                     <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-sm"></i>
@@ -332,6 +371,7 @@ HTML_VIEW_INVENTARIO = """
                             <th class="p-3">Código</th>
                             <th class="p-3">Descripción</th>
                             <th class="p-3">Categoría / Presentación</th>
+                            <th class="p-3">Etiqueta Especial</th>
                             <th class="p-3">Lote / Caducidad</th>
                             <th class="p-3 text-center">General</th>
                             <th class="p-3 text-center">Quirófano</th>
@@ -350,6 +390,19 @@ HTML_VIEW_INVENTARIO = """
                                 <span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
                                     {{ item.category }} {% if item.presentacion %}({{ item.presentacion }}){% endif %}
                                 </span>
+                            </td>
+                            <td class="p-3">
+                                {% if item.etiqueta == 'Alto Riesgo' %}
+                                    <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300">🔴 Alto Riesgo</span>
+                                {% elif item.etiqueta == 'Controlado' %}
+                                    <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-300">🟣 Controlado</span>
+                                {% elif item.etiqueta == 'Antibiótico' %}
+                                    <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">🟡 Antibiótico</span>
+                                {% elif item.etiqueta == 'Refrigeración' %}
+                                    <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-300">🔵 Refrigeración</span>
+                                {% else %}
+                                    <span class="text-slate-400 text-xs">-</span>
+                                {% endif %}
                             </td>
                             <td class="p-3 text-xs text-slate-600">
                                 <span class="font-medium text-slate-800">Lote: {{ item.lote or 'S/L' }}</span>
@@ -379,7 +432,7 @@ HTML_VIEW_INVENTARIO = """
                                 </span>
                             </td>
                             <td class="p-3 text-center">
-                                <button onclick="openEditModal('{{ item.id }}', '{{ item.code }}', '{{ item.name }}', '{{ item.category }}', '{{ item.via_administracion or '' }}', '{{ item.presentacion or '' }}', '{{ item.lote or '' }}', '{{ item.caducidad or '' }}', '{{ item.unit }}', '{{ item.stock_general }}', '{{ item.stock_quirofano }}')" class="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold transition shadow-sm flex items-center gap-1 mx-auto">
+                                <button onclick="openEditModal('{{ item.id }}', '{{ item.code }}', '{{ item.name }}', '{{ item.category }}', '{{ item.via_administracion or '' }}', '{{ item.presentacion or '' }}', '{{ item.lote or '' }}', '{{ item.caducidad or '' }}', '{{ item.unit }}', '{{ item.stock_general }}', '{{ item.stock_quirofano }}', '{{ item.etiqueta or 'Ninguna' }}')" class="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold transition shadow-sm flex items-center gap-1 mx-auto">
                                     <i class="fa-solid fa-lock"></i> Editar
                                 </button>
                             </td>
@@ -428,6 +481,17 @@ HTML_VIEW_INVENTARIO = """
                         <input type="text" name="name" id="edit_name" required class="w-full p-2 border rounded-xl text-xs font-bold">
                     </div>
 
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Etiqueta Especial</label>
+                        <select name="etiqueta" id="edit_etiqueta" class="w-full p-2 border rounded-xl text-xs font-bold bg-amber-50">
+                            <option value="Ninguna">Ninguna</option>
+                            <option value="Alto Riesgo">🔴 Alto Riesgo</option>
+                            <option value="Controlado">🟣 Medicamento Controlado</option>
+                            <option value="Antibiótico">🟡 Antibiótico</option>
+                            <option value="Refrigeración">🔵 Refrigeración</option>
+                        </select>
+                    </div>
+
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Vía Administr.</label>
@@ -474,10 +538,128 @@ HTML_VIEW_INVENTARIO = """
         </div>
 """
 
+HTML_VIEW_CONTROLADOS = """
+        {% elif view == 'controlados' %}
+        <div class="space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Formulario de Registro para Medicamento Controlado -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1">
+                    <h2 class="text-base font-bold text-slate-900 mb-4 border-b pb-2 flex items-center gap-2">
+                        <i class="fa-solid fa-file-prescription text-rose-600"></i> Surtir Medicamento Controlado
+                    </h2>
+
+                    <form action="/add_controlled" method="POST" class="space-y-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Medicamento Controlado</label>
+                            <select name="item_name" required class="w-full p-2.5 border rounded-xl text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-rose-500 outline-none font-bold">
+                                <option value="">Seleccione Medicamento...</option>
+                                {% for item in controlled_items %}
+                                    <option value="{{ item.name }}">{{ item.name }} (Lote: {{ item.lote or 'S/L' }})</option>
+                                {% else %}
+                                    <option value="">No hay medicamentos marcados como 'Controlado'</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nombre del Paciente</label>
+                            <input type="text" name="patient_name" required placeholder="Ej. Roberto Gómez Bolaños" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-rose-500 outline-none">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">No. Receta / Folio Controlado</label>
+                            <input type="text" name="prescription_num" required placeholder="Ej. REC-2026-9901" class="w-full p-2.5 border rounded-xl text-sm font-mono focus:ring-2 focus:ring-rose-500 outline-none">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Cantidad</label>
+                                <input type="number" min="1" value="1" name="quantity" required class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-rose-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Médico Prescriptor</label>
+                                <input type="text" name="doctor_name" placeholder="Ej. Dr. Ramírez" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-rose-500 outline-none">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Usuario Responsable</label>
+                                <select name="user_id" required class="w-full p-2.5 border rounded-xl text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-rose-500 outline-none">
+                                    <option value="">Usuario...</option>
+                                    {% for u in users %}
+                                        <option value="{{ u.id }}">{{ u.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">PIN</label>
+                                <input type="password" name="pin" required placeholder="PIN" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-rose-500 outline-none">
+                            </div>
+                        </div>
+
+                        <button type="submit" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 rounded-xl shadow-md transition duration-200 flex items-center justify-center gap-2 mt-2">
+                            <i class="fa-solid fa-file-signature"></i> Registrar Salida Controlada
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Bitácora de Medicamentos Controlados -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-2">
+                    <div class="flex justify-between items-center mb-4 border-b pb-3">
+                        <div>
+                            <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                                <i class="fa-solid fa-book-medical text-rose-600"></i> Bitácora de Medicamentos Controlados
+                            </h2>
+                            <p class="text-xs text-slate-500">Histórico exclusivo para auditoría de narcóticos y psicotrópicos.</p>
+                        </div>
+                        <button onclick="window.print()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition flex items-center gap-1.5 no-print">
+                            <i class="fa-solid fa-print"></i> Imprimir Libro
+                        </button>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs text-left text-slate-600">
+                            <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b">
+                                <tr>
+                                    <th class="p-2.5">Fecha/Hora</th>
+                                    <th class="p-2.5">Medicamento</th>
+                                    <th class="p-2.5">Paciente</th>
+                                    <th class="p-2.5">No. Receta</th>
+                                    <th class="p-2.5 text-center">Cant.</th>
+                                    <th class="p-2.5">Médico / Responsable</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                {% for log in controlled_logs %}
+                                <tr class="hover:bg-slate-50">
+                                    <td class="p-2.5 font-mono text-slate-500">{{ log.timestamp.strftime('%d/%m/%Y %H:%M') }}</td>
+                                    <td class="p-2.5 font-bold text-slate-900">{{ log.item_name }}</td>
+                                    <td class="p-2.5 font-medium text-slate-800">{{ log.patient_name }}</td>
+                                    <td class="p-2.5 font-mono text-rose-700 font-bold bg-rose-50 rounded px-1.5 py-0.5">{{ log.prescription_num }}</td>
+                                    <td class="p-2.5 text-center font-bold text-slate-900">{{ log.quantity }}</td>
+                                    <td class="p-2.5">
+                                        <span class="block text-slate-800 font-medium">{{ log.doctor_name or 'N/E' }}</span>
+                                        <span class="block text-[10px] text-slate-400">Entregó: {{ log.user_name }}</span>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="6" class="p-6 text-center text-slate-400 italic">No hay registros en la bitácora de medicamentos controlados.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+"""
+
 HTML_VIEW_BITACORA = """
         {% elif view == 'bitacora' %}
         <div class="space-y-6">
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 no-print">
                 <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
                     <div>
                         <p class="text-xs font-bold text-slate-500 uppercase">Salidas a Pacientes</p>
@@ -517,9 +699,12 @@ HTML_VIEW_BITACORA = """
                         </h2>
                         <p class="text-xs text-slate-500">Consulte los movimientos registrados filtrando por fecha o tipo de operación.</p>
                     </div>
+                    <button onclick="window.print()" class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl text-xs transition flex items-center gap-2 no-print shadow-sm">
+                        <i class="fa-solid fa-print text-sm"></i> Imprimir Bitácora
+                    </button>
                 </div>
 
-                <form action="/bitacora" method="GET" class="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <form action="/bitacora" method="GET" class="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200 no-print">
                     <div>
                         <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Filtrar por Fecha/Día</label>
                         <input type="date" name="filter_date" value="{{ selected_date }}" class="w-full p-2 border rounded-xl text-xs bg-white focus:ring-2 focus:ring-blue-500 outline-none font-bold">
@@ -714,7 +899,7 @@ HTML_FOOTER = """
             }
         }
 
-        function openEditModal(id, code, name, category, via, presentacion, lote, caducidad, unit, general, quirofano) {
+        function openEditModal(id, code, name, category, via, presentacion, lote, caducidad, unit, general, quirofano, etiqueta) {
             document.getElementById('edit_item_id').value = id;
             document.getElementById('edit_code').value = code;
             document.getElementById('edit_name').value = name;
@@ -726,6 +911,7 @@ HTML_FOOTER = """
             document.getElementById('edit_unit').value = unit;
             document.getElementById('edit_stock_general').value = general;
             document.getElementById('edit_stock_quirofano').value = quirofano;
+            document.getElementById('edit_etiqueta').value = etiqueta || 'Ninguna';
             document.getElementById('editModal').classList.remove('hidden');
         }
 
@@ -752,8 +938,8 @@ HTML_FOOTER = """
 </html>
 """
 
-# Concatenar todos los bloques de HTML de forma completamente segura
-HTML_TEMPLATE = HTML_HEADER + HTML_VIEW_TERMINAL + HTML_VIEW_INVENTARIO + HTML_VIEW_BITACORA + HTML_VIEW_USUARIOS + HTML_FOOTER
+# Concatenación de bloques de la plantilla HTML
+HTML_TEMPLATE = HTML_HEADER + HTML_VIEW_TERMINAL + HTML_VIEW_INVENTARIO + HTML_VIEW_CONTROLADOS + HTML_VIEW_BITACORA + HTML_VIEW_USUARIOS + HTML_FOOTER
 
 # -----------------------------------------------------------------------------
 # RUTAS DE LA APLICACIÓN
@@ -772,6 +958,42 @@ def inventario():
     today_str = date.today().isoformat()
     warning_str = (date.today() + timedelta(days=30)).isoformat()
     return render_template_string(HTML_TEMPLATE, view="inventario", items=items, today_str=today_str, warning_str=warning_str)
+
+@app.route("/controlados")
+def controlados():
+    controlled_items = Item.query.filter_by(etiqueta="Controlado").order_by(Item.name).all()
+    controlled_logs = ControlledLog.query.order_by(ControlledLog.timestamp.desc()).all()
+    users = User.query.order_by(User.name).all()
+    return render_template_string(HTML_TEMPLATE, view="controlados", controlled_items=controlled_items, controlled_logs=controlled_logs, users=users)
+
+@app.route("/add_controlled", methods=["POST"])
+def add_controlled():
+    item_name = request.form.get("item_name")
+    patient_name = request.form.get("patient_name", "").strip()
+    prescription_num = request.form.get("prescription_num", "").strip()
+    quantity = int(request.form.get("quantity", 1))
+    doctor_name = request.form.get("doctor_name", "").strip()
+    user_id = request.form.get("user_id")
+    pin = request.form.get("pin", "").strip()
+
+    user = User.query.get(user_id)
+    if not user or user.pin != pin:
+        flash("PIN de seguridad incorrecto.", "error")
+        return redirect(url_for("controlados"))
+
+    new_log = ControlledLog(
+        item_name=item_name,
+        patient_name=patient_name,
+        prescription_num=prescription_num,
+        quantity=quantity,
+        doctor_name=doctor_name,
+        user_name=user.name
+    )
+    db.session.add(new_log)
+    db.session.commit()
+
+    flash(f"Salida controlada de '{item_name}' registrada bajo la receta {prescription_num}.", "success")
+    return redirect(url_for("controlados"))
 
 @app.route("/bitacora")
 def bitacora():
@@ -839,6 +1061,7 @@ def add_item():
     presentacion = request.form.get("presentacion")
     lote = request.form.get("lote", "").strip()
     caducidad = request.form.get("caducidad", "").strip()
+    etiqueta = request.form.get("etiqueta", "Ninguna")
     unit = request.form.get("unit", "pza").strip()
     stock_general = int(request.form.get("stock_general", 0))
 
@@ -856,6 +1079,7 @@ def add_item():
             presentacion=presentacion,
             lote=lote,
             caducidad=caducidad,
+            etiqueta=etiqueta,
             unit=unit, 
             stock_general=stock_general, 
             stock_quirofano=0
@@ -888,6 +1112,7 @@ def update_item():
     item.presentacion = request.form.get("presentacion")
     item.lote = request.form.get("lote", "").strip()
     item.caducidad = request.form.get("caducidad", "").strip()
+    item.etiqueta = request.form.get("etiqueta", "Ninguna")
     item.unit = request.form.get("unit", "pza").strip()
     item.stock_general = int(request.form.get("stock_general", 0))
     item.stock_quirofano = int(request.form.get("stock_quirofano", 0))
@@ -1015,6 +1240,7 @@ def seed_database():
             db.session.execute(text("ALTER TABLE item ADD COLUMN IF NOT EXISTS presentacion VARCHAR(50);"))
             db.session.execute(text("ALTER TABLE item ADD COLUMN IF NOT EXISTS lote VARCHAR(50);"))
             db.session.execute(text("ALTER TABLE item ADD COLUMN IF NOT EXISTS caducidad VARCHAR(20);"))
+            db.session.execute(text("ALTER TABLE item ADD COLUMN IF NOT EXISTS etiqueta VARCHAR(50);"))
             db.session.commit()
         except Exception:
             db.session.rollback()
@@ -1031,11 +1257,11 @@ def seed_database():
 
         if Item.query.count() == 0:
             items_list = [
-                Item(code="MED-001", name="Paracetamol 500mg Tab", category="Medicamento", via_administracion="Oral", presentacion="Tableta", lote="LOT-9821", caducidad="2027-12-31", stock_general=150, stock_quirofano=20),
-                Item(code="MED-002", name="Propofol 200mg/20ml Amp", category="Medicamento", via_administracion="Intravenosa", presentacion="Ampolleta", lote="LOT-4410", caducidad="2027-08-15", stock_general=40, stock_quirofano=15),
-                Item(code="MED-003", name="Fentanilo 0.5mg/10ml Amp", category="Medicamento", via_administracion="Intravenosa", presentacion="Ampolleta", lote="LOT-1102", caducidad="2026-11-20", stock_general=30, stock_quirofano=10),
-                Item(code="MAT-001", name="Jeringa 10ml c/Aguja", category="Material Curación", via_administracion="N/A", presentacion="Otro", lote="LOT-0012", caducidad="2028-05-01", stock_general=300, stock_quirofano=50),
-                Item(code="MAT-002", name="Equipo Venoclisis Normogotero", category="Material Curación", via_administracion="N/A", presentacion="Otro", lote="LOT-0099", caducidad="2028-01-10", stock_general=100, stock_quirofano=25)
+                Item(code="MED-001", name="Paracetamol 500mg Tab", category="Medicamento", via_administracion="Oral", presentacion="Tableta", lote="LOT-9821", caducidad="2027-12-31", etiqueta="Ninguna", stock_general=150, stock_quirofano=20),
+                Item(code="MED-002", name="Propofol 200mg/20ml Amp", category="Medicamento", via_administracion="Intravenosa", presentacion="Ampolleta", lote="LOT-4410", caducidad="2027-08-15", etiqueta="Alto Riesgo", stock_general=40, stock_quirofano=15),
+                Item(code="MED-003", name="Fentanilo 0.5mg/10ml Amp", category="Medicamento", via_administracion="Intravenosa", presentacion="Ampolleta", lote="LOT-1102", caducidad="2026-11-20", etiqueta="Controlado", stock_general=30, stock_quirofano=10),
+                Item(code="MAT-001", name="Jeringa 10ml c/Aguja", category="Material Curación", via_administracion="N/A", presentacion="Otro", lote="LOT-0012", caducidad="2028-05-01", etiqueta="Ninguna", stock_general=300, stock_quirofano=50),
+                Item(code="MAT-002", name="Equipo Venoclisis Normogotero", category="Material Curación", via_administracion="N/A", presentacion="Otro", lote="LOT-0099", caducidad="2028-01-10", etiqueta="Ninguna", stock_general=100, stock_quirofano=25)
             ]
             db.session.add_all(items_list)
 
