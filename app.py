@@ -1,5 +1,5 @@
 import os
-from datetime import datetime
+from datetime import datetime, date, timedelta
 from flask import Flask, render_template_string, request, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
@@ -31,7 +31,7 @@ class User(db.Model):
 
 class Item(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    code = db.Column(db.String(50), unique=True, nullable=False)
+    code = db.Column(db.String(50), nullable=False) # Ya no es unique=True para permitir mismo código con distinto lote
     name = db.Column(db.String(150), nullable=False)
     category = db.Column(db.String(50), nullable=False)
     via_administracion = db.Column(db.String(50), nullable=True)
@@ -178,7 +178,7 @@ HTML_TEMPLATE = """
                             <input list="items_list" name="item_search" required placeholder="Escriba código de barras, clave o nombre..." class="w-full p-2.5 border rounded-xl text-sm bg-blue-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none font-medium">
                             <datalist id="items_list">
                                 {% for item in items %}
-                                    <option value="{{ item.code }} - {{ item.name }}">Gen: {{ item.stock_general }} | Qx: {{ item.stock_quirofano }} | Lote: {{ item.lote or 'S/L' }}</option>
+                                    <option value="{{ item.code }} - {{ item.name }} (Lote: {{ item.lote or 'S/L' }})">Gen: {{ item.stock_general }} | Qx: {{ item.stock_quirofano }}</option>
                                 {% endfor %}
                             </datalist>
                         </div>
@@ -240,7 +240,7 @@ HTML_TEMPLATE = """
                     </form>
                 </div>
 
-                <!-- Formulario para Alta de Nuevo Medicamento -->
+                <!-- Formulario para Alta de Nuevo Medicamento (Agrupa si coincide código, lote y caducidad) -->
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1">
                     <h2 class="text-base font-bold text-slate-900 mb-4 border-b pb-2 flex items-center gap-2">
                         <i class="fa-solid fa-plus-circle text-emerald-600"></i> Dar de Alta Nuevo Medicamento
@@ -322,7 +322,7 @@ HTML_TEMPLATE = """
                         </div>
 
                         <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl shadow-md transition duration-200 flex items-center justify-center gap-2 mt-4">
-                            <i class="fa-solid fa-box-archive"></i> Registrar Medicamento
+                            <i class="fa-solid fa-box-archive"></i> Registrar / Agrupar Medicamento
                         </button>
                     </form>
                 </div>
@@ -332,14 +332,14 @@ HTML_TEMPLATE = """
         </div>
 
         {% elif view == 'inventario' %}
-        <!-- PESTAÑA 2: INVENTARIO CON EDICIÓN PROTEGIDA -->
+        <!-- PESTAÑA 2: INVENTARIO CON ALERTAS DE CADUCIDAD -->
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
             <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-6 border-b pb-4">
                 <div>
                     <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
                         <i class="fa-solid fa-boxes-stacked text-blue-600"></i> Stock General e Inventario
                     </h2>
-                    <p class="text-xs text-slate-500">Existencias en tiempo real por almacén. Edición exclusiva de Administrador.</p>
+                    <p class="text-xs text-slate-500">Existencias por lote. Alertas automáticas por próximas caducidades.</p>
                 </div>
 
                 <div class="w-full md:w-80 relative">
@@ -376,7 +376,20 @@ HTML_TEMPLATE = """
                             </td>
                             <td class="p-3 text-xs text-slate-600">
                                 <span class="font-medium text-slate-800">Lote: {{ item.lote or 'S/L' }}</span>
-                                <span class="block text-[10px] text-slate-400">Cad: {{ item.caducidad or 'S/F' }}</span>
+                                <span class="block text-[10px] mt-0.5">
+                                    {% if item.caducidad %}
+                                        {% set cad_date = item.caducidad %}
+                                        {% if cad_date < today_str %}
+                                            <span class="px-2 py-0.5 bg-rose-200 text-rose-900 font-bold rounded flex items-center gap-1 w-fit"><i class="fa-solid fa-triangle-exclamation"></i> VENCIDO ({{ cad_date }})</span>
+                                        {% elif cad_date <= warning_str %}
+                                            <span class="px-2 py-0.5 bg-amber-200 text-amber-900 font-bold rounded flex items-center gap-1 w-fit"><i class="fa-solid fa-clock"></i> Próximo a vencer ({{ cad_date }})</span>
+                                        {% else %}
+                                            <span class="text-slate-500 font-mono">Cad: {{ cad_date }}</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-slate-400">Cad: S/F</span>
+                                    {% endif %}
+                                </span>
                             </td>
                             <td class="p-3 text-center">
                                 <span class="px-3 py-1 rounded-full text-xs font-bold {% if item.stock_general < 10 %}bg-rose-100 text-rose-700{% else %}bg-emerald-100 text-emerald-800{% endif %}">
@@ -486,10 +499,9 @@ HTML_TEMPLATE = """
         </div>
 
         {% elif view == 'bitacora' %}
-        <!-- PESTAÑA 3: BITÁCORA E HISTÓRICO CON FILTRO DÍA / ENTRADAS / SALIDAS -->
+        <!-- PESTAÑA 3: BITÁCORA E HISTÓRICO CON FILTROS -->
         <div class="space-y-6">
             
-            <!-- TARJETAS CON TOTALES RESUMEN DEL DÍA -->
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
                     <div>
@@ -522,7 +534,6 @@ HTML_TEMPLATE = """
                 </div>
             </div>
 
-            <!-- FILTROS DE BÚSQUEDA Y FECHA -->
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                 <div class="mb-4 border-b pb-3 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
@@ -533,7 +544,6 @@ HTML_TEMPLATE = """
                     </div>
                 </div>
 
-                <!-- FORMULARIO DE FILTRADO DE FECHA -->
                 <form action="/bitacora" method="GET" class="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200">
                     <div>
                         <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Filtrar por Fecha/Día</label>
@@ -565,7 +575,6 @@ HTML_TEMPLATE = """
                     </div>
                 </form>
 
-                <!-- TABLA DE HISTÓRICO -->
                 <div class="overflow-x-auto">
                     <table class="w-full text-xs text-left text-slate-600">
                         <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b">
@@ -763,7 +772,9 @@ def terminal():
 @app.route("/inventario")
 def inventario():
     items = Item.query.order_by(Item.name).all()
-    return render_template_string(HTML_TEMPLATE, view="inventario", items=items)
+    today_str = date.today().isoformat()
+    warning_str = (date.today() + timedelta(days=30)).isoformat()
+    return render_template_string(HTML_TEMPLATE, view="inventario", items=items, today_str=today_str, warning_str=warning_str)
 
 @app.route("/bitacora")
 def bitacora():
@@ -834,26 +845,29 @@ def add_item():
     unit = request.form.get("unit", "pza").strip()
     stock_general = int(request.form.get("stock_general", 0))
 
-    if Item.query.filter_by(code=code).first():
-        flash("El código o clave ya existe en el inventario.", "error")
-        return redirect(url_for("terminal"))
+    # Buscar si ya existe un medicamento con el mismo código, lote y fecha de caducidad exactos para agruparlos
+    existing_item = Item.query.filter_by(code=code, lote=lote, caducidad=caducidad).first()
 
-    new_item = Item(
-        code=code, 
-        name=name, 
-        category=category, 
-        via_administracion=via_administracion,
-        presentacion=presentacion,
-        lote=lote,
-        caducidad=caducidad,
-        unit=unit, 
-        stock_general=stock_general, 
-        stock_quirofano=0
-    )
-    db.session.add(new_item)
+    if existing_item:
+        existing_item.stock_general += stock_general
+        flash(f"El insumo con código {code} y lote '{lote}' ya existía. Se han sumado {stock_general} {unit} al stock existente.", "success")
+    else:
+        new_item = Item(
+            code=code, 
+            name=name, 
+            category=category, 
+            via_administracion=via_administracion,
+            presentacion=presentacion,
+            lote=lote,
+            caducidad=caducidad,
+            unit=unit, 
+            stock_general=stock_general, 
+            stock_quirofano=0
+        )
+        db.session.add(new_item)
+        flash(f"Medicamento '{name}' registrado exitosamente con código {code} y lote '{lote or 'S/L'}'.", "success")
+
     db.session.commit()
-
-    flash(f"Medicamento '{name}' registrado exitosamente con código {code}.", "success")
     return redirect(url_for("terminal"))
 
 @app.route("/update_item", methods=["POST"])
