@@ -112,23 +112,26 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 </div>
             </div>
             <nav class="flex flex-wrap gap-1.5 text-xs font-bold">
-                <a href="/terminal" class="px-3.5 py-2 rounded-xl transition flex items-center gap-2 {% if view == 'terminal' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
-                    <i class="fa-solid fa-pen-to-square"></i> Captura y Surtido
+                <a href="/terminal" class="px-3 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'terminal' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
+                    <i class="fa-solid fa-pen-to-square"></i> Surtido y Movimientos
                 </a>
-                <a href="/inventario" class="px-3.5 py-2 rounded-xl transition flex items-center gap-2 {% if view == 'inventario' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
+                <a href="/alta_insumos" class="px-3 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'alta_insumos' %}bg-emerald-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-emerald-100{% endif %}">
+                    <i class="fa-solid fa-plus-circle"></i> Alta de Insumos
+                </a>
+                <a href="/inventario" class="px-3 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'inventario' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
                     <i class="fa-solid fa-boxes-stacked"></i> Inventario
                 </a>
-                <a href="/controlados" class="px-3.5 py-2 rounded-xl transition flex items-center gap-2 {% if view == 'controlados' %}bg-rose-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-rose-100{% endif %}">
+                <a href="/controlados" class="px-3 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'controlados' %}bg-rose-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-rose-100{% endif %}">
                     <i class="fa-solid fa-capsules"></i> Controlados
                 </a>
-                <a href="/bitacora" class="px-3.5 py-2 rounded-xl transition flex items-center gap-2 {% if view == 'bitacora' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
-                    <i class="fa-solid fa-clock-rotate-left"></i> Bitácora e Histórico
+                <a href="/bitacora" class="px-3 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'bitacora' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
+                    <i class="fa-solid fa-clock-rotate-left"></i> Bitácora
                 </a>
-                <a href="/usuarios" class="px-3.5 py-2 rounded-xl transition flex items-center gap-2 {% if view == 'usuarios' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
-                    <i class="fa-solid fa-lock"></i> Usuarios / PINs (Admin)
+                <a href="/usuarios" class="px-3 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'usuarios' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
+                    <i class="fa-solid fa-lock"></i> Usuarios (Admin)
                 </a>
-                <a href="/etiquetas" class="px-3.5 py-2 rounded-xl transition flex items-center gap-2 {% if view == 'etiquetas' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
-                    <i class="fa-solid fa-tags"></i> Etiquetas DU
+                <a href="/etiquetas" class="px-3 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'etiquetas' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
+                    <i class="fa-solid fa-tags"></i> Etiquetas
                 </a>
             </nav>
         </div>
@@ -153,7 +156,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         </datalist>
 
         {% if view == 'terminal' %}
-        <div class="space-y-6">
+        <div class="space-y-6 max-w-4xl mx-auto">
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                 <div class="mb-4">
                     <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -174,185 +177,186 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-2">
-                    <h2 class="text-base font-bold text-slate-900 mb-4 border-b pb-2 flex items-center gap-2">
-                        <i class="fa-solid fa-prescription-bottle-medical text-blue-600"></i> Registrar Movimiento / Surtido a Paciente
-                    </h2>
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <h2 class="text-base font-bold text-slate-900 mb-4 border-b pb-2 flex items-center gap-2">
+                    <i class="fa-solid fa-prescription-bottle-medical text-blue-600"></i> Registrar Movimiento / Surtido a Paciente
+                </h2>
 
-                    <form action="/register" method="POST" class="space-y-4">
+                <form action="/register" method="POST" class="space-y-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Usuario Responsable</label>
+                            <select name="user_id" id="userSelect" required class="w-full p-2.5 border rounded-xl text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+                                <option value="">Seleccione Usuario...</option>
+                                {% for u in users %}
+                                    <option value="{{ u.id }}">{{ u.name }} ({{ u.role }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">PIN / Contraseña</label>
+                            <input type="password" name="pin" required placeholder="PIN de Seguridad" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Insumo / Medicamento (Buscador con Lote)</label>
+                        <input list="items_list" name="item_search" required placeholder="Escriba o escanee código de barras..." class="w-full p-2.5 border rounded-xl text-sm bg-blue-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none font-medium">
+                        <datalist id="items_list">
+                            {% for item in items %}
+                                <option value="[ID:{{ item.id }}] {{ item.code }} - {{ item.name }} (Lote: {{ item.lote or 'S/L' }})">Gen: {{ item.stock_general }} | Qx: {{ item.stock_quirofano }} | {{ item.etiqueta }}</option>
+                            {% endfor %}
+                        </datalist>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Tipo Movimiento</label>
+                            <select name="type" required class="w-full p-2.5 border rounded-xl text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+                                <option value="Salida">Salida a Paciente / Servicio</option>
+                                <option value="Traspaso Qx">Traspaso a Quirófano</option>
+                                <option value="Entrada">Entrada (Stock)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Almacén Origen</label>
+                            <select name="warehouse" required class="w-full p-2.5 border rounded-xl text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+                                <option value="Almacén General">Almacén General</option>
+                                <option value="Quirófano">Quirófano</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Cantidad</label>
+                            <input type="number" min="1" name="quantity" required value="1" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Servicio / Cama</label>
+                            <input type="text" name="service" placeholder="Ej. Urgencias / Cama 4" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                    </div>
+
+                    <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                        <h3 class="text-xs font-bold text-blue-900 uppercase flex items-center gap-1.5">
+                            <i class="fa-solid fa-bed-pulse"></i> Datos del Paciente (Para Surtido)
+                        </h3>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
-                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Usuario Responsable</label>
-                                <select name="user_id" id="userSelect" required class="w-full p-2.5 border rounded-xl text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none">
-                                    <option value="">Seleccione Usuario...</option>
-                                    {% for u in users %}
-                                        <option value="{{ u.id }}">{{ u.name }} ({{ u.role }})</option>
-                                    {% endfor %}
-                                </select>
+                                <label class="block text-[11px] font-semibold text-slate-600 mb-1">Nombre Completo del Paciente</label>
+                                <input type="text" list="patients_datalist" name="patient_name" placeholder="Seleccione o escriba el paciente..." class="w-full p-2 border rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none bg-white font-medium">
                             </div>
                             <div>
-                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">PIN / Contraseña</label>
-                                <input type="password" name="pin" required placeholder="PIN de Seguridad" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                                <label class="block text-[11px] font-semibold text-slate-600 mb-1">No. Expediente / Cama</label>
+                                <input type="text" name="patient_id" placeholder="Ej. EXP-9823 / Cama 12" class="w-full p-2 border rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none bg-white">
                             </div>
                         </div>
+                    </div>
 
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Notas adicionales</label>
+                        <input type="text" name="notes" placeholder="Observaciones opcionales..." class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-md transition duration-200 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-check"></i> Guardar Movimiento / Surtido
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        {% elif view == 'alta_insumos' %}
+        <div class="space-y-6 max-w-xl mx-auto">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <h2 class="text-base font-bold text-slate-900 mb-4 border-b pb-2 flex items-center gap-2">
+                    <i class="fa-solid fa-plus-circle text-emerald-600"></i> Dar de Alta Nuevo Medicamento / Lote
+                </h2>
+
+                <form action="/add_item" method="POST" class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Código / Clave</label>
+                        <input type="text" name="code" required placeholder="Ej. MED-005" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nombre / Descripción</label>
+                        <input type="text" name="name" required placeholder="Ej. Omeprazol 40mg" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Categoría</label>
+                        <select name="category" required class="w-full p-2.5 border rounded-xl text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none">
+                            <option value="Medicamento">Medicamento</option>
+                            <option value="Material Curación">Material Curación</option>
+                            <option value="Solución / Inyectable">Solución / Inyectable</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Etiqueta Especial</label>
+                        <select name="etiqueta" class="w-full p-2.5 border rounded-xl text-sm bg-amber-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none font-bold">
+                            <option value="Ninguna">Ninguna</option>
+                            <option value="Alto Riesgo">🔴 Alto Riesgo</option>
+                            <option value="Controlado">🟣 Medicamento Controlado</option>
+                            <option value="Antibiótico">🟡 Antibiótico</option>
+                            <option value="Refrigeración">🔵 Refrigeración</option>
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <div>
-                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Insumo / Medicamento (Buscador con Lote)</label>
-                            <input list="items_list" name="item_search" required placeholder="Escriba o escanee código de barras..." class="w-full p-2.5 border rounded-xl text-sm bg-blue-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none font-medium">
-                            <datalist id="items_list">
-                                {% for item in items %}
-                                    <option value="[ID:{{ item.id }}] {{ item.code }} - {{ item.name }} (Lote: {{ item.lote or 'S/L' }})">Gen: {{ item.stock_general }} | Qx: {{ item.stock_quirofano }} | {{ item.etiqueta }}</option>
-                                {% endfor %}
-                            </datalist>
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Tipo Movimiento</label>
-                                <select name="type" required class="w-full p-2.5 border rounded-xl text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none">
-                                    <option value="Salida">Salida a Paciente / Servicio</option>
-                                    <option value="Traspaso Qx">Traspaso a Quirófano</option>
-                                    <option value="Entrada">Entrada (Stock)</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Almacén Origen</label>
-                                <select name="warehouse" required class="w-full p-2.5 border rounded-xl text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none">
-                                    <option value="Almacén General">Almacén General</option>
-                                    <option value="Quirófano">Quirófano</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Cantidad</label>
-                                <input type="number" min="1" name="quantity" required value="1" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Servicio / Cama</label>
-                                <input type="text" name="service" placeholder="Ej. Urgencias / Cama 4" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                            </div>
-                        </div>
-
-                        <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
-                            <h3 class="text-xs font-bold text-blue-900 uppercase flex items-center gap-1.5">
-                                <i class="fa-solid fa-bed-pulse"></i> Datos del Paciente (Para Surtido)
-                            </h3>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <div>
-                                    <label class="block text-[11px] font-semibold text-slate-600 mb-1">Nombre Completo del Paciente</label>
-                                    <input type="text" list="patients_datalist" name="patient_name" placeholder="Seleccione o escriba el paciente..." class="w-full p-2 border rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none bg-white font-medium">
-                                </div>
-                                <div>
-                                    <label class="block text-[11px] font-semibold text-slate-600 mb-1">No. Expediente / Cama</label>
-                                    <input type="text" name="patient_id" placeholder="Ej. EXP-9823 / Cama 12" class="w-full p-2 border rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none bg-white">
-                                </div>
-                            </div>
-                        </div>
-
-                        <div>
-                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Notas adicionales</label>
-                            <input type="text" name="notes" placeholder="Observaciones opcionales..." class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                        </div>
-
-                        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-md transition duration-200 flex items-center justify-center gap-2">
-                            <i class="fa-solid fa-check"></i> Guardar Movimiento / Surtido
-                        </button>
-                    </form>
-                </div>
-
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1">
-                    <h2 class="text-base font-bold text-slate-900 mb-4 border-b pb-2 flex items-center gap-2">
-                        <i class="fa-solid fa-plus-circle text-emerald-600"></i> Dar de Alta Nuevo Medicamento / Lote
-                    </h2>
-
-                    <form action="/add_item" method="POST" class="space-y-3">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Código / Clave</label>
-                            <input type="text" name="code" required placeholder="Ej. MED-005" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nombre / Descripción</label>
-                            <input type="text" name="name" required placeholder="Ej. Omeprazol 40mg" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Categoría</label>
-                            <select name="category" required class="w-full p-2.5 border rounded-xl text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none">
-                                <option value="Medicamento">Medicamento</option>
-                                <option value="Material Curación">Material Curación</option>
-                                <option value="Solución / Inyectable">Solución / Inyectable</option>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Vía Administr.</label>
+                            <select name="via_administracion" required class="w-full p-2.5 border rounded-xl text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none">
+                                <option value="Oral">Oral</option>
+                                <option value="Intravenosa">Intravenosa (IV)</option>
+                                <option value="Intramuscular">Intramuscular (IM)</option>
+                                <option value="Subcutánea">Subcutánea</option>
+                                <option value="Tópica">Tópica</option>
+                                <option value="Oftálmica">Oftálmica</option>
+                                <option value="Nasal">Nasal</option>
+                                <option value="Inhalatoria">Inhalatoria</option>
+                                <option value="Sublingual">Sublingual</option>
+                                <option value="Otra">Otra</option>
                             </select>
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Etiqueta Especial</label>
-                            <select name="etiqueta" class="w-full p-2.5 border rounded-xl text-sm bg-amber-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none font-bold">
-                                <option value="Ninguna">Ninguna</option>
-                                <option value="Alto Riesgo">🔴 Alto Riesgo</option>
-                                <option value="Controlado">🟣 Medicamento Controlado</option>
-                                <option value="Antibiótico">🟡 Antibiótico</option>
-                                <option value="Refrigeración">🔵 Refrigeración</option>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Presentación</label>
+                            <select name="presentacion" required class="w-full p-2.5 border rounded-xl text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none">
+                                <option value="Tableta">Tableta</option>
+                                <option value="Cápsula">Cápsula</option>
+                                <option value="Ampolleta">Ampolleta</option>
+                                <option value="Frasco Ámpula">Frasco Ámpula</option>
+                                <option value="Solución">Solución</option>
+                                <option value="Jarabe">Jarabe</option>
+                                <option value="Crema">Crema</option>
+                                <option value="Ungüento">Ungüento</option>
+                                <option value="Parche">Parche</option>
+                                <option value="Otro">Otro</option>
                             </select>
                         </div>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            <div>
-                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Vía Administr.</label>
-                                <select name="via_administracion" required class="w-full p-2.5 border rounded-xl text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none">
-                                    <option value="Oral">Oral</option>
-                                    <option value="Intravenosa">Intravenosa (IV)</option>
-                                    <option value="Intramuscular">Intramuscular (IM)</option>
-                                    <option value="Subcutánea">Subcutánea</option>
-                                    <option value="Tópica">Tópica</option>
-                                    <option value="Oftálmica">Oftálmica</option>
-                                    <option value="Nasal">Nasal</option>
-                                    <option value="Inhalatoria">Inhalatoria</option>
-                                    <option value="Sublingual">Sublingual</option>
-                                    <option value="Otra">Otra</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Presentación</label>
-                                <select name="presentacion" required class="w-full p-2.5 border rounded-xl text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none">
-                                    <option value="Tableta">Tableta</option>
-                                    <option value="Cápsula">Cápsula</option>
-                                    <option value="Ampolleta">Ampolleta</option>
-                                    <option value="Frasco Ámpula">Frasco Ámpula</option>
-                                    <option value="Solución">Solución</option>
-                                    <option value="Jarabe">Jarabe</option>
-                                    <option value="Crema">Crema</option>
-                                    <option value="Ungüento">Ungüento</option>
-                                    <option value="Parche">Parche</option>
-                                    <option value="Otro">Otro</option>
-                                </select>
-                            </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Lote</label>
+                            <input type="text" name="lote" placeholder="Ej. LOT-2026-X" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
                         </div>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            <div>
-                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Lote</label>
-                                <input type="text" name="lote" placeholder="Ej. LOT-2026-X" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Fecha Caducidad</label>
-                                <input type="date" name="caducidad" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
-                            </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Fecha Caducidad</label>
+                            <input type="date" name="caducidad" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
                         </div>
-                        <div class="grid grid-cols-2 gap-2">
-                            <div>
-                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Unidad</label>
-                                <input type="text" name="unit" required value="pza" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Stock Inicial</label>
-                                <input type="number" min="0" name="stock_general" required value="50" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
-                            </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Unidad</label>
+                            <input type="text" name="unit" required value="pza" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
                         </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Stock Inicial</label>
+                            <input type="number" min="0" name="stock_general" required value="50" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+                        </div>
+                    </div>
 
-                        <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl shadow-md transition duration-200 flex items-center justify-center gap-2 mt-4">
-                            <i class="fa-solid fa-box-archive"></i> Registrar / Agregar Lote
-                        </button>
-                    </form>
-                </div>
+                    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl shadow-md transition duration-200 flex items-center justify-center gap-2 mt-4">
+                        <i class="fa-solid fa-box-archive"></i> Registrar / Agregar Lote
+                    </button>
+                </form>
             </div>
         </div>
 
@@ -1025,6 +1029,12 @@ def terminal():
     patients = Patient.query.order_by(Patient.name).all()
     return render_template_string(HTML_TEMPLATE, view="terminal", items=items, users=users, patients=patients)
 
+@app.route("/alta_insumos")
+def alta_insumos():
+    users = User.query.order_by(User.name).all()
+    patients = Patient.query.order_by(Patient.name).all()
+    return render_template_string(HTML_TEMPLATE, view="alta_insumos", users=users, patients=patients)
+
 @app.route("/inventario")
 def inventario():
     items = Item.query.order_by(Item.name, Item.lote).all()
@@ -1075,7 +1085,6 @@ def add_controlled():
         flash("PIN de seguridad incorrecto.", "error")
         return redirect(url_for("controlados"))
 
-    # Guardar automáticamente al paciente en la base de datos si es nuevo
     if patient_name:
         existing_patient = Patient.query.filter_by(name=patient_name).first()
         if not existing_patient:
@@ -1225,7 +1234,7 @@ def add_item():
         db.session.rollback()
         flash(f"Error al registrar el lote: {str(e)}", "error")
 
-    return redirect(url_for("terminal"))
+    return redirect(url_for("alta_insumos"))
 
 @app.route("/update_item", methods=["POST"])
 def update_item():
