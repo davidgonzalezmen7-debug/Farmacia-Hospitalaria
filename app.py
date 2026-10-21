@@ -38,7 +38,7 @@ class Item(db.Model):
     presentacion = db.Column(db.String(50), nullable=True)
     lote = db.Column(db.String(50), nullable=True)
     caducidad = db.Column(db.String(20), nullable=True)
-    etiqueta = db.Column(db.String(50), default="Ninguna") # Alto Riesgo, Controlado, Antibiótico, etc.
+    etiqueta = db.Column(db.String(50), default="Ninguna")
     stock_general = db.Column(db.Integer, default=0)
     stock_quirofano = db.Column(db.Integer, default=0)
     unit = db.Column(db.String(20), default="pza")
@@ -407,7 +407,7 @@ HTML_VIEW_INVENTARIO = """
                             <td class="p-3 text-xs text-slate-600">
                                 <span class="font-medium text-slate-800">Lote: {{ item.lote or 'S/L' }}</span>
                                 <span class="block text-[10px] mt-0.5">
-                                    {% if item.caducidad %}
+                                    {% if item.caducidad and item.caducidad.strip() != '' %}
                                         {% set cad_date = item.caducidad %}
                                         {% if cad_date < today_str %}
                                             <span class="px-2 py-0.5 bg-rose-200 text-rose-900 font-bold rounded flex items-center gap-1 w-fit"><i class="fa-solid fa-triangle-exclamation"></i> VENCIDO ({{ cad_date }})</span>
@@ -938,7 +938,6 @@ HTML_FOOTER = """
 </html>
 """
 
-# Concatenación de bloques de la plantilla HTML
 HTML_TEMPLATE = HTML_HEADER + HTML_VIEW_TERMINAL + HTML_VIEW_INVENTARIO + HTML_VIEW_CONTROLADOS + HTML_VIEW_BITACORA + HTML_VIEW_USUARIOS + HTML_FOOTER
 
 # -----------------------------------------------------------------------------
