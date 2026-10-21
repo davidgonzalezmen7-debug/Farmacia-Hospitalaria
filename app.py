@@ -31,7 +31,7 @@ class User(db.Model):
 
 class Item(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    code = db.Column(db.String(50), nullable=False)
+    code = db.Column(db.String(50), nullable=False, unique=False)  # Permitir duplicados de código para distintos lotes
     name = db.Column(db.String(150), nullable=False)
     category = db.Column(db.String(50), nullable=False)
     via_administracion = db.Column(db.String(50), nullable=True)
@@ -1050,7 +1050,6 @@ def add_item():
     stock_general = int(request.form.get("stock_general", 0))
 
     try:
-        # Búsqueda exacta por código Y lote
         existing_item = Item.query.filter_by(code=code, lote=lote).first()
 
         if existing_item:
@@ -1075,7 +1074,7 @@ def add_item():
                 stock_quirofano=0
             )
             db.session.add(new_item)
-            flash(f"Nuevo registro/lote creado para '{name}' (Código: {code}, Lote: '{lote or 'S/L'}').", "success")
+            flash(f"Nuevo lote registrado exitosamente para '{name}' (Código: {code}, Lote: '{lote or 'S/L'}').", "success")
 
         db.session.commit()
     except Exception as e:
@@ -1169,7 +1168,6 @@ def register_movement():
         flash("PIN o contraseña de usuario incorrecta.", "error")
         return redirect(url_for("terminal"))
 
-    # Extracción de ID único en caso de selección exacta por datalist
     item = None
     if item_search.startswith("[ID:") and "]" in item_search:
         try:
@@ -1238,6 +1236,10 @@ def seed_database():
         db.create_all()
 
         try:
+            # Eliminar restricciones únicas previas en PostgreSQL para permitir múltiples lotes con el mismo código
+            db.session.execute(text("ALTER TABLE item DROP CONSTRAINT IF EXISTS item_code_key;"))
+            db.session.execute(text("DROP INDEX IF EXISTS item_code_key;"))
+            
             db.session.execute(text("ALTER TABLE movement ADD COLUMN IF NOT EXISTS patient_name VARCHAR(150);"))
             db.session.execute(text("ALTER TABLE movement ADD COLUMN IF NOT EXISTS patient_id VARCHAR(50);"))
             db.session.execute(text("ALTER TABLE item ADD COLUMN IF NOT EXISTS via_administracion VARCHAR(50);"))
