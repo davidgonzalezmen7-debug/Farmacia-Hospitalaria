@@ -188,11 +188,11 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         </div>
 
                         <div>
-                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Insumo / Medicamento (Buscador)</label>
-                            <input list="items_list" name="item_search" required placeholder="Escriba código de barras, clave o nombre..." class="w-full p-2.5 border rounded-xl text-sm bg-blue-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none font-medium">
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Insumo / Medicamento (Buscador con Lote)</label>
+                            <input list="items_list" name="item_search" required placeholder="Escriba o escanee código de barras..." class="w-full p-2.5 border rounded-xl text-sm bg-blue-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none font-medium">
                             <datalist id="items_list">
                                 {% for item in items %}
-                                    <option value="{{ item.code }} - {{ item.name }} (Lote: {{ item.lote or 'S/L' }})">Gen: {{ item.stock_general }} | Qx: {{ item.stock_quirofano }} | {{ item.etiqueta }}</option>
+                                    <option value="[ID:{{ item.id }}] {{ item.code }} - {{ item.name }} (Lote: {{ item.lote or 'S/L' }})">Gen: {{ item.stock_general }} | Qx: {{ item.stock_quirofano }} | {{ item.etiqueta }}</option>
                                 {% endfor %}
                             </datalist>
                         </div>
@@ -255,7 +255,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1">
                     <h2 class="text-base font-bold text-slate-900 mb-4 border-b pb-2 flex items-center gap-2">
-                        <i class="fa-solid fa-plus-circle text-emerald-600"></i> Dar de Alta Nuevo Medicamento
+                        <i class="fa-solid fa-plus-circle text-emerald-600"></i> Dar de Alta Nuevo Medicamento / Lote
                     </h2>
 
                     <form action="/add_item" method="POST" class="space-y-3">
@@ -339,7 +339,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         </div>
 
                         <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl shadow-md transition duration-200 flex items-center justify-center gap-2 mt-4">
-                            <i class="fa-solid fa-box-archive"></i> Registrar / Agrupar Medicamento
+                            <i class="fa-solid fa-box-archive"></i> Registrar / Agregar Lote
                         </button>
                     </form>
                 </div>
@@ -353,7 +353,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
                         <i class="fa-solid fa-boxes-stacked text-blue-600"></i> Stock General e Inventario
                     </h2>
-                    <p class="text-xs text-slate-500">Existencias por lote. Alertas automáticas por próximas caducidades y etiquetas de seguridad.</p>
+                    <p class="text-xs text-slate-500">Existencias independientes por lote. Alertas automáticas por caducidad.</p>
                 </div>
                 <div class="w-full md:w-80 relative">
                     <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-sm"></i>
@@ -402,8 +402,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                 {% endif %}
                             </td>
                             <td class="p-3 text-xs text-slate-600">
-                                <span class="font-medium text-slate-800">Lote: {{ item.lote or 'S/L' }}</span>
-                                <span class="block text-[10px] mt-0.5">
+                                <span class="font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded">Lote: {{ item.lote or 'S/L' }}</span>
+                                <span class="block text-[10px] mt-1">
                                     {% if item.caducidad and item.caducidad.strip() != '' %}
                                         {% set cad_date = item.caducidad %}
                                         {% if cad_date < today_str %}
@@ -548,7 +548,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                             <select name="item_name" required class="w-full p-2.5 border rounded-xl text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-rose-500 outline-none font-bold">
                                 <option value="">Seleccione Medicamento...</option>
                                 {% for item in controlled_items %}
-                                    <option value="{{ item.name }}">{{ item.name }} (Lote: {{ item.lote or 'S/L' }})</option>
+                                    <option value="{{ item.name }} (Lote: {{ item.lote or 'S/L' }})">{{ item.name }} - Lote: {{ item.lote or 'S/L' }}</option>
                                 {% else %}
                                     <option value="">No hay medicamentos marcados como 'Controlado'</option>
                                 {% endfor %}
@@ -932,13 +932,13 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 @app.route("/")
 @app.route("/terminal")
 def terminal():
-    items = Item.query.order_by(Item.name).all()
+    items = Item.query.order_by(Item.name, Item.lote).all()
     users = User.query.order_by(User.name).all()
     return render_template_string(HTML_TEMPLATE, view="terminal", items=items, users=users)
 
 @app.route("/inventario")
 def inventario():
-    items = Item.query.order_by(Item.name).all()
+    items = Item.query.order_by(Item.name, Item.lote).all()
     today_str = date.today().isoformat()
     warning_str = (date.today() + timedelta(days=30)).isoformat()
     return render_template_string(HTML_TEMPLATE, view="inventario", items=items, today_str=today_str, warning_str=warning_str)
@@ -1049,6 +1049,7 @@ def add_item():
     unit = request.form.get("unit", "pza").strip()
     stock_general = int(request.form.get("stock_general", 0))
 
+    # Búsqueda exacta por código Y lote
     existing_item = Item.query.filter_by(code=code, lote=lote).first()
 
     if existing_item:
@@ -1057,7 +1058,7 @@ def add_item():
             existing_item.caducidad = caducidad
         if etiqueta and etiqueta != "Ninguna":
             existing_item.etiqueta = etiqueta
-        flash(f"El insumo con código {code} y lote '{lote}' ya existía. Se han sumado {stock_general} {unit} al stock existente.", "success")
+        flash(f"Se sumaron {stock_general} {unit} al lote existente '{lote or 'S/L'}' del código {code}.", "success")
     else:
         new_item = Item(
             code=code, 
@@ -1073,7 +1074,7 @@ def add_item():
             stock_quirofano=0
         )
         db.session.add(new_item)
-        flash(f"Medicamento '{name}' registrado exitosamente con código {code} y lote '{lote or 'S/L'}'.", "success")
+        flash(f"Nuevo registro/lote creado para '{name}' (Código: {code}, Lote: '{lote or 'S/L'}').", "success")
 
     db.session.commit()
     return redirect(url_for("terminal"))
@@ -1163,11 +1164,22 @@ def register_movement():
         flash("PIN o contraseña de usuario incorrecta.", "error")
         return redirect(url_for("terminal"))
 
-    item_code = item_search.split(" - ")[0] if " - " in item_search else item_search
-    item = Item.query.filter((Item.code == item_code) | (Item.name.ilike(f"%{item_search}%"))).first()
+    # Extracción de ID único en caso de selección exacta por datalist
+    item = None
+    if item_search.startswith("[ID:") and "]" in item_search:
+        try:
+            item_id = int(item_search.split("[ID:")[1].split("]")[0])
+            item = Item.query.get(item_id)
+        except Exception:
+            item = None
 
     if not item:
-        flash("Insumo no encontrado. Seleccione una opción válida del buscador.", "error")
+        # Búsqueda fallback por código exacto o coincidencia de nombre
+        clean_code = item_search.split(" - ")[0] if " - " in item_search else item_search
+        item = Item.query.filter((Item.code == clean_code) | (Item.name.ilike(f"%{item_search}%"))).first()
+
+    if not item:
+        flash("Insumo o lote no encontrado. Seleccione una opción válida del buscador.", "error")
         return redirect(url_for("terminal"))
 
     if mov_type == "Entrada":
@@ -1179,25 +1191,25 @@ def register_movement():
     elif mov_type == "Salida":
         if warehouse == "Almacén General":
             if item.stock_general < quantity:
-                flash(f"Stock insuficiente en Almacén General ({item.stock_general} disponibles).", "error")
+                flash(f"Stock insuficiente en Almacén General ({item.stock_general} disponibles en el lote '{item.lote or 'S/L'}').", "error")
                 return redirect(url_for("terminal"))
             item.stock_general -= quantity
         else:
             if item.stock_quirofano < quantity:
-                flash(f"Stock insuficiente en Quirófano ({item.stock_quirofano} disponibles).", "error")
+                flash(f"Stock insuficiente en Quirófano ({item.stock_quirofano} disponibles en el lote '{item.lote or 'S/L'}').", "error")
                 return redirect(url_for("terminal"))
             item.stock_quirofano -= quantity
 
     elif mov_type == "Traspaso Qx":
         if item.stock_general < quantity:
-            flash("Stock insuficiente en Almacén General para el traspaso.", "error")
+            flash(f"Stock insuficiente en Almacén General ({item.stock_general} disponibles) para el traspaso.", "error")
             return redirect(url_for("terminal"))
         item.stock_general -= quantity
         item.stock_quirofano += quantity
 
     mov = Movement(
         item_code=item.code,
-        item_name=item.name,
+        item_name=f"{item.name} (Lote: {item.lote or 'S/L'})",
         type=mov_type,
         quantity=quantity,
         warehouse=warehouse,
@@ -1210,7 +1222,7 @@ def register_movement():
     db.session.add(mov)
     db.session.commit()
 
-    flash("Movimiento / Surtido registrado guardado exitosamente.", "success")
+    flash(f"Movimiento de '{item.name}' (Lote: {item.lote or 'S/L'}) guardado exitosamente.", "success")
     return redirect(url_for("terminal"))
 
 # -----------------------------------------------------------------------------
