@@ -29,9 +29,13 @@ class User(db.Model):
     role = db.Column(db.String(50), nullable=False)
     pin = db.Column(db.String(20), nullable=False)
 
+class Patient(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(150), unique=True, nullable=False)
+
 class Item(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    code = db.Column(db.String(50), nullable=False, unique=False)  # Permitir duplicados de código para distintos lotes
+    code = db.Column(db.String(50), nullable=False, unique=False)
     name = db.Column(db.String(150), nullable=False)
     category = db.Column(db.String(50), nullable=False)
     via_administracion = db.Column(db.String(50), nullable=True)
@@ -142,6 +146,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
           {% endif %}
         {% endwith %}
 
+        <datalist id="patients_datalist">
+            {% for p in patients %}
+                <option value="{{ p.name }}">
+            {% endfor %}
+        </datalist>
+
         {% if view == 'terminal' %}
         <div class="space-y-6">
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
@@ -233,7 +243,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div>
                                     <label class="block text-[11px] font-semibold text-slate-600 mb-1">Nombre Completo del Paciente</label>
-                                    <input type="text" name="patient_name" placeholder="Ej. Juan Pérez López" class="w-full p-2 border rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                                    <input type="text" list="patients_datalist" name="patient_name" placeholder="Seleccione o escriba el paciente..." class="w-full p-2 border rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none bg-white font-medium">
                                 </div>
                                 <div>
                                     <label class="block text-[11px] font-semibold text-slate-600 mb-1">No. Expediente / Cama</label>
@@ -544,20 +554,18 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
                     <form action="/add_controlled" method="POST" class="space-y-3">
                         <div>
-                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Medicamento Controlado</label>
-                            <select name="item_name" required class="w-full p-2.5 border rounded-xl text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-rose-500 outline-none font-bold">
-                                <option value="">Seleccione Medicamento...</option>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Medicamento Controlado (Buscador/Código)</label>
+                            <input list="controlled_items_list" name="item_name" required placeholder="Escriba, escanee código o seleccione..." class="w-full p-2.5 border rounded-xl text-sm bg-rose-50 focus:bg-white focus:ring-2 focus:ring-rose-500 outline-none font-bold">
+                            <datalist id="controlled_items_list">
                                 {% for item in controlled_items %}
-                                    <option value="{{ item.name }} (Lote: {{ item.lote or 'S/L' }})">{{ item.name }} - Lote: {{ item.lote or 'S/L' }}</option>
-                                {% else %}
-                                    <option value="">No hay medicamentos marcados como 'Controlado'</option>
+                                    <option value="{{ item.code }} - {{ item.name }} (Lote: {{ item.lote or 'S/L' }})">
                                 {% endfor %}
-                            </select>
+                            </datalist>
                         </div>
 
                         <div>
                             <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nombre del Paciente</label>
-                            <input type="text" name="patient_name" required placeholder="Ej. Roberto Gómez Bolaños" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-rose-500 outline-none">
+                            <input type="text" list="patients_datalist" name="patient_name" required placeholder="Seleccione o escriba el nombre..." class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-rose-500 outline-none font-medium">
                         </div>
 
                         <div>
@@ -599,7 +607,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 </div>
 
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-2">
-                    <div class="flex justify-between items-center mb-4 border-b pb-3">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-4 border-b pb-3">
                         <div>
                             <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
                                 <i class="fa-solid fa-book-medical text-rose-600"></i> Bitácora de Medicamentos Controlados
@@ -611,6 +619,19 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         </button>
                     </div>
 
+                    <form action="/controlados" method="GET" class="flex gap-2 mb-4 bg-rose-50 p-3 rounded-xl border border-rose-100 no-print items-end">
+                        <div class="flex-1">
+                            <label class="block text-[11px] font-bold text-rose-900 uppercase mb-1">Filtrar por Día</label>
+                            <input type="date" name="filter_date" value="{{ selected_date }}" class="w-full p-2 border rounded-lg text-xs bg-white font-bold outline-none">
+                        </div>
+                        <button type="submit" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg text-xs transition">
+                            <i class="fa-solid fa-filter"></i> Filtrar Día
+                        </button>
+                        <a href="/controlados" class="px-3 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg text-xs transition">
+                            Ver Todos
+                        </a>
+                    </form>
+
                     <div class="overflow-x-auto">
                         <table class="w-full text-xs text-left text-slate-600">
                             <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b">
@@ -621,6 +642,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                     <th class="p-2.5">No. Receta</th>
                                     <th class="p-2.5 text-center">Cant.</th>
                                     <th class="p-2.5">Médico / Responsable</th>
+                                    <th class="p-2.5 text-center no-print">Acción</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100">
@@ -635,16 +657,69 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                         <span class="block text-slate-800 font-medium">{{ log.doctor_name or 'N/E' }}</span>
                                         <span class="block text-[10px] text-slate-400">Entregó: {{ log.user_name }}</span>
                                     </td>
+                                    <td class="p-2.5 text-center no-print">
+                                        <button onclick="openEditControlledModal('{{ log.id }}', '{{ log.patient_name }}', '{{ log.prescription_num }}', '{{ log.quantity }}', '{{ log.doctor_name or '' }}')" class="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded text-[10px] transition shadow-sm">
+                                            <i class="fa-solid fa-pen"></i> Editar
+                                        </button>
+                                    </td>
                                 </tr>
                                 {% else %}
                                 <tr>
-                                    <td colspan="6" class="p-6 text-center text-slate-400 italic">No hay registros en la bitácora de medicamentos controlados.</td>
+                                    <td colspan="7" class="p-6 text-center text-slate-400 italic">No hay registros en la bitácora de medicamentos controlados.</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <div id="editControlledModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+            <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
+                <div class="flex justify-between items-center mb-4 border-b pb-2">
+                    <h3 class="font-bold text-base text-slate-900 flex items-center gap-2">
+                        <i class="fa-solid fa-pen-to-square text-amber-500"></i> Editar Registro Controlado
+                    </h3>
+                    <button onclick="closeEditControlledModal()" class="text-slate-400 hover:text-slate-600 text-lg">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <form action="/update_controlled" method="POST" class="space-y-3">
+                    <input type="hidden" name="log_id" id="edit_log_id">
+
+                    <div class="p-3 bg-amber-50 rounded-xl border border-amber-200">
+                        <label class="block text-xs font-bold text-amber-900 uppercase mb-1">🔒 PIN Administrador</label>
+                        <input type="password" name="admin_pin" required placeholder="Ingrese PIN de Admin" class="w-full p-2 border rounded-lg text-xs bg-white font-bold outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nombre del Paciente</label>
+                        <input type="text" name="patient_name" id="edit_patient_name" required class="w-full p-2 border rounded-xl text-xs font-bold">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">No. Receta / Folio</label>
+                        <input type="text" name="prescription_num" id="edit_prescription_num" required class="w-full p-2 border rounded-xl text-xs font-mono font-bold">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Cantidad</label>
+                            <input type="number" min="1" name="quantity" id="edit_quantity" required class="w-full p-2 border rounded-xl text-xs font-bold">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Médico Prescriptor</label>
+                            <input type="text" name="doctor_name" id="edit_doctor_name" class="w-full p-2 border rounded-xl text-xs">
+                        </div>
+                    </div>
+
+                    <div class="flex gap-2 pt-3">
+                        <button type="button" onclick="closeEditControlledModal()" class="w-1/2 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition">Cancelar</button>
+                        <button type="submit" class="w-1/2 py-2 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl text-xs transition">Guardar Cambios</button>
+                    </div>
+                </form>
             </div>
         </div>
 
@@ -906,6 +981,19 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             document.getElementById('editModal').classList.add('hidden');
         }
 
+        function openEditControlledModal(id, patient, prescription, quantity, doctor) {
+            document.getElementById('edit_log_id').value = id;
+            document.getElementById('edit_patient_name').value = patient;
+            document.getElementById('edit_prescription_num').value = prescription;
+            document.getElementById('edit_quantity').value = quantity;
+            document.getElementById('edit_doctor_name').value = doctor;
+            document.getElementById('editControlledModal').classList.remove('hidden');
+        }
+
+        function closeEditControlledModal() {
+            document.getElementById('editControlledModal').classList.add('hidden');
+        }
+
         function editUser(id, name, role) {
             document.getElementById('form_user_id').value = id;
             document.getElementById('form_user_name').value = name;
@@ -934,25 +1022,47 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 def terminal():
     items = Item.query.order_by(Item.name, Item.lote).all()
     users = User.query.order_by(User.name).all()
-    return render_template_string(HTML_TEMPLATE, view="terminal", items=items, users=users)
+    patients = Patient.query.order_by(Patient.name).all()
+    return render_template_string(HTML_TEMPLATE, view="terminal", items=items, users=users, patients=patients)
 
 @app.route("/inventario")
 def inventario():
     items = Item.query.order_by(Item.name, Item.lote).all()
+    patients = Patient.query.order_by(Patient.name).all()
     today_str = date.today().isoformat()
     warning_str = (date.today() + timedelta(days=30)).isoformat()
-    return render_template_string(HTML_TEMPLATE, view="inventario", items=items, today_str=today_str, warning_str=warning_str)
+    return render_template_string(HTML_TEMPLATE, view="inventario", items=items, today_str=today_str, warning_str=warning_str, patients=patients)
 
 @app.route("/controlados")
 def controlados():
+    filter_date = request.args.get("filter_date", "").strip()
+    query = ControlledLog.query
+
+    if filter_date:
+        try:
+            target_date = datetime.strptime(filter_date, "%Y-%m-%d").date()
+            query = query.filter(db.func.date(ControlledLog.timestamp) == target_date)
+        except ValueError:
+            pass
+
     controlled_items = Item.query.filter_by(etiqueta="Controlado").order_by(Item.name).all()
-    controlled_logs = ControlledLog.query.order_by(ControlledLog.timestamp.desc()).all()
+    controlled_logs = query.order_by(ControlledLog.timestamp.desc()).all()
     users = User.query.order_by(User.name).all()
-    return render_template_string(HTML_TEMPLATE, view="controlados", controlled_items=controlled_items, controlled_logs=controlled_logs, users=users)
+    patients = Patient.query.order_by(Patient.name).all()
+
+    return render_template_string(
+        HTML_TEMPLATE, 
+        view="controlados", 
+        controlled_items=controlled_items, 
+        controlled_logs=controlled_logs, 
+        users=users, 
+        patients=patients,
+        selected_date=filter_date
+    )
 
 @app.route("/add_controlled", methods=["POST"])
 def add_controlled():
-    item_name = request.form.get("item_name")
+    item_name = request.form.get("item_name", "").strip()
     patient_name = request.form.get("patient_name", "").strip()
     prescription_num = request.form.get("prescription_num", "").strip()
     quantity = int(request.form.get("quantity", 1))
@@ -964,6 +1074,13 @@ def add_controlled():
     if not user or user.pin != pin:
         flash("PIN de seguridad incorrecto.", "error")
         return redirect(url_for("controlados"))
+
+    # Guardar automáticamente al paciente en la base de datos si es nuevo
+    if patient_name:
+        existing_patient = Patient.query.filter_by(name=patient_name).first()
+        if not existing_patient:
+            new_p = Patient(name=patient_name)
+            db.session.add(new_p)
 
     new_log = ControlledLog(
         item_name=item_name,
@@ -977,6 +1094,30 @@ def add_controlled():
     db.session.commit()
 
     flash(f"Salida controlada de '{item_name}' registrada bajo la receta {prescription_num}.", "success")
+    return redirect(url_for("controlados"))
+
+@app.route("/update_controlled", methods=["POST"])
+def update_controlled():
+    admin_pin = request.form.get("admin_pin")
+    admin_user = User.query.filter_by(role="Administrador").first()
+
+    if admin_pin != "5678" and (not admin_user or admin_user.pin != admin_pin):
+        flash("❌ Acceso denegado: PIN de Administrador incorrecto.", "error")
+        return redirect(url_for("controlados"))
+
+    log_id = request.form.get("log_id")
+    log = ControlledLog.query.get(log_id)
+    if not log:
+        flash("Registro no encontrado.", "error")
+        return redirect(url_for("controlados"))
+
+    log.patient_name = request.form.get("patient_name", "").strip()
+    log.prescription_num = request.form.get("prescription_num", "").strip()
+    log.quantity = int(request.form.get("quantity", 1))
+    log.doctor_name = request.form.get("doctor_name", "").strip()
+
+    db.session.commit()
+    flash(f"✅ Registro de bitácora modificado correctamente por el Administrador.", "success")
     return redirect(url_for("controlados"))
 
 @app.route("/bitacora")
@@ -1001,6 +1142,7 @@ def bitacora():
         query = query.filter(Movement.item_name.ilike(f"%{search_item}%"))
 
     movements = query.order_by(Movement.timestamp.desc()).all()
+    patients = Patient.query.order_by(Patient.name).all()
 
     total_salidas = sum(m.quantity for m in movements if m.type == "Salida")
     total_entradas = sum(m.quantity for m in movements if m.type == "Entrada")
@@ -1015,14 +1157,16 @@ def bitacora():
         search_item=search_item,
         total_salidas=total_salidas,
         total_entradas=total_entradas,
-        total_traspasos=total_traspasos
+        total_traspasos=total_traspasos,
+        patients=patients
     )
 
 @app.route("/usuarios")
 def usuarios():
     users = User.query.order_by(User.name).all()
+    patients = Patient.query.order_by(Patient.name).all()
     is_admin = request.args.get("admin") == "true"
-    return render_template_string(HTML_TEMPLATE, view="usuarios", users=users, is_admin=is_admin)
+    return render_template_string(HTML_TEMPLATE, view="usuarios", users=users, is_admin=is_admin, patients=patients)
 
 @app.route("/auth_admin", methods=["POST"])
 def auth_admin():
@@ -1148,7 +1292,8 @@ def save_user():
 
 @app.route("/etiquetas")
 def etiquetas():
-    return render_template_string(HTML_TEMPLATE, view="etiquetas")
+    patients = Patient.query.order_by(Patient.name).all()
+    return render_template_string(HTML_TEMPLATE, view="etiquetas", patients=patients)
 
 @app.route("/register", methods=["POST"])
 def register_movement():
@@ -1159,7 +1304,7 @@ def register_movement():
     warehouse = request.form.get("warehouse")
     quantity = int(request.form.get("quantity", 1))
     service = request.form.get("service")
-    patient_name = request.form.get("patient_name")
+    patient_name = request.form.get("patient_name", "").strip()
     patient_id = request.form.get("patient_id")
     notes = request.form.get("notes")
 
@@ -1167,6 +1312,12 @@ def register_movement():
     if not user or user.pin != pin:
         flash("PIN o contraseña de usuario incorrecta.", "error")
         return redirect(url_for("terminal"))
+
+    if patient_name:
+        existing_patient = Patient.query.filter_by(name=patient_name).first()
+        if not existing_patient:
+            new_p = Patient(name=patient_name)
+            db.session.add(new_p)
 
     item = None
     if item_search.startswith("[ID:") and "]" in item_search:
@@ -1236,7 +1387,6 @@ def seed_database():
         db.create_all()
 
         try:
-            # Eliminar restricciones únicas previas en PostgreSQL para permitir múltiples lotes con el mismo código
             db.session.execute(text("ALTER TABLE item DROP CONSTRAINT IF EXISTS item_code_key;"))
             db.session.execute(text("DROP INDEX IF EXISTS item_code_key;"))
             
