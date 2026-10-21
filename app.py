@@ -71,6 +71,17 @@ class ControlledLog(db.Model):
     doctor_name = db.Column(db.String(150), nullable=True)
     user_name = db.Column(db.String(100), nullable=False)
 
+class CleaningLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    timestamp = db.Column(db.DateTime, default=datetime.now)
+    user_name = db.Column(db.String(100), nullable=False)
+    anaqueles = db.Column(db.Boolean, default=False)
+    cajones_unidosis = db.Column(db.Boolean, default=False)
+    acomodo_bodega = db.Column(db.Boolean, default=False)
+    carton = db.Column(db.Boolean, default=False)
+    cajas_traslado = db.Column(db.Boolean, default=False)
+    notes = db.Column(db.String(250), nullable=True)
+
 # -----------------------------------------------------------------------------
 # PLANTILLA HTML INTEGRADA Y UNIFICADA
 # -----------------------------------------------------------------------------
@@ -111,26 +122,29 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     <p class="text-[11px] text-blue-200">Terminal Compartida & Control de Dosis Unitaria</p>
                 </div>
             </div>
-            <nav class="flex flex-wrap gap-1.5 text-xs font-bold">
-                <a href="/terminal" class="px-3 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'terminal' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
-                    <i class="fa-solid fa-pen-to-square"></i> Surtido y Movimientos
+            <nav class="flex flex-wrap gap-1 text-xs font-bold">
+                <a href="/terminal" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'terminal' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
+                    <i class="fa-solid fa-pen-to-square"></i> Surtido
                 </a>
-                <a href="/alta_insumos" class="px-3 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'alta_insumos' %}bg-emerald-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-emerald-100{% endif %}">
-                    <i class="fa-solid fa-plus-circle"></i> Alta de Insumos
+                <a href="/alta_insumos" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'alta_insumos' %}bg-emerald-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-emerald-100{% endif %}">
+                    <i class="fa-solid fa-plus-circle"></i> Alta Insumos
                 </a>
-                <a href="/inventario" class="px-3 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'inventario' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
+                <a href="/inventario" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'inventario' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
                     <i class="fa-solid fa-boxes-stacked"></i> Inventario
                 </a>
-                <a href="/controlados" class="px-3 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'controlados' %}bg-rose-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-rose-100{% endif %}">
+                <a href="/controlados" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'controlados' %}bg-rose-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-rose-100{% endif %}">
                     <i class="fa-solid fa-capsules"></i> Controlados
                 </a>
-                <a href="/bitacora" class="px-3 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'bitacora' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
+                <a href="/limpieza" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'limpieza' %}bg-teal-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-teal-100{% endif %}">
+                    <i class="fa-solid fa-broom"></i> Limpieza
+                </a>
+                <a href="/bitacora" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'bitacora' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
                     <i class="fa-solid fa-clock-rotate-left"></i> Bitácora
                 </a>
-                <a href="/usuarios" class="px-3 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'usuarios' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
-                    <i class="fa-solid fa-lock"></i> Usuarios (Admin)
+                <a href="/usuarios" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'usuarios' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
+                    <i class="fa-solid fa-lock"></i> Usuarios
                 </a>
-                <a href="/etiquetas" class="px-3 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'etiquetas' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
+                <a href="/etiquetas" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'etiquetas' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
                     <i class="fa-solid fa-tags"></i> Etiquetas
                 </a>
             </nav>
@@ -357,6 +371,148 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         <i class="fa-solid fa-box-archive"></i> Registrar / Agregar Lote
                     </button>
                 </form>
+            </div>
+        </div>
+
+        {% elif view == 'limpieza' %}
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1">
+                <h2 class="text-base font-bold text-slate-900 mb-4 border-b pb-2 flex items-center gap-2">
+                    <i class="fa-solid fa-broom text-teal-600"></i> Registro Diario de Limpieza y Orden
+                </h2>
+
+                <form action="/add_cleaning" method="POST" class="space-y-4">
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Usuario Responsable</label>
+                            <select name="user_id" required class="w-full p-2.5 border rounded-xl text-xs bg-slate-50 focus:bg-white focus:ring-2 focus:ring-teal-500 outline-none">
+                                <option value="">Seleccione...</option>
+                                {% for u in users %}
+                                    <option value="{{ u.id }}">{{ u.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">PIN / Seguridad</label>
+                            <input type="password" name="pin" required placeholder="PIN" class="w-full p-2.5 border rounded-xl text-xs focus:ring-2 focus:ring-teal-500 outline-none">
+                        </div>
+                    </div>
+
+                    <div class="bg-teal-50/60 p-4 rounded-xl border border-teal-100 space-y-3">
+                        <h3 class="text-xs font-bold text-teal-900 uppercase border-b border-teal-200 pb-1">
+                            Parámetros de Sanidad Realizados
+                        </h3>
+
+                        <label class="flex items-center gap-2.5 text-xs font-medium text-slate-700 cursor-pointer hover:text-teal-900">
+                            <input type="checkbox" name="anaqueles" class="w-4 h-4 text-teal-600 rounded focus:ring-teal-500 border-slate-300">
+                            <span>🧹 Limpieza de Anaqueles</span>
+                        </label>
+
+                        <label class="flex items-center gap-2.5 text-xs font-medium text-slate-700 cursor-pointer hover:text-teal-900">
+                            <input type="checkbox" name="cajones_unidosis" class="w-4 h-4 text-teal-600 rounded focus:ring-teal-500 border-slate-300">
+                            <span>🗄️ Limpieza de Cajones de Unidosis</span>
+                        </label>
+
+                        <label class="flex items-center gap-2.5 text-xs font-medium text-slate-700 cursor-pointer hover:text-teal-900">
+                            <input type="checkbox" name="acomodo_bodega" class="w-4 h-4 text-teal-600 rounded focus:ring-teal-500 border-slate-300">
+                            <span>📦 Acomodo de Bodega</span>
+                        </label>
+
+                        <label class="flex items-center gap-2.5 text-xs font-medium text-slate-700 cursor-pointer hover:text-teal-900">
+                            <input type="checkbox" name="carton" class="w-4 h-4 text-teal-600 rounded focus:ring-teal-500 border-slate-300">
+                            <span>♻️ Gestión / Retiro de Cartón</span>
+                        </label>
+
+                        <label class="flex items-center gap-2.5 text-xs font-medium text-slate-700 cursor-pointer hover:text-teal-900">
+                            <input type="checkbox" name="cajas_traslado" class="w-4 h-4 text-teal-600 rounded focus:ring-teal-500 border-slate-300">
+                            <span>🚚 Limpieza de Cajas de Traslado</span>
+                        </label>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Notas / Observaciones</label>
+                        <input type="text" name="notes" placeholder="Ej. Se sanitizó con solución desinfectante..." class="w-full p-2.5 border rounded-xl text-xs focus:ring-2 focus:ring-teal-500 outline-none">
+                    </div>
+
+                    <button type="submit" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 rounded-xl shadow-md transition duration-200 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-clipboard-check"></i> Registrar Limpieza
+                    </button>
+                </form>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-2">
+                <div class="flex justify-between items-center mb-4 border-b pb-3">
+                    <div>
+                        <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-list-check text-teal-600"></i> Bitácora de Sanitización y Mantenimiento
+                        </h2>
+                        <p class="text-xs text-slate-500">Histórico de actividades de higiene y orden normativo.</p>
+                    </div>
+                    <button onclick="window.print()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition flex items-center gap-1.5 no-print">
+                        <i class="fa-solid fa-print"></i> Imprimir Bitácora
+                    </button>
+                </div>
+
+                <form action="/limpieza" method="GET" class="flex gap-2 mb-4 bg-teal-50/50 p-3 rounded-xl border border-teal-100 no-print items-end">
+                    <div class="flex-1">
+                        <label class="block text-[11px] font-bold text-teal-900 uppercase mb-1">Filtrar por Día</label>
+                        <input type="date" name="filter_date" value="{{ selected_date }}" class="w-full p-2 border rounded-lg text-xs bg-white font-bold outline-none">
+                    </div>
+                    <button type="submit" class="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-lg text-xs transition">
+                        <i class="fa-solid fa-filter"></i> Filtrar
+                    </button>
+                    <a href="/limpieza" class="px-3 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg text-xs transition">
+                        Ver Todos
+                    </a>
+                </form>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-xs text-left text-slate-600">
+                        <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b">
+                            <tr>
+                                <th class="p-2.5">Fecha/Hora</th>
+                                <th class="p-2.5">Responsable</th>
+                                <th class="p-2.5 text-center">Anaqueles</th>
+                                <th class="p-2.5 text-center">Cajones DU</th>
+                                <th class="p-2.5 text-center">Bodega</th>
+                                <th class="p-2.5 text-center">Cartón</th>
+                                <th class="p-2.5 text-center">Cajas Traslado</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            {% for log in cleaning_logs %}
+                            <tr class="hover:bg-slate-50">
+                                <td class="p-2.5 font-mono text-slate-500">{{ log.timestamp.strftime('%d/%m/%Y %H:%M') }}</td>
+                                <td class="p-2.5 font-bold text-slate-900">
+                                    {{ log.user_name }}
+                                    {% if log.notes %}
+                                        <span class="block text-[10px] text-slate-400 font-normal italic">{{ log.notes }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="p-2.5 text-center">
+                                    {% if log.anaqueles %}<span class="text-emerald-600 text-sm">✓</span>{% else %}<span class="text-slate-300">-</span>{% endif %}
+                                </td>
+                                <td class="p-2.5 text-center">
+                                    {% if log.cajones_unidosis %}<span class="text-emerald-600 text-sm">✓</span>{% else %}<span class="text-slate-300">-</span>{% endif %}
+                                </td>
+                                <td class="p-2.5 text-center">
+                                    {% if log.acomodo_bodega %}<span class="text-emerald-600 text-sm">✓</span>{% else %}<span class="text-slate-300">-</span>{% endif %}
+                                </td>
+                                <td class="p-2.5 text-center">
+                                    {% if log.carton %}<span class="text-emerald-600 text-sm">✓</span>{% else %}<span class="text-slate-300">-</span>{% endif %}
+                                </td>
+                                <td class="p-2.5 text-center">
+                                    {% if log.cajas_traslado %}<span class="text-emerald-600 text-sm">✓</span>{% else %}<span class="text-slate-300">-</span>{% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="7" class="p-6 text-center text-slate-400 italic">No hay actividades de limpieza registradas.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
@@ -1034,6 +1190,62 @@ def alta_insumos():
     users = User.query.order_by(User.name).all()
     patients = Patient.query.order_by(Patient.name).all()
     return render_template_string(HTML_TEMPLATE, view="alta_insumos", users=users, patients=patients)
+
+@app.route("/limpieza")
+def limpieza():
+    filter_date = request.args.get("filter_date", "").strip()
+    query = CleaningLog.query
+
+    if filter_date:
+        try:
+            target_date = datetime.strptime(filter_date, "%Y-%m-%d").date()
+            query = query.filter(db.func.date(CleaningLog.timestamp) == target_date)
+        except ValueError:
+            pass
+
+    cleaning_logs = query.order_by(CleaningLog.timestamp.desc()).all()
+    users = User.query.order_by(User.name).all()
+    patients = Patient.query.order_by(Patient.name).all()
+
+    return render_template_string(
+        HTML_TEMPLATE,
+        view="limpieza",
+        cleaning_logs=cleaning_logs,
+        users=users,
+        patients=patients,
+        selected_date=filter_date
+    )
+
+@app.route("/add_cleaning", methods=["POST"])
+def add_cleaning():
+    user_id = request.form.get("user_id")
+    pin = request.form.get("pin", "").strip()
+    anaqueles = 'anaqueles' in request.form
+    cajones_unidosis = 'cajones_unidosis' in request.form
+    acomodo_bodega = 'acomodo_bodega' in request.form
+    carton = 'carton' in request.form
+    cajas_traslado = 'cajas_traslado' in request.form
+    notes = request.form.get("notes", "").strip()
+
+    user = User.query.get(user_id)
+    if not user or user.pin != pin:
+        flash("PIN de seguridad incorrecto.", "error")
+        return redirect(url_for("limpieza"))
+
+    new_log = CleaningLog(
+        user_name=user.name,
+        anaqueles=anaqueles,
+        cajones_unidosis=cajones_unidosis,
+        acomodo_bodega=acomodo_bodega,
+        carton=carton,
+        cajas_traslado=cajas_traslado,
+        notes=notes
+    )
+    db.session.add(new_log)
+    db.session.commit()
+
+    flash("Registro de limpieza y sanitización guardado correctamente.", "success")
+    return redirect(url_for("limpieza"))
 
 @app.route("/inventario")
 def inventario():
