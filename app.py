@@ -1,11 +1,17 @@
 import os
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from flask import Flask, render_template_string, request, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "farmacia_secret_key_123")
+
+# Configuración de Zona Horaria Local (UTC-6 para México / Hora Local)
+LOCAL_TZ = timezone(timedelta(hours=-6))
+
+def get_local_now():
+    return datetime.now(LOCAL_TZ).replace(tzinfo=None)
 
 # Configuración de Base de Datos PostgreSQL / SQLite
 db_url = os.environ.get("DATABASE_URL", "sqlite:///farmacia.db")
@@ -49,7 +55,7 @@ class Item(db.Model):
 
 class Movement(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    timestamp = db.Column(db.DateTime, default=datetime.now)
+    timestamp = db.Column(db.DateTime, default=get_local_now)
     item_code = db.Column(db.String(50), nullable=False)
     item_name = db.Column(db.String(150), nullable=False)
     type = db.Column(db.String(50), nullable=False)
@@ -63,7 +69,7 @@ class Movement(db.Model):
 
 class ControlledLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    timestamp = db.Column(db.DateTime, default=datetime.now)
+    timestamp = db.Column(db.DateTime, default=get_local_now)
     item_name = db.Column(db.String(150), nullable=False)
     patient_name = db.Column(db.String(150), nullable=False)
     prescription_num = db.Column(db.String(50), nullable=False)
@@ -73,7 +79,7 @@ class ControlledLog(db.Model):
 
 class CleaningLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    timestamp = db.Column(db.DateTime, default=datetime.now)
+    timestamp = db.Column(db.DateTime, default=get_local_now)
     user_name = db.Column(db.String(100), nullable=False)
     anaqueles = db.Column(db.Boolean, default=False)
     cajones_unidosis = db.Column(db.Boolean, default=False)
@@ -376,7 +382,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
         {% elif view == 'limpieza' %}
         <div class="space-y-6">
-            <!-- ROL SEMANAL ASIGNADO -->
             <div class="bg-gradient-to-br from-teal-900 to-slate-900 text-white p-6 rounded-2xl shadow-md border border-teal-800">
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 border-b border-teal-700/50 pb-3">
                     <div>
@@ -1243,8 +1248,7 @@ def limpieza():
     users = User.query.order_by(User.name).all()
     patients = Patient.query.order_by(Patient.name).all()
 
-    # Generación de Rol Semanal excluyendo Administradores
-    current_week = datetime.now().isocalendar()[1]
+    current_week = datetime.now(LOCAL_TZ).isocalendar()[1]
     non_admin_users = [u for u in users if "admin" not in u.role.lower()]
     
     tasks = [
@@ -1292,6 +1296,7 @@ def add_cleaning():
         return redirect(url_for("limpieza"))
 
     new_log = CleaningLog(
+        timestamp=get_local_now(),
         user_name=user.name,
         anaqueles=anaqueles,
         cajones_unidosis=cajones_unidosis,
@@ -1310,8 +1315,8 @@ def add_cleaning():
 def inventario():
     items = Item.query.order_by(Item.name, Item.lote).all()
     patients = Patient.query.order_by(Patient.name).all()
-    today_str = date.today().isoformat()
-    warning_str = (date.today() + timedelta(days=30)).isoformat()
+    today_str = datetime.now(LOCAL_TZ).date().isoformat()
+    warning_str = (datetime.now(LOCAL_TZ).date() + timedelta(days=30)).isoformat()
     return render_template_string(HTML_TEMPLATE, view="inventario", items=items, today_str=today_str, warning_str=warning_str, patients=patients)
 
 @app.route("/controlados")
@@ -1363,6 +1368,7 @@ def add_controlled():
             db.session.add(new_p)
 
     new_log = ControlledLog(
+        timestamp=get_local_now(),
         item_name=item_name,
         patient_name=patient_name,
         prescription_num=prescription_num,
@@ -1641,6 +1647,7 @@ def register_movement():
         item.stock_quirofano += quantity
 
     mov = Movement(
+        timestamp=get_local_now(),
         item_code=item.code,
         item_name=f"{item.name} (Lote: {item.lote or 'S/L'})",
         type=mov_type,
