@@ -1049,34 +1049,39 @@ def add_item():
     unit = request.form.get("unit", "pza").strip()
     stock_general = int(request.form.get("stock_general", 0))
 
-    # Búsqueda exacta por código Y lote
-    existing_item = Item.query.filter_by(code=code, lote=lote).first()
+    try:
+        # Búsqueda exacta por código Y lote
+        existing_item = Item.query.filter_by(code=code, lote=lote).first()
 
-    if existing_item:
-        existing_item.stock_general += stock_general
-        if caducidad:
-            existing_item.caducidad = caducidad
-        if etiqueta and etiqueta != "Ninguna":
-            existing_item.etiqueta = etiqueta
-        flash(f"Se sumaron {stock_general} {unit} al lote existente '{lote or 'S/L'}' del código {code}.", "success")
-    else:
-        new_item = Item(
-            code=code, 
-            name=name, 
-            category=category, 
-            via_administracion=via_administracion,
-            presentacion=presentacion,
-            lote=lote,
-            caducidad=caducidad,
-            etiqueta=etiqueta,
-            unit=unit, 
-            stock_general=stock_general, 
-            stock_quirofano=0
-        )
-        db.session.add(new_item)
-        flash(f"Nuevo registro/lote creado para '{name}' (Código: {code}, Lote: '{lote or 'S/L'}').", "success")
+        if existing_item:
+            existing_item.stock_general += stock_general
+            if caducidad:
+                existing_item.caducidad = caducidad
+            if etiqueta and etiqueta != "Ninguna":
+                existing_item.etiqueta = etiqueta
+            flash(f"Se sumaron {stock_general} {unit} al lote existente '{lote or 'S/L'}' del código {code}.", "success")
+        else:
+            new_item = Item(
+                code=code, 
+                name=name, 
+                category=category, 
+                via_administracion=via_administracion,
+                presentacion=presentacion,
+                lote=lote,
+                caducidad=caducidad,
+                etiqueta=etiqueta,
+                unit=unit, 
+                stock_general=stock_general, 
+                stock_quirofano=0
+            )
+            db.session.add(new_item)
+            flash(f"Nuevo registro/lote creado para '{name}' (Código: {code}, Lote: '{lote or 'S/L'}').", "success")
 
-    db.session.commit()
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error al registrar el lote: {str(e)}", "error")
+
     return redirect(url_for("terminal"))
 
 @app.route("/update_item", methods=["POST"])
@@ -1174,7 +1179,6 @@ def register_movement():
             item = None
 
     if not item:
-        # Búsqueda fallback por código exacto o coincidencia de nombre
         clean_code = item_search.split(" - ")[0] if " - " in item_search else item_search
         item = Item.query.filter((Item.code == clean_code) | (Item.name.ilike(f"%{item_search}%"))).first()
 
