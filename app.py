@@ -539,32 +539,31 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
         {% elif view == 'limpieza' %}
         <div class="space-y-6">
-            <!-- VISTA GENERAL Y CALENDARIO ROTATIVO DE LIMPIEZA EXCLUYENDO ADMINISTRADORES -->
+            <!-- HEADER DE ROL DE LIMPIEZA Y RESUMEN GENERAL -->
             <div class="bg-gradient-to-r from-teal-900 to-slate-900 text-white p-6 rounded-2xl shadow-md border border-teal-800">
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 border-b border-teal-700/60 pb-3">
                     <div>
                         <h2 class="text-base font-bold flex items-center gap-2">
-                            <i class="fa-solid fa-calendar-check text-teal-400"></i> Vista General del Rol Semanal Alternado (Personal Operativo)
+                            <i class="fa-solid fa-calendar-check text-teal-400"></i> Rol Semanal Rotativo de Sanitización por Usuario
                         </h2>
-                        <p class="text-xs text-teal-200">Asignación rotativa por semana calendario entre el personal operativo (excluye al Administrador).</p>
+                        <p class="text-xs text-teal-200">Asignación diaria obligatoria por una semana completa. Cada semana el turno se modifica y se alterna entre el personal operativo.</p>
                     </div>
                     <span class="bg-teal-600/80 text-white text-xs font-mono px-3 py-1 rounded-full font-bold">
-                        Semana Actual: {{ current_week }} / {{ current_year }}
+                        Semana {{ current_week }} / {{ current_year }} ({{ week_dates_current }})
                     </span>
                 </div>
 
-                <!-- CARDS RESUMEN SEMANAL -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs mb-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
                     <div class="bg-white/10 p-4 rounded-xl border border-white/10">
-                        <span class="block text-[11px] text-teal-300 uppercase font-bold mb-1">Esta Semana</span>
+                        <span class="block text-[11px] text-teal-300 uppercase font-bold mb-1">Responsable Activo Esta Semana</span>
                         <h3 class="text-base font-extrabold text-white flex items-center gap-2">
                             <i class="fa-solid fa-user-check text-emerald-400"></i> {{ assigned_user_current }}
                         </h3>
-                        <p class="text-[11px] text-teal-200/80 mt-1">Del {{ week_dates_current }}</p>
+                        <p class="text-[11px] text-teal-200/80 mt-1">Actividad Diaria: Lunes a Domingo</p>
                     </div>
 
                     <div class="bg-white/5 p-4 rounded-xl border border-white/5">
-                        <span class="block text-[11px] text-teal-300 uppercase font-bold mb-1">Próxima Semana</span>
+                        <span class="block text-[11px] text-teal-300 uppercase font-bold mb-1">Próximo Turno (Semana {{ current_week + 1 }})</span>
                         <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
                             <i class="fa-solid fa-clock text-teal-400"></i> {{ assigned_user_next }}
                         </h3>
@@ -572,65 +571,87 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     </div>
 
                     <div class="bg-white/5 p-4 rounded-xl border border-white/5">
-                        <span class="block text-[11px] text-teal-300 uppercase font-bold mb-1">En 2 Semanas</span>
+                        <span class="block text-[11px] text-teal-300 uppercase font-bold mb-1">Turno Siguiente (Semana {{ current_week + 2 }})</span>
                         <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
                             <i class="fa-solid fa-calendar-days text-teal-400"></i> {{ assigned_user_next2 }}
                         </h3>
                         <p class="text-[11px] text-slate-400 mt-1">Del {{ week_dates_next2 }}</p>
                     </div>
                 </div>
+            </div>
 
-                <!-- VISTA GENERAL EN TABLA ROL DE USUARIOS OPERATIVOS -->
-                <div class="bg-black/20 rounded-xl p-4 border border-white/10">
-                    <h4 class="text-xs font-bold text-teal-300 uppercase mb-3 flex items-center gap-1.5">
-                        <i class="fa-solid fa-table-list"></i> Cronograma de Rotación por Usuario Operativo
-                    </h4>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-xs text-left">
-                            <thead class="bg-white/10 uppercase text-[10px] text-teal-200">
-                                <tr>
-                                    <th class="p-2">Usuario</th>
-                                    <th class="p-2">Rol / Puesto</th>
-                                    <th class="p-2 text-center">Semana {{ current_week }} (Actual)</th>
-                                    <th class="p-2 text-center">Semana {{ current_week + 1 }}</th>
-                                    <th class="p-2 text-center">Semana {{ current_week + 2 }}</th>
-                                    <th class="p-2 text-center">Semana {{ current_week + 3 }}</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-white/10">
-                                {% for item in full_schedule %}
-                                <tr class="hover:bg-white/5">
-                                    <td class="p-2 font-bold text-white">{{ item.user.name }}</td>
-                                    <td class="p-2 text-teal-200/70 text-[11px]">{{ item.user.role }}</td>
-                                    <td class="p-2 text-center font-mono">
-                                        {% if item.w0 %}<span class="px-2 py-0.5 rounded-full bg-emerald-500 text-slate-900 font-extrabold text-[10px]">ASIGNADO</span>{% else %}<span class="text-teal-400/30">-</span>{% endif %}
-                                    </td>
-                                    <td class="p-2 text-center font-mono">
-                                        {% if item.w1 %}<span class="px-2 py-0.5 rounded-full bg-teal-600/80 text-white font-bold text-[10px]">Turno</span>{% else %}<span class="text-teal-400/30">-</span>{% endif %}
-                                    </td>
-                                    <td class="p-2 text-center font-mono">
-                                        {% if item.w2 %}<span class="px-2 py-0.5 rounded-full bg-teal-600/80 text-white font-bold text-[10px]">Turno</span>{% else %}<span class="text-teal-400/30">-</span>{% endif %}
-                                    </td>
-                                    <td class="p-2 text-center font-mono">
-                                        {% if item.w3 %}<span class="px-2 py-0.5 rounded-full bg-teal-600/80 text-white font-bold text-[10px]">Turno</span>{% else %}<span class="text-teal-400/30">-</span>{% endif %}
-                                    </td>
-                                </tr>
+            <!-- DESGLOSE INDIVIDUAL DEL ROL PARA CADA USUARIO -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <h3 class="text-base font-bold text-slate-900 mb-4 border-b pb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-users text-teal-600"></i> Asignación y Programación de Tareas Semanales por Usuario
+                </h3>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {% for item in user_roles_detail %}
+                    <div class="rounded-2xl border transition-all p-4 flex flex-col justify-between space-y-3 {% if item.is_active_this_week %}bg-teal-50/70 border-teal-500 ring-2 ring-teal-500/30 shadow-md{% else %}bg-slate-50/70 border-slate-200{% endif %}">
+                        <div>
+                            <div class="flex justify-between items-start mb-2">
+                                <div>
+                                    <h4 class="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+                                        <i class="fa-solid fa-user text-xs {% if item.is_active_this_week %}text-teal-600{% else %}text-slate-400{% endif %}"></i>
+                                        {{ item.user.name }}
+                                    </h4>
+                                    <span class="text-[11px] text-slate-500 font-medium">{{ item.user.role }}</span>
+                                </div>
+                                {% if item.is_active_this_week %}
+                                <span class="bg-teal-600 text-white text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full animate-pulse shadow-sm">
+                                    En Turno Esta Semana
+                                </span>
                                 {% else %}
-                                <tr>
-                                    <td colspan="6" class="p-4 text-center text-teal-200/50 italic">No hay personal operativo disponible para asignar rol.</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                                <span class="bg-slate-200 text-slate-600 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full">
+                                    En Espera
+                                </span>
+                                {% endif %}
+                            </div>
+
+                            <div class="border-t border-slate-200/80 pt-2 text-xs space-y-1.5">
+                                <p class="font-bold text-slate-700 text-[11px] uppercase tracking-wider">
+                                    <i class="fa-solid fa-rotate text-teal-600"></i> Turnos Programados:
+                                </p>
+                                <ul class="space-y-1 text-[11px]">
+                                    <li class="flex justify-between items-center py-0.5 px-2 rounded {% if item.is_active_this_week %}bg-teal-100 text-teal-900 font-bold{% else %}text-slate-600{% endif %}">
+                                        <span>Semana {{ current_week }} (Actual):</span>
+                                        <span>{% if item.is_active_this_week %}TURNO DIARIO{% else %}Descanso de Rol{% endif %}</span>
+                                    </li>
+                                    <li class="flex justify-between items-center py-0.5 px-2 rounded text-slate-500">
+                                        <span>Semana {{ current_week + 1 }}:</span>
+                                        <span>{% if item.next_turn_week == current_week + 1 %}<strong class="text-teal-700">TURNO DIARIO</strong>{% else %}Descanso de Rol{% endif %}</span>
+                                    </li>
+                                    <li class="flex justify-between items-center py-0.5 px-2 rounded text-slate-500">
+                                        <span>Próximo Turno Asignado:</span>
+                                        <span class="font-mono font-bold text-slate-700">Semana {{ item.next_turn_week }}</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-3 rounded-xl border border-slate-200/70 text-[11px] space-y-1">
+                            <span class="font-bold text-slate-700 block uppercase border-b pb-1 text-[10px]">
+                                <i class="fa-solid fa-list-check text-teal-600"></i> Obligación Diaria de Limpieza:
+                            </span>
+                            <p class="text-slate-600">• Sanitización de Anaqueles y Cajones DU</p>
+                            <p class="text-slate-600">• Acomodo, cartón y desinfección de Bodega</p>
+                            <p class="text-slate-400 italic text-[10px] mt-1">Registrar con PIN individual diariamente.</p>
+                        </div>
                     </div>
+                    {% else %}
+                    <div class="col-span-full text-center text-slate-400 p-6 italic">
+                        No hay usuarios operativos registrados para el rol.
+                    </div>
+                    {% endfor %}
                 </div>
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- FORMULARIO DE CAPTURA DE SANITIZACIÓN -->
+                <!-- FORMULARIO DE CAPTURA DE SANITIZACIÓN DIARIA -->
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1">
                     <h2 class="text-base font-bold text-slate-900 mb-4 border-b pb-2 flex items-center gap-2">
-                        <i class="fa-solid fa-broom text-teal-600"></i> Registrar Actividad de Limpieza
+                        <i class="fa-solid fa-broom text-teal-600"></i> Registrar Actividad Diaria
                     </h2>
 
                     <form action="/add_cleaning" method="POST" class="space-y-4">
@@ -652,7 +673,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
                         <div class="bg-teal-50/60 p-4 rounded-xl border border-teal-100 space-y-3">
                             <h3 class="text-xs font-bold text-teal-900 uppercase border-b border-teal-200 pb-1">
-                                Verificación de Áreas
+                                Verificación de Áreas Realizadas
                             </h3>
 
                             <label class="flex items-center gap-2.5 text-xs font-medium text-slate-700 cursor-pointer">
@@ -682,7 +703,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     </form>
                 </div>
 
-                <!-- TABLA HISTORIAL -->
+                <!-- TABLA HISTORIAL DE BITÁCORA -->
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-2">
                     <div class="flex justify-between items-center mb-4 border-b pb-3">
                         <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -1267,9 +1288,9 @@ def update_item():
 @app.route("/limpieza")
 def limpieza():
     cleaning_logs = CleaningLog.query.order_by(CleaningLog.timestamp.desc()).all()
-    
-    # SE FILTRAN Y EXCLUYEN LOS USUARIOS CON ROL ADMINISTRADOR PARA EL ROL DE LIMPIEZA
     users = User.query.order_by(User.id).all()
+    
+    # EXCLUSIÓN DE ADMINISTRADORES
     operational_users = User.query.filter(User.role != "Administrador").order_by(User.id).all()
 
     now = get_local_now()
@@ -1287,21 +1308,27 @@ def limpieza():
     assigned_user_next = "Sin asignar"
     assigned_user_next2 = "Sin asignar"
 
-    full_schedule = []
+    user_roles_detail = []
 
     if operational_users:
         num_users = len(operational_users)
-        assigned_user_current = operational_users[current_week % num_users].name
+        active_index = current_week % num_users
+        
+        assigned_user_current = operational_users[active_index].name
         assigned_user_next = operational_users[(current_week + 1) % num_users].name
         assigned_user_next2 = operational_users[(current_week + 2) % num_users].name
 
         for idx, u in enumerate(operational_users):
-            full_schedule.append({
+            is_active = (idx == active_index)
+            
+            # CÁLCULO DE LA PRÓXIMA SEMANA EN QUE LE TOCA A ESTE USUARIO ESPECÍFICO
+            weeks_ahead = (idx - active_index) % num_users
+            next_turn_week = current_week + weeks_ahead
+
+            user_roles_detail.append({
                 'user': u,
-                'w0': (current_week % num_users) == idx,
-                'w1': ((current_week + 1) % num_users) == idx,
-                'w2': ((current_week + 2) % num_users) == idx,
-                'w3': ((current_week + 3) % num_users) == idx,
+                'is_active_this_week': is_active,
+                'next_turn_week': next_turn_week
             })
 
     week_dates_current = get_week_range(current_year, current_week)
@@ -1323,7 +1350,7 @@ def limpieza():
         week_dates_current=week_dates_current,
         week_dates_next=week_dates_next,
         week_dates_next2=week_dates_next2,
-        full_schedule=full_schedule
+        user_roles_detail=user_roles_detail
     )
 
 @app.route("/add_cleaning", methods=["POST"])
