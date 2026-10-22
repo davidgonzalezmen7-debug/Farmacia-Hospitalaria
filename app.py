@@ -90,7 +90,7 @@ class CleaningLog(db.Model):
     notes = db.Column(db.String(250), nullable=True)
 
 # -----------------------------------------------------------------------------
-# PLANTILLA HTML INTEGRADA
+# PLANTILLA HTML INTEGRADA Y UNIFICADA
 # -----------------------------------------------------------------------------
 
 HTML_TEMPLATE = """<!DOCTYPE html>
@@ -618,35 +618,153 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
         {% elif view == 'limpieza' %}
         <div class="space-y-6">
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                <h2 class="text-base font-bold text-slate-900 mb-4 border-b pb-2 flex items-center gap-2">
-                    <i class="fa-solid fa-list-check text-teal-600"></i> Bitácora de Sanitización
-                </h2>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-xs text-left text-slate-600">
-                        <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b">
-                            <tr>
-                                <th class="p-2.5">Fecha/Hora</th>
-                                <th class="p-2.5">Responsable</th>
-                                <th class="p-2.5 text-center">Anaqueles</th>
-                                <th class="p-2.5 text-center">Cajones DU</th>
-                                <th class="p-2.5 text-center">Bodega</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100">
-                            {% for log in cleaning_logs %}
-                            <tr class="hover:bg-slate-50">
-                                <td class="p-2.5 font-mono text-slate-500">{{ log.timestamp.strftime('%d/%m/%Y %H:%M') }}</td>
-                                <td class="p-2.5 font-bold text-slate-900">{{ log.user_name }}</td>
-                                <td class="p-2.5 text-center">{% if log.anaqueles %}✓{% else %}-{% endif %}</td>
-                                <td class="p-2.5 text-center">{% if log.cajones_unidosis %}✓{% else %}-{% endif %}</td>
-                                <td class="p-2.5 text-center">{% if log.acomodo_bodega %}✓{% else %}-{% endif %}</td>
-                            </tr>
-                            {% else %}
-                            <tr><td colspan="5" class="p-6 text-center text-slate-400 italic">No hay actividades de limpieza registradas.</td></tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+            <!-- ROL AUTOMATIZADO SEMANAL DE SANITIZACIÓN -->
+            <div class="bg-gradient-to-r from-teal-900 to-slate-900 text-white p-6 rounded-2xl shadow-md border border-teal-800">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 border-b border-teal-700/60 pb-3">
+                    <div>
+                        <h2 class="text-base font-bold flex items-center gap-2">
+                            <i class="fa-solid fa-calendar-check text-teal-400"></i> Rol Automatizado de Sanitización Semanal
+                        </h2>
+                        <p class="text-xs text-teal-200">Asignación rotativa automática por semana calendario para el personal de la farmacia.</p>
+                    </div>
+                    <span class="bg-teal-600/80 text-white text-xs font-mono px-3 py-1 rounded-full font-bold">
+                        Semana {{ current_week }} / {{ current_year }}
+                    </span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                    <div class="bg-white/10 p-4 rounded-xl border border-white/10">
+                        <span class="block text-[11px] text-teal-300 uppercase font-bold mb-1">Responsable Esta Semana</span>
+                        <h3 class="text-base font-extrabold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-user-check text-emerald-400"></i> {{ assigned_user_current }}
+                        </h3>
+                        <p class="text-[11px] text-teal-200/80 mt-1">Semanas del {{ week_dates_current }}</p>
+                    </div>
+
+                    <div class="bg-white/5 p-4 rounded-xl border border-white/5">
+                        <span class="block text-[11px] text-teal-300 uppercase font-bold mb-1">Siguiente Semana (Próximo)</span>
+                        <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+                            <i class="fa-solid fa-clock text-teal-400"></i> {{ assigned_user_next }}
+                        </h3>
+                        <p class="text-[11px] text-slate-400 mt-1">Semanas del {{ week_dates_next }}</p>
+                    </div>
+
+                    <div class="bg-white/5 p-4 rounded-xl border border-white/5">
+                        <span class="block text-[11px] text-teal-300 uppercase font-bold mb-1">Semana Siguiente (+2)</span>
+                        <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+                            <i class="fa-solid fa-calendar-days text-teal-400"></i> {{ assigned_user_next2 }}
+                        </h3>
+                        <p class="text-[11px] text-slate-400 mt-1">Semanas del {{ week_dates_next2 }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- FORMULARIO DE REGISTRO DE BITÁCORA -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1">
+                    <h2 class="text-base font-bold text-slate-900 mb-4 border-b pb-2 flex items-center gap-2">
+                        <i class="fa-solid fa-broom text-teal-600"></i> Registrar Actividad de Limpieza
+                    </h2>
+
+                    <form action="/add_cleaning" method="POST" class="space-y-4">
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Personal</label>
+                                <select name="user_id" required class="w-full p-2.5 border rounded-xl text-xs bg-slate-50 outline-none focus:ring-2 focus:ring-teal-500">
+                                    <option value="">Seleccione...</option>
+                                    {% for u in users %}
+                                        <option value="{{ u.id }}">{{ u.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">PIN</label>
+                                <input type="password" name="pin" required placeholder="PIN" class="w-full p-2.5 border rounded-xl text-xs outline-none focus:ring-2 focus:ring-teal-500">
+                            </div>
+                        </div>
+
+                        <div class="bg-teal-50/60 p-4 rounded-xl border border-teal-100 space-y-3">
+                            <h3 class="text-xs font-bold text-teal-900 uppercase border-b border-teal-200 pb-1">
+                                Verificación de Áreas
+                            </h3>
+
+                            <label class="flex items-center gap-2.5 text-xs font-medium text-slate-700 cursor-pointer">
+                                <input type="checkbox" name="anaqueles" class="w-4 h-4 text-teal-600 rounded">
+                                <span>🗄️ Sanitización de Anaqueles y Estantes</span>
+                            </label>
+
+                            <label class="flex items-center gap-2.5 text-xs font-medium text-slate-700 cursor-pointer">
+                                <input type="checkbox" name="cajones_unidosis" class="w-4 h-4 text-teal-600 rounded">
+                                <span>💊 Limpieza de Cajones Unidosis</span>
+                            </label>
+
+                            <label class="flex items-center gap-2.5 text-xs font-medium text-slate-700 cursor-pointer">
+                                <input type="checkbox" name="acomodo_bodega" class="w-4 h-4 text-teal-600 rounded">
+                                <span>📦 Acomodo y Desinfección de Bodega</span>
+                            </label>
+
+                            <label class="flex items-center gap-2.5 text-xs font-medium text-slate-700 cursor-pointer">
+                                <input type="checkbox" name="carton" class="w-4 h-4 text-teal-600 rounded">
+                                <span>♻️ Retiro de Cartón y Cajas Secundarias</span>
+                            </label>
+
+                            <label class="flex items-center gap-2.5 text-xs font-medium text-slate-700 cursor-pointer">
+                                <input type="checkbox" name="cajas_traslado" class="w-4 h-4 text-teal-600 rounded">
+                                <span>🧰 Sanitización de Cajas de Traslado / Hieleras</span>
+                            </label>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Notas u Observaciones</label>
+                            <input type="text" name="notes" placeholder="Ej. Se limpió con alcohol al 70%..." class="w-full p-2.5 border rounded-xl text-xs outline-none focus:ring-2 focus:ring-teal-500">
+                        </div>
+
+                        <button type="submit" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 rounded-xl shadow-md transition flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-clipboard-check"></i> Guardar Bitácora de Limpieza
+                        </button>
+                    </form>
+                </div>
+
+                <!-- HISTORIAL DE BITÁCORA DE SANITIZACIÓN -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-2">
+                    <div class="flex justify-between items-center mb-4 border-b pb-3">
+                        <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-list-check text-teal-600"></i> Bitácora de Sanitización
+                        </h2>
+                        <button onclick="window.print()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition flex items-center gap-1.5 no-print">
+                            <i class="fa-solid fa-print"></i> Imprimir Reporte
+                        </button>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs text-left text-slate-600">
+                            <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b">
+                                <tr>
+                                    <th class="p-2.5">Fecha/Hora</th>
+                                    <th class="p-2.5">Responsable</th>
+                                    <th class="p-2.5 text-center">Anaqueles</th>
+                                    <th class="p-2.5 text-center">Cajones DU</th>
+                                    <th class="p-2.5 text-center">Bodega</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                {% for log in cleaning_logs %}
+                                <tr class="hover:bg-slate-50">
+                                    <td class="p-2.5 font-mono text-slate-500">{{ log.timestamp.strftime('%d/%m/%Y %H:%M') if log.timestamp else '-' }}</td>
+                                    <td class="p-2.5 font-bold text-slate-900">
+                                        {{ log.user_name }}
+                                        {% if log.notes %}<span class="block text-[10px] text-slate-400 font-normal">{{ log.notes }}</span>{% endif %}
+                                    </td>
+                                    <td class="p-2.5 text-center">{% if log.anaqueles %}<span class="text-emerald-600 font-bold">✓</span>{% else %}-{% endif %}</td>
+                                    <td class="p-2.5 text-center">{% if log.cajones_unidosis %}<span class="text-emerald-600 font-bold">✓</span>{% else %}-{% endif %}</td>
+                                    <td class="p-2.5 text-center">{% if log.acomodo_bodega %}<span class="text-emerald-600 font-bold">✓</span>{% else %}-{% endif %}</td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="5" class="p-6 text-center text-slate-400 italic">No hay actividades de limpieza registradas.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -880,7 +998,6 @@ def register_batch():
         if not item:
             continue
 
-        # Validaciones y actualización de stock
         if mov_type == "Entrada":
             if warehouse == "Almacén General":
                 item.stock_general += quantity
@@ -938,9 +1055,80 @@ def alta_insumos():
 @app.route("/limpieza")
 def limpieza():
     cleaning_logs = CleaningLog.query.order_by(CleaningLog.timestamp.desc()).all()
-    users = User.query.order_by(User.name).all()
+    users = User.query.order_by(User.id).all()
+
+    now = get_local_now()
+    current_year, current_week, _ = now.isocalendar()
+
+    def get_week_range(year, week):
+        try:
+            first_day = datetime.strptime(f'{year}-W{int(week):02d}-1', "%Y-W%W-%w")
+        except Exception:
+            first_day = now
+        last_day = first_day + timedelta(days=6)
+        return f"{first_day.strftime('%d/%m')} al {last_day.strftime('%d/%m')}"
+
+    assigned_user_current = "Sin asignar"
+    assigned_user_next = "Sin asignar"
+    assigned_user_next2 = "Sin asignar"
+
+    if users:
+        num_users = len(users)
+        assigned_user_current = users[current_week % num_users].name
+        assigned_user_next = users[(current_week + 1) % num_users].name
+        assigned_user_next2 = users[(current_week + 2) % num_users].name
+
+    week_dates_current = get_week_range(current_year, current_week)
+    week_dates_next = get_week_range(current_year, current_week + 1)
+    week_dates_next2 = get_week_range(current_year, current_week + 2)
+
     patients = Patient.query.order_by(Patient.name).all()
-    return render_template_string(HTML_TEMPLATE, view="limpieza", cleaning_logs=cleaning_logs, users=users, patients=patients)
+    return render_template_string(
+        HTML_TEMPLATE,
+        view="limpieza",
+        cleaning_logs=cleaning_logs,
+        users=users,
+        patients=patients,
+        current_week=current_week,
+        current_year=current_year,
+        assigned_user_current=assigned_user_current,
+        assigned_user_next=assigned_user_next,
+        assigned_user_next2=assigned_user_next2,
+        week_dates_current=week_dates_current,
+        week_dates_next=week_dates_next,
+        week_dates_next2=week_dates_next2
+    )
+
+@app.route("/add_cleaning", methods=["POST"])
+def add_cleaning():
+    user_id = request.form.get("user_id")
+    pin = request.form.get("pin")
+    anaqueles = 'anaqueles' in request.form
+    cajones_unidosis = 'cajones_unidosis' in request.form
+    acomodo_bodega = 'acomodo_bodega' in request.form
+    carton = 'carton' in request.form
+    cajas_traslado = 'cajas_traslado' in request.form
+    notes = request.form.get("notes")
+
+    user = User.query.get(user_id)
+    if not user or user.pin != pin:
+        flash("PIN o usuario incorrecto.", "error")
+        return redirect(url_for("limpieza"))
+
+    log = CleaningLog(
+        timestamp=get_local_now(),
+        user_name=user.name,
+        anaqueles=anaqueles,
+        cajones_unidosis=cajones_unidosis,
+        acomodo_bodega=acomodo_bodega,
+        carton=carton,
+        cajas_traslado=cajas_traslado,
+        notes=notes
+    )
+    db.session.add(log)
+    db.session.commit()
+    flash("Bitácora de limpieza registrada correctamente.", "success")
+    return redirect(url_for("limpieza"))
 
 @app.route("/inventario")
 def inventario():
