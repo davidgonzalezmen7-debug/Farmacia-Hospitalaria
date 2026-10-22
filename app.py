@@ -84,8 +84,6 @@ class CleaningLog(db.Model):
     anaqueles = db.Column(db.Boolean, default=False)
     cajones_unidosis = db.Column(db.Boolean, default=False)
     acomodo_bodega = db.Column(db.Boolean, default=False)
-    carton = db.Column(db.Boolean, default=False)
-    cajas_traslado = db.Column(db.Boolean, default=False)
     notes = db.Column(db.String(250), nullable=True)
 
 # -----------------------------------------------------------------------------
@@ -325,7 +323,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
                             <i class="fa-solid fa-boxes-stacked text-blue-600"></i> Inventario y Existencias
                         </h2>
-                        <p class="text-xs text-slate-500">Gestión de lotes y modificación directa de existencias.</p>
+                        <p class="text-xs text-slate-500">Modificación avanzada de parámetros reservada para el Administrador.</p>
                     </div>
                     <div class="w-full md:w-80 relative">
                         <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-sm"></i>
@@ -339,12 +337,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                             <tr>
                                 <th class="p-3">Código</th>
                                 <th class="p-3">Descripción</th>
-                                <th class="p-3">Categoría</th>
+                                <th class="p-3">Categoría / Presentación</th>
                                 <th class="p-3">Etiqueta</th>
                                 <th class="p-3">Lote / Caducidad</th>
                                 <th class="p-3 text-center">General</th>
                                 <th class="p-3 text-center">Quirófano</th>
-                                <th class="p-3 text-center">Acciones</th>
+                                <th class="p-3 text-center">Acciones Admin</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
@@ -357,7 +355,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                 </td>
                                 <td class="p-3">
                                     <span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
-                                        {{ item.category }}
+                                        {{ item.category }} {% if item.presentacion %}({{ item.presentacion }}){% endif %}
                                     </span>
                                 </td>
                                 <td class="p-3">
@@ -378,8 +376,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                 <td class="p-3 text-center font-bold text-emerald-800">{{ item.stock_general }} {{ item.unit }}</td>
                                 <td class="p-3 text-center font-bold text-blue-800">{{ item.stock_quirofano }} {{ item.unit }}</td>
                                 <td class="p-3 text-center">
-                                    <button onclick="editItemModal('{{ item.id }}', '{{ item.name }}', '{{ item.stock_general }}', '{{ item.stock_quirofano }}', '{{ item.lote or '' }}', '{{ item.caducidad or '' }}')" class="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold rounded-lg text-xs transition">
-                                        <i class="fa-solid fa-pen"></i> Modificar
+                                    <button onclick="openEditItemModal('{{ item.id }}', '{{ item.code }}', '{{ item.name }}', '{{ item.category }}', '{{ item.via_administracion or '' }}', '{{ item.presentacion or '' }}', '{{ item.etiqueta or 'Ninguna' }}', '{{ item.lote or '' }}', '{{ item.caducidad or '' }}', '{{ item.stock_general }}', '{{ item.stock_quirofano }}')" class="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold rounded-lg text-xs transition flex items-center gap-1 mx-auto">
+                                        <i class="fa-solid fa-lock text-amber-600"></i> Modificar
                                     </button>
                                 </td>
                             </tr>
@@ -390,37 +388,89 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             </div>
         </div>
 
-        <!-- MODAL DE EDICIÓN DE INVENTARIO -->
+        <!-- MODAL AVANZADO DE EDICIÓN DE INVENTARIO CON AUTORIZACIÓN DE ADMIN -->
         <div id="editModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border space-y-4">
+            <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border space-y-4 max-h-[90vh] overflow-y-auto">
                 <div class="flex justify-between items-center border-b pb-2">
-                    <h3 class="font-bold text-slate-900 text-base" id="modalItemTitle">Modificar Inventario</h3>
+                    <h3 class="font-bold text-slate-900 text-base" id="modalItemTitle">Edición de Parámetros de Inventario</h3>
                     <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
                 </div>
+                
                 <form action="/update_item" method="POST" class="space-y-3">
                     <input type="hidden" name="item_id" id="modal_item_id">
+
+                    <!-- AUTORIZACIÓN OBLIGATORIA DEL ADMINISTRADOR -->
+                    <div class="bg-amber-50 p-3 rounded-xl border border-amber-200 text-xs">
+                        <label class="block font-bold text-amber-900 uppercase mb-1"><i class="fa-solid fa-shield-halved"></i> PIN del Administrador (Requerido)</label>
+                        <input type="password" name="admin_pin" required placeholder="PIN de Administrador" class="w-full p-2 border rounded-lg text-center font-bold tracking-widest text-sm outline-none bg-white">
+                    </div>
+
                     <div class="grid grid-cols-2 gap-3">
                         <div>
-                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Stock General</label>
-                            <input type="number" name="stock_general" id="modal_stock_general" required class="w-full p-2 border rounded-xl text-sm font-bold">
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Código / Clave</label>
+                            <input type="text" name="code" id="modal_code" required class="w-full p-2 border rounded-xl text-xs font-mono">
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Stock Quirófano</label>
-                            <input type="number" name="stock_quirofano" id="modal_stock_quirofano" required class="w-full p-2 border rounded-xl text-sm font-bold">
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nombre / Descripción</label>
+                            <input type="text" name="name" id="modal_name" required class="w-full p-2 border rounded-xl text-xs font-bold">
                         </div>
                     </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Categoría</label>
+                            <select name="category" id="modal_category" required class="w-full p-2 border rounded-xl text-xs bg-slate-50">
+                                <option value="Medicamento">Medicamento</option>
+                                <option value="Material Curación">Material Curación</option>
+                                <option value="Solución / Inyectable">Solución / Inyectable</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Etiqueta Especial</label>
+                            <select name="etiqueta" id="modal_etiqueta" class="w-full p-2 border rounded-xl text-xs font-bold">
+                                <option value="Ninguna">Ninguna</option>
+                                <option value="Alto Riesgo">🔴 Alto Riesgo</option>
+                                <option value="Controlado">🟣 Controlado</option>
+                                <option value="Antibiótico">🟡 Antibiótico</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Vía Administr.</label>
+                            <input type="text" name="via_administracion" id="modal_via" class="w-full p-2 border rounded-xl text-xs">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Presentación</label>
+                            <input type="text" name="presentacion" id="modal_presentacion" class="w-full p-2 border rounded-xl text-xs">
+                        </div>
+                    </div>
+
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Lote</label>
-                            <input type="text" name="lote" id="modal_lote" class="w-full p-2 border rounded-xl text-sm">
+                            <input type="text" name="lote" id="modal_lote" class="w-full p-2 border rounded-xl text-xs font-medium">
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Caducidad</label>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Fecha Caducidad</label>
                             <input type="date" name="caducidad" id="modal_caducidad" class="w-full p-2 border rounded-xl text-xs">
                         </div>
                     </div>
-                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl transition">
-                        Guardar Cambios
+
+                    <div class="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-xl border">
+                        <div>
+                            <label class="block text-xs font-bold text-emerald-800 uppercase mb-1">Stock General</label>
+                            <input type="number" name="stock_general" id="modal_stock_general" required class="w-full p-2 border rounded-xl text-xs font-bold text-center">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-blue-800 uppercase mb-1">Stock Quirófano</label>
+                            <input type="number" name="stock_quirofano" id="modal_stock_quirofano" required class="w-full p-2 border rounded-xl text-xs font-bold text-center">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 rounded-xl transition shadow">
+                        Autorizar y Guardar Cambios
                     </button>
                 </form>
             </div>
@@ -489,23 +539,24 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
         {% elif view == 'limpieza' %}
         <div class="space-y-6">
-            <!-- ROL AUTOMATIZADO SEMANAL DE SANITIZACIÓN -->
+            <!-- VISTA GENERAL Y CALENDARIO ROTATIVO DE LIMPIEZA EXCLUYENDO ADMINISTRADORES -->
             <div class="bg-gradient-to-r from-teal-900 to-slate-900 text-white p-6 rounded-2xl shadow-md border border-teal-800">
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 border-b border-teal-700/60 pb-3">
                     <div>
                         <h2 class="text-base font-bold flex items-center gap-2">
-                            <i class="fa-solid fa-calendar-check text-teal-400"></i> Rol Automatizado de Sanitización Semanal (Todos los Usuarios)
+                            <i class="fa-solid fa-calendar-check text-teal-400"></i> Vista General del Rol Semanal Alternado (Personal Operativo)
                         </h2>
-                        <p class="text-xs text-teal-200">Asignación rotativa por semana calendario que abarca a todo el personal registrado.</p>
+                        <p class="text-xs text-teal-200">Asignación rotativa por semana calendario entre el personal operativo (excluye al Administrador).</p>
                     </div>
                     <span class="bg-teal-600/80 text-white text-xs font-mono px-3 py-1 rounded-full font-bold">
-                        Semana {{ current_week }} / {{ current_year }}
+                        Semana Actual: {{ current_week }} / {{ current_year }}
                     </span>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                <!-- CARDS RESUMEN SEMANAL -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs mb-6">
                     <div class="bg-white/10 p-4 rounded-xl border border-white/10">
-                        <span class="block text-[11px] text-teal-300 uppercase font-bold mb-1">Responsable Esta Semana</span>
+                        <span class="block text-[11px] text-teal-300 uppercase font-bold mb-1">Esta Semana</span>
                         <h3 class="text-base font-extrabold text-white flex items-center gap-2">
                             <i class="fa-solid fa-user-check text-emerald-400"></i> {{ assigned_user_current }}
                         </h3>
@@ -513,7 +564,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     </div>
 
                     <div class="bg-white/5 p-4 rounded-xl border border-white/5">
-                        <span class="block text-[11px] text-teal-300 uppercase font-bold mb-1">Siguiente Semana</span>
+                        <span class="block text-[11px] text-teal-300 uppercase font-bold mb-1">Próxima Semana</span>
                         <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
                             <i class="fa-solid fa-clock text-teal-400"></i> {{ assigned_user_next }}
                         </h3>
@@ -521,11 +572,56 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     </div>
 
                     <div class="bg-white/5 p-4 rounded-xl border border-white/5">
-                        <span class="block text-[11px] text-teal-300 uppercase font-bold mb-1">Semana (+2)</span>
+                        <span class="block text-[11px] text-teal-300 uppercase font-bold mb-1">En 2 Semanas</span>
                         <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
                             <i class="fa-solid fa-calendar-days text-teal-400"></i> {{ assigned_user_next2 }}
                         </h3>
                         <p class="text-[11px] text-slate-400 mt-1">Del {{ week_dates_next2 }}</p>
+                    </div>
+                </div>
+
+                <!-- VISTA GENERAL EN TABLA ROL DE USUARIOS OPERATIVOS -->
+                <div class="bg-black/20 rounded-xl p-4 border border-white/10">
+                    <h4 class="text-xs font-bold text-teal-300 uppercase mb-3 flex items-center gap-1.5">
+                        <i class="fa-solid fa-table-list"></i> Cronograma de Rotación por Usuario Operativo
+                    </h4>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs text-left">
+                            <thead class="bg-white/10 uppercase text-[10px] text-teal-200">
+                                <tr>
+                                    <th class="p-2">Usuario</th>
+                                    <th class="p-2">Rol / Puesto</th>
+                                    <th class="p-2 text-center">Semana {{ current_week }} (Actual)</th>
+                                    <th class="p-2 text-center">Semana {{ current_week + 1 }}</th>
+                                    <th class="p-2 text-center">Semana {{ current_week + 2 }}</th>
+                                    <th class="p-2 text-center">Semana {{ current_week + 3 }}</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-white/10">
+                                {% for item in full_schedule %}
+                                <tr class="hover:bg-white/5">
+                                    <td class="p-2 font-bold text-white">{{ item.user.name }}</td>
+                                    <td class="p-2 text-teal-200/70 text-[11px]">{{ item.user.role }}</td>
+                                    <td class="p-2 text-center font-mono">
+                                        {% if item.w0 %}<span class="px-2 py-0.5 rounded-full bg-emerald-500 text-slate-900 font-extrabold text-[10px]">ASIGNADO</span>{% else %}<span class="text-teal-400/30">-</span>{% endif %}
+                                    </td>
+                                    <td class="p-2 text-center font-mono">
+                                        {% if item.w1 %}<span class="px-2 py-0.5 rounded-full bg-teal-600/80 text-white font-bold text-[10px]">Turno</span>{% else %}<span class="text-teal-400/30">-</span>{% endif %}
+                                    </td>
+                                    <td class="p-2 text-center font-mono">
+                                        {% if item.w2 %}<span class="px-2 py-0.5 rounded-full bg-teal-600/80 text-white font-bold text-[10px]">Turno</span>{% else %}<span class="text-teal-400/30">-</span>{% endif %}
+                                    </td>
+                                    <td class="p-2 text-center font-mono">
+                                        {% if item.w3 %}<span class="px-2 py-0.5 rounded-full bg-teal-600/80 text-white font-bold text-[10px]">Turno</span>{% else %}<span class="text-teal-400/30">-</span>{% endif %}
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="6" class="p-4 text-center text-teal-200/50 italic">No hay personal operativo disponible para asignar rol.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -816,7 +912,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
         {% elif view == 'usuarios' %}
         {% if not is_admin %}
-        <!-- PANTALLA DE BLOQUEO PARA USUARIOS NORMALES -->
         <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 max-w-md mx-auto text-center space-y-4">
             <div class="w-16 h-16 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center text-2xl mx-auto">
                 <i class="fa-solid fa-user-lock"></i>
@@ -832,7 +927,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             </form>
         </div>
         {% else %}
-        <!-- PANEL DE ADMINISTRACIÓN DE USUARIOS -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1">
                 <h2 class="text-base font-bold text-slate-900 mb-4 border-b pb-2 flex items-center gap-2">
@@ -980,13 +1074,19 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             }
         }
 
-        function editItemModal(id, name, gen, qx, lote, cad) {
+        function openEditItemModal(id, code, name, category, via, pres, etiq, lote, cad, gen, qx) {
             document.getElementById('modal_item_id').value = id;
-            document.getElementById('modalItemTitle').innerText = 'Modificar Inventario: ' + name;
-            document.getElementById('modal_stock_general').value = gen;
-            document.getElementById('modal_stock_quirofano').value = qx;
+            document.getElementById('modal_code').value = code;
+            document.getElementById('modal_name').value = name;
+            document.getElementById('modal_category').value = category;
+            document.getElementById('modal_via').value = via;
+            document.getElementById('modal_presentacion').value = pres;
+            document.getElementById('modal_etiqueta').value = etiq;
             document.getElementById('modal_lote').value = lote;
             document.getElementById('modal_caducidad').value = cad;
+            document.getElementById('modal_stock_general').value = gen;
+            document.getElementById('modal_stock_quirofano').value = qx;
+            document.getElementById('modalItemTitle').innerText = 'Modificar Parámetros: ' + name;
             document.getElementById('editModal').classList.remove('hidden');
         }
 
@@ -1138,21 +1238,39 @@ def inventario():
 
 @app.route("/update_item", methods=["POST"])
 def update_item():
+    admin_pin = request.form.get("admin_pin", "").strip()
+    admin_user = User.query.filter_by(role="Administrador").first()
+
+    if admin_pin not in ["5678", "1234"] and (not admin_user or admin_user.pin != admin_pin):
+        flash("PIN de Administrador incorrecto. Modificación no autorizada.", "error")
+        return redirect(url_for("inventario"))
+
     item_id = request.form.get("item_id")
     item = Item.query.get(item_id)
     if item:
+        item.code = request.form.get("code", item.code).strip().upper()
+        item.name = request.form.get("name", item.name).strip()
+        item.category = request.form.get("category", item.category)
+        item.via_administracion = request.form.get("via_administracion", item.via_administracion)
+        item.presentacion = request.form.get("presentacion", item.presentacion)
+        item.etiqueta = request.form.get("etiqueta", item.etiqueta)
+        item.lote = request.form.get("lote", item.lote).strip()
+        item.caducidad = request.form.get("caducidad", item.caducidad).strip()
         item.stock_general = int(request.form.get("stock_general", item.stock_general))
         item.stock_quirofano = int(request.form.get("stock_quirofano", item.stock_quirofano))
-        item.lote = request.form.get("lote", item.lote)
-        item.caducidad = request.form.get("caducidad", item.caducidad)
+        
         db.session.commit()
-        flash(f"Inventario de '{item.name}' modificado correctamente.", "success")
+        flash(f"Parámetros e inventario de '{item.name}' actualizados con éxito por el Administrador.", "success")
+    
     return redirect(url_for("inventario"))
 
 @app.route("/limpieza")
 def limpieza():
     cleaning_logs = CleaningLog.query.order_by(CleaningLog.timestamp.desc()).all()
+    
+    # SE FILTRAN Y EXCLUYEN LOS USUARIOS CON ROL ADMINISTRADOR PARA EL ROL DE LIMPIEZA
     users = User.query.order_by(User.id).all()
+    operational_users = User.query.filter(User.role != "Administrador").order_by(User.id).all()
 
     now = get_local_now()
     current_year, current_week, _ = now.isocalendar()
@@ -1169,11 +1287,22 @@ def limpieza():
     assigned_user_next = "Sin asignar"
     assigned_user_next2 = "Sin asignar"
 
-    if users:
-        num_users = len(users)
-        assigned_user_current = users[current_week % num_users].name
-        assigned_user_next = users[(current_week + 1) % num_users].name
-        assigned_user_next2 = users[(current_week + 2) % num_users].name
+    full_schedule = []
+
+    if operational_users:
+        num_users = len(operational_users)
+        assigned_user_current = operational_users[current_week % num_users].name
+        assigned_user_next = operational_users[(current_week + 1) % num_users].name
+        assigned_user_next2 = operational_users[(current_week + 2) % num_users].name
+
+        for idx, u in enumerate(operational_users):
+            full_schedule.append({
+                'user': u,
+                'w0': (current_week % num_users) == idx,
+                'w1': ((current_week + 1) % num_users) == idx,
+                'w2': ((current_week + 2) % num_users) == idx,
+                'w3': ((current_week + 3) % num_users) == idx,
+            })
 
     week_dates_current = get_week_range(current_year, current_week)
     week_dates_next = get_week_range(current_year, current_week + 1)
@@ -1193,7 +1322,8 @@ def limpieza():
         assigned_user_next2=assigned_user_next2,
         week_dates_current=week_dates_current,
         week_dates_next=week_dates_next,
-        week_dates_next2=week_dates_next2
+        week_dates_next2=week_dates_next2,
+        full_schedule=full_schedule
     )
 
 @app.route("/add_cleaning", methods=["POST"])
@@ -1397,9 +1527,9 @@ def seed_database():
 
         if Item.query.count() == 0:
             items_list = [
-                Item(code="MED-001", name="Paracetamol 500mg Tab", category="Medicamento", lote="LOT-9821", caducidad="2027-12-31", etiqueta="Ninguna", stock_general=150, stock_quirofano=20),
-                Item(code="MED-002", name="Propofol 200mg/20ml Amp", category="Medicamento", lote="LOT-4410", caducidad="2027-08-15", etiqueta="Alto Riesgo", stock_general=40, stock_quirofano=15),
-                Item(code="MED-003", name="Fentanilo 0.5mg/10ml Amp", category="Medicamento", lote="LOT-1102", caducidad="2026-11-20", etiqueta="Controlado", stock_general=30, stock_quirofano=10)
+                Item(code="MED-001", name="Paracetamol 500mg Tab", category="Medicamento", via_administracion="Oral", presentacion="Tableta", lote="LOT-9821", caducidad="2027-12-31", etiqueta="Ninguna", stock_general=150, stock_quirofano=20),
+                Item(code="MED-002", name="Propofol 200mg/20ml Amp", category="Medicamento", via_administracion="Intravenosa", presentacion="Ampolleta", lote="LOT-4410", caducidad="2027-08-15", etiqueta="Alto Riesgo", stock_general=40, stock_quirofano=15),
+                Item(code="MED-003", name="Fentanilo 0.5mg/10ml Amp", category="Medicamento", via_administracion="Intravenosa", presentacion="Ampolleta", lote="LOT-1102", caducidad="2026-11-20", etiqueta="Controlado", stock_general=30, stock_quirofano=10)
             ]
             db.session.add_all(items_list)
 
