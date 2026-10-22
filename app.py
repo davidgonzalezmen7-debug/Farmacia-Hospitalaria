@@ -539,109 +539,68 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
         {% elif view == 'limpieza' %}
         <div class="space-y-6">
-            <!-- HEADER DE ROL DE LIMPIEZA Y RESUMEN GENERAL -->
+            <!-- HEADER DE ROL DE LIMPIEZA CON ROTACIÓN AUTOMÁTICA -->
             <div class="bg-gradient-to-r from-teal-900 to-slate-900 text-white p-6 rounded-2xl shadow-md border border-teal-800">
-                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 border-b border-teal-700/60 pb-3">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-2">
                     <div>
                         <h2 class="text-base font-bold flex items-center gap-2">
-                            <i class="fa-solid fa-calendar-check text-teal-400"></i> Rol Semanal Rotativo de Sanitización por Usuario
+                            <i class="fa-solid fa-calendar-check text-teal-400"></i> Rol Semanal de Actividades Diarias (Excluye Administrador)
                         </h2>
-                        <p class="text-xs text-teal-200">Asignación diaria obligatoria por una semana completa. Cada semana el turno se modifica y se alterna entre el personal operativo.</p>
+                        <p class="text-xs text-teal-200">Cada usuario operativo realiza una tarea asignada diariamente durante la semana. La tarea se modifica y alterna cada semana.</p>
                     </div>
-                    <span class="bg-teal-600/80 text-white text-xs font-mono px-3 py-1 rounded-full font-bold">
+                    <span class="bg-teal-600/80 text-white text-xs font-mono px-3 py-1.5 rounded-full font-bold">
                         Semana {{ current_week }} / {{ current_year }} ({{ week_dates_current }})
                     </span>
                 </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-                    <div class="bg-white/10 p-4 rounded-xl border border-white/10">
-                        <span class="block text-[11px] text-teal-300 uppercase font-bold mb-1">Responsable Activo Esta Semana</span>
-                        <h3 class="text-base font-extrabold text-white flex items-center gap-2">
-                            <i class="fa-solid fa-user-check text-emerald-400"></i> {{ assigned_user_current }}
-                        </h3>
-                        <p class="text-[11px] text-teal-200/80 mt-1">Actividad Diaria: Lunes a Domingo</p>
-                    </div>
-
-                    <div class="bg-white/5 p-4 rounded-xl border border-white/5">
-                        <span class="block text-[11px] text-teal-300 uppercase font-bold mb-1">Próximo Turno (Semana {{ current_week + 1 }})</span>
-                        <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
-                            <i class="fa-solid fa-clock text-teal-400"></i> {{ assigned_user_next }}
-                        </h3>
-                        <p class="text-[11px] text-slate-400 mt-1">Del {{ week_dates_next }}</p>
-                    </div>
-
-                    <div class="bg-white/5 p-4 rounded-xl border border-white/5">
-                        <span class="block text-[11px] text-teal-300 uppercase font-bold mb-1">Turno Siguiente (Semana {{ current_week + 2 }})</span>
-                        <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
-                            <i class="fa-solid fa-calendar-days text-teal-400"></i> {{ assigned_user_next2 }}
-                        </h3>
-                        <p class="text-[11px] text-slate-400 mt-1">Del {{ week_dates_next2 }}</p>
-                    </div>
-                </div>
             </div>
 
-            <!-- DESGLOSE INDIVIDUAL DEL ROL PARA CADA USUARIO -->
+            <!-- DESGLOSE DE ACTIVIDAD ASIGNADA A CADA USUARIO ESTA SEMANA -->
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                 <h3 class="text-base font-bold text-slate-900 mb-4 border-b pb-3 flex items-center gap-2">
-                    <i class="fa-solid fa-users text-teal-600"></i> Asignación y Programación de Tareas Semanales por Usuario
+                    <i class="fa-solid fa-user-check text-teal-600"></i> Asignación Individual de Actividad Diaria por Usuario
                 </h3>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {% for item in user_roles_detail %}
-                    <div class="rounded-2xl border transition-all p-4 flex flex-col justify-between space-y-3 {% if item.is_active_this_week %}bg-teal-50/70 border-teal-500 ring-2 ring-teal-500/30 shadow-md{% else %}bg-slate-50/70 border-slate-200{% endif %}">
-                        <div>
-                            <div class="flex justify-between items-start mb-2">
+                    <div class="rounded-2xl border bg-slate-50/80 border-slate-200 p-5 flex flex-col justify-between space-y-4 hover:border-teal-400 transition shadow-sm">
+                        <div class="space-y-2">
+                            <div class="flex justify-between items-start">
                                 <div>
                                     <h4 class="font-bold text-slate-900 text-sm flex items-center gap-1.5">
-                                        <i class="fa-solid fa-user text-xs {% if item.is_active_this_week %}text-teal-600{% else %}text-slate-400{% endif %}"></i>
+                                        <i class="fa-solid fa-user text-teal-600 text-xs"></i>
                                         {{ item.user.name }}
                                     </h4>
                                     <span class="text-[11px] text-slate-500 font-medium">{{ item.user.role }}</span>
                                 </div>
-                                {% if item.is_active_this_week %}
-                                <span class="bg-teal-600 text-white text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full animate-pulse shadow-sm">
-                                    En Turno Esta Semana
+                                <span class="bg-teal-100 text-teal-800 text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full border border-teal-200">
+                                    Activo Diario
                                 </span>
-                                {% else %}
-                                <span class="bg-slate-200 text-slate-600 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full">
-                                    En Espera
-                                </span>
-                                {% endif %}
                             </div>
 
-                            <div class="border-t border-slate-200/80 pt-2 text-xs space-y-1.5">
-                                <p class="font-bold text-slate-700 text-[11px] uppercase tracking-wider">
-                                    <i class="fa-solid fa-rotate text-teal-600"></i> Turnos Programados:
+                            <!-- ACTIVIDAD ASIGNADA ESTA SEMANA -->
+                            <div class="bg-gradient-to-r from-teal-500 to-emerald-600 text-white p-3.5 rounded-xl shadow-sm space-y-1">
+                                <span class="text-[10px] uppercase font-bold text-teal-100 block tracking-wider">
+                                    <i class="fa-solid fa-clipboard-list"></i> Actividad Asignada Esta Semana:
+                                </span>
+                                <p class="font-extrabold text-xs text-white">
+                                    {{ item.task_this_week }}
                                 </p>
-                                <ul class="space-y-1 text-[11px]">
-                                    <li class="flex justify-between items-center py-0.5 px-2 rounded {% if item.is_active_this_week %}bg-teal-100 text-teal-900 font-bold{% else %}text-slate-600{% endif %}">
-                                        <span>Semana {{ current_week }} (Actual):</span>
-                                        <span>{% if item.is_active_this_week %}TURNO DIARIO{% else %}Descanso de Rol{% endif %}</span>
-                                    </li>
-                                    <li class="flex justify-between items-center py-0.5 px-2 rounded text-slate-500">
-                                        <span>Semana {{ current_week + 1 }}:</span>
-                                        <span>{% if item.next_turn_week == current_week + 1 %}<strong class="text-teal-700">TURNO DIARIO</strong>{% else %}Descanso de Rol{% endif %}</span>
-                                    </li>
-                                    <li class="flex justify-between items-center py-0.5 px-2 rounded text-slate-500">
-                                        <span>Próximo Turno Asignado:</span>
-                                        <span class="font-mono font-bold text-slate-700">Semana {{ item.next_turn_week }}</span>
-                                    </li>
-                                </ul>
                             </div>
                         </div>
 
-                        <div class="bg-white p-3 rounded-xl border border-slate-200/70 text-[11px] space-y-1">
-                            <span class="font-bold text-slate-700 block uppercase border-b pb-1 text-[10px]">
-                                <i class="fa-solid fa-list-check text-teal-600"></i> Obligación Diaria de Limpieza:
-                            </span>
-                            <p class="text-slate-600">• Sanitización de Anaqueles y Cajones DU</p>
-                            <p class="text-slate-600">• Acomodo, cartón y desinfección de Bodega</p>
-                            <p class="text-slate-400 italic text-[10px] mt-1">Registrar con PIN individual diariamente.</p>
+                        <!-- PRÓXIMA ACTIVIDAD LA SIGUIENTE SEMANA -->
+                        <div class="border-t border-slate-200 pt-3 text-xs space-y-1 text-slate-600">
+                            <div class="flex justify-between items-center text-[11px]">
+                                <span class="font-bold text-slate-700">Próxima Semana (Semana {{ current_week + 1 }}):</span>
+                            </div>
+                            <p class="text-[11px] font-semibold text-teal-800 bg-teal-50 px-2 py-1 rounded border border-teal-100">
+                                🔄 {{ item.task_next_week }}
+                            </p>
                         </div>
                     </div>
                     {% else %}
                     <div class="col-span-full text-center text-slate-400 p-6 italic">
-                        No hay usuarios operativos registrados para el rol.
+                        No hay usuarios operativos registrados para asignar actividades.
                     </div>
                     {% endfor %}
                 </div>
@@ -651,7 +610,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 <!-- FORMULARIO DE CAPTURA DE SANITIZACIÓN DIARIA -->
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1">
                     <h2 class="text-base font-bold text-slate-900 mb-4 border-b pb-2 flex items-center gap-2">
-                        <i class="fa-solid fa-broom text-teal-600"></i> Registrar Actividad Diaria
+                        <i class="fa-solid fa-broom text-teal-600"></i> Registrar Cumplimiento Diario
                     </h2>
 
                     <form action="/add_cleaning" method="POST" class="space-y-4">
@@ -673,7 +632,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
                         <div class="bg-teal-50/60 p-4 rounded-xl border border-teal-100 space-y-3">
                             <h3 class="text-xs font-bold text-teal-900 uppercase border-b border-teal-200 pb-1">
-                                Verificación de Áreas Realizadas
+                                Verificación de Actividades
                             </h3>
 
                             <label class="flex items-center gap-2.5 text-xs font-medium text-slate-700 cursor-pointer">
@@ -688,7 +647,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
                             <label class="flex items-center gap-2.5 text-xs font-medium text-slate-700 cursor-pointer">
                                 <input type="checkbox" name="acomodo_bodega" class="w-4 h-4 text-teal-600 rounded">
-                                <span>📦 Acomodo y Desinfección de Bodega</span>
+                                <span>📦 Acomodo, Cartón y Desinfección de Bodega</span>
                             </label>
                         </div>
 
@@ -698,16 +657,16 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         </div>
 
                         <button type="submit" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 rounded-xl shadow-md transition flex items-center justify-center gap-2">
-                            <i class="fa-solid fa-clipboard-check"></i> Guardar Bitácora de Limpieza
+                            <i class="fa-solid fa-clipboard-check"></i> Guardar Registro Diario
                         </button>
                     </form>
                 </div>
 
-                <!-- TABLA HISTORIAL DE BITÁCORA -->
+                <!-- TABLA HISTORIAL DE BITÁCORA DIARIA -->
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-2">
                     <div class="flex justify-between items-center mb-4 border-b pb-3">
                         <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
-                            <i class="fa-solid fa-list-check text-teal-600"></i> Bitácora de Sanitización
+                            <i class="fa-solid fa-list-check text-teal-600"></i> Bitácora de Sanitización Diaria
                         </h2>
                         <button onclick="window.print()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold no-print">
                             <i class="fa-solid fa-print"></i> Imprimir Reporte
@@ -1290,7 +1249,7 @@ def limpieza():
     cleaning_logs = CleaningLog.query.order_by(CleaningLog.timestamp.desc()).all()
     users = User.query.order_by(User.id).all()
     
-    # EXCLUSIÓN DE ADMINISTRADORES
+    # EXCLUSIÓN ESTRICTA DE ADMINISTRADORES
     operational_users = User.query.filter(User.role != "Administrador").order_by(User.id).all()
 
     now = get_local_now()
@@ -1304,36 +1263,35 @@ def limpieza():
         last_day = first_day + timedelta(days=6)
         return f"{first_day.strftime('%d/%m')} al {last_day.strftime('%d/%m')}"
 
-    assigned_user_current = "Sin asignar"
-    assigned_user_next = "Sin asignar"
-    assigned_user_next2 = "Sin asignar"
+    # CATÁLOGO DE ACTIVIDADES A ROTAR ENTRE LOS USUARIOS OPERATIVOS
+    cleaning_tasks = [
+        "🗄️ Sanitización Diaria de Anaqueles y Estantes",
+        "💊 Limpieza Diaria de Cajones Unidosis",
+        "📦 Acomodo, Cartón y Desinfección Diaria de Bodega"
+    ]
 
     user_roles_detail = []
 
     if operational_users:
         num_users = len(operational_users)
-        active_index = current_week % num_users
-        
-        assigned_user_current = operational_users[active_index].name
-        assigned_user_next = operational_users[(current_week + 1) % num_users].name
-        assigned_user_next2 = operational_users[(current_week + 2) % num_users].name
+        num_tasks = len(cleaning_tasks)
 
         for idx, u in enumerate(operational_users):
-            is_active = (idx == active_index)
-            
-            # CÁLCULO DE LA PRÓXIMA SEMANA EN QUE LE TOCA A ESTE USUARIO ESPECÍFICO
-            weeks_ahead = (idx - active_index) % num_users
-            next_turn_week = current_week + weeks_ahead
+            # CÁLCULO DE LA ACTIVIDAD SEGÚN LA SEMANA ACTUAL Y EL ÍNDICE DEL USUARIO
+            task_index_this_week = (current_week + idx) % num_tasks
+            task_index_next_week = (current_week + 1 + idx) % num_tasks
+
+            task_this_week = cleaning_tasks[task_index_this_week]
+            task_next_week = cleaning_tasks[task_index_next_week]
 
             user_roles_detail.append({
                 'user': u,
-                'is_active_this_week': is_active,
-                'next_turn_week': next_turn_week
+                'task_this_week': task_this_week,
+                'task_next_week': task_next_week
             })
 
     week_dates_current = get_week_range(current_year, current_week)
     week_dates_next = get_week_range(current_year, current_week + 1)
-    week_dates_next2 = get_week_range(current_year, current_week + 2)
 
     patients = Patient.query.order_by(Patient.name).all()
     return render_template_string(
@@ -1344,12 +1302,8 @@ def limpieza():
         patients=patients,
         current_week=current_week,
         current_year=current_year,
-        assigned_user_current=assigned_user_current,
-        assigned_user_next=assigned_user_next,
-        assigned_user_next2=assigned_user_next2,
         week_dates_current=week_dates_current,
         week_dates_next=week_dates_next,
-        week_dates_next2=week_dates_next2,
         user_roles_detail=user_roles_detail
     )
 
