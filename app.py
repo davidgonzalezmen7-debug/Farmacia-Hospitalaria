@@ -3,7 +3,6 @@ from datetime import datetime, date, timedelta, timezone
 import json
 from flask import Flask, render_template_string, request, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import text
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "farmacia_secret_key_123")
@@ -42,7 +41,7 @@ class Patient(db.Model):
 
 class Item(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    code = db.Column(db.String(50), nullable=False, unique=False)
+    code = db.Column(db.String(50), nullable=False)
     name = db.Column(db.String(150), nullable=False)
     category = db.Column(db.String(50), nullable=False)
     via_administracion = db.Column(db.String(50), nullable=True)
@@ -90,7 +89,7 @@ class CleaningLog(db.Model):
     notes = db.Column(db.String(250), nullable=True)
 
 # -----------------------------------------------------------------------------
-# PLANTILLA HTML INTEGRADA Y UNIFICADA
+# PLANTILLA HTML INTEGRADA
 # -----------------------------------------------------------------------------
 
 HTML_TEMPLATE = """<!DOCTYPE html>
@@ -118,7 +117,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 </div>
                 <div>
                     <h1 class="text-xl font-extrabold tracking-tight">Farmacia Hospitalaria</h1>
-                    <p class="text-[11px] text-blue-200">Terminal Compartida & Surtido Multicarga</p>
+                    <p class="text-[11px] text-blue-200">Terminal Compartida & Control Integral</p>
                 </div>
             </div>
             <nav class="flex flex-wrap gap-1 text-xs font-bold">
@@ -173,7 +172,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
                         <i class="fa-solid fa-users text-blue-600"></i> Personal Responsable
                     </h2>
-                    <p class="text-xs text-slate-500">Seleccione su usuario antes de procesar la solicitud.</p>
+                    <p class="text-xs text-slate-500">Haga clic sobre su nombre para cargarlo en el formulario.</p>
                 </div>
                 <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
                     {% for u in users %}
@@ -197,11 +196,10 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         <i class="fa-solid fa-receipt text-blue-600"></i> Dispensación de Receta / Surtido a Paciente
                     </h2>
                     <span class="text-xs font-bold bg-blue-100 text-blue-800 px-3 py-1 rounded-full">
-                        Múltiples Ítems Habilitado
+                        Surtido Multicarga Habilitado
                     </span>
                 </div>
 
-                <!-- Credenciales del Usuario -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-blue-50/50 p-4 rounded-xl border border-blue-100">
                     <div>
                         <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Usuario Responsable</label>
@@ -218,14 +216,13 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     </div>
                 </div>
 
-                <!-- Datos Paciente y Destino -->
                 <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
                     <h3 class="text-xs font-bold text-blue-900 uppercase flex items-center gap-1.5">
                         <i class="fa-solid fa-bed-pulse"></i> Información del Paciente y Servicio
                     </h3>
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div>
-                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Nombre Completo del Paciente</label>
+                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Nombre del Paciente</label>
                             <input type="text" list="patients_datalist" name="patient_name" id="patient_name" placeholder="Ej. Juan Pérez" class="w-full p-2 border rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none bg-white font-medium">
                         </div>
                         <div>
@@ -239,19 +236,18 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     </div>
                 </div>
 
-                <!-- Selector para Agregar Medicamentos al Carrito -->
                 <div class="p-4 bg-indigo-50/40 rounded-xl border border-indigo-100 space-y-3">
                     <h3 class="text-xs font-bold text-indigo-900 uppercase flex items-center gap-1.5">
-                        <i class="fa-solid fa-plus-circle"></i> Agregar Medicamentos a la Lista
+                        <i class="fa-solid fa-plus-circle"></i> Agregar Medicamentos al Surtido
                     </h3>
                     
                     <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
                         <div class="md:col-span-5">
-                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Buscar Medicamento / Lote</label>
-                            <input list="items_list" id="temp_item" placeholder="Escriba o escanee código de barras..." class="w-full p-2 border rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none bg-white font-medium">
+                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Medicamento / Lote</label>
+                            <input list="items_list" id="temp_item" placeholder="Buscar medicamento o código..." class="w-full p-2 border rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none bg-white font-medium">
                             <datalist id="items_list">
                                 {% for item in items %}
-                                    <option value="[ID:{{ item.id }}] {{ item.code }} - {{ item.name }} (Lote: {{ item.lote or 'S/L' }})" data-name="{{ item.name }}" data-code="{{ item.code }}" data-lote="{{ item.lote or 'S/L' }}" data-stock-gen="{{ item.stock_general }}" data-stock-qx="{{ item.stock_quirofano }}">Gen: {{ item.stock_general }} | Qx: {{ item.stock_quirofano }} | {{ item.etiqueta }}</option>
+                                    <option value="[ID:{{ item.id }}] {{ item.code }} - {{ item.name }} (Lote: {{ item.lote or 'S/L' }})">Gen: {{ item.stock_general }} | Qx: {{ item.stock_quirofano }} | {{ item.etiqueta }}</option>
                                 {% endfor %}
                             </datalist>
                         </div>
@@ -282,10 +278,9 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     </div>
                 </div>
 
-                <!-- Tabla de Medicamentos a Dispensar -->
                 <div>
                     <h3 class="text-xs font-bold text-slate-700 uppercase mb-2 flex items-center justify-between">
-                        <span><i class="fa-solid fa-list-check text-blue-600"></i> Lista de Medicamentos a Dispensar</span>
+                        <span><i class="fa-solid fa-list-check text-blue-600"></i> Medicamentos en la Lista de Surtido</span>
                         <span id="cartCountBadge" class="text-[11px] font-semibold bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full">0 ítems</span>
                     </h3>
 
@@ -302,8 +297,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                             </thead>
                             <tbody id="cartTableBody" class="divide-y divide-slate-100">
                                 <tr>
-                                    <td colspan="5" class="p-6 text-center text-slate-400 italic" id="emptyCartRow">
-                                        No se han agregado medicamentos a esta dispensación. Seleccione arriba y haga clic en "Agregar".
+                                    <td colspan="5" class="p-6 text-center text-slate-400 italic">
+                                        No hay medicamentos agregados al surtido.
                                     </td>
                                 </tr>
                             </tbody>
@@ -312,8 +307,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Notas globales de la receta</label>
-                    <input type="text" name="notes" placeholder="Observaciones generales para todo el surtido..." class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Notas u Observaciones</label>
+                    <input type="text" name="notes" placeholder="Observaciones sobre la dispensación..." class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
 
                 <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl shadow-md transition duration-200 flex items-center justify-center gap-2 text-sm">
@@ -322,11 +317,120 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             </form>
         </div>
 
+        {% elif view == 'inventario' %}
+        <div class="space-y-6">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-6 border-b pb-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-boxes-stacked text-blue-600"></i> Inventario y Existencias
+                        </h2>
+                        <p class="text-xs text-slate-500">Gestión de lotes y modificación directa de existencias.</p>
+                    </div>
+                    <div class="w-full md:w-80 relative">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-sm"></i>
+                        <input type="text" id="inventorySearch" onkeyup="filterInventory()" placeholder="Buscar por código, nombre, lote..." class="w-full pl-10 pr-4 py-2 border rounded-xl text-xs bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none font-medium">
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left text-slate-600" id="inventoryTable">
+                        <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b">
+                            <tr>
+                                <th class="p-3">Código</th>
+                                <th class="p-3">Descripción</th>
+                                <th class="p-3">Categoría</th>
+                                <th class="p-3">Etiqueta</th>
+                                <th class="p-3">Lote / Caducidad</th>
+                                <th class="p-3 text-center">General</th>
+                                <th class="p-3 text-center">Quirófano</th>
+                                <th class="p-3 text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            {% for item in items %}
+                            <tr class="hover:bg-slate-50 transition inventory-row">
+                                <td class="p-3 font-mono text-xs font-bold text-blue-900">{{ item.code }}</td>
+                                <td class="p-3 font-bold text-slate-900">
+                                    {{ item.name }}
+                                    <span class="block text-[11px] text-slate-400 font-normal">Vía: {{ item.via_administracion or 'N/A' }}</span>
+                                </td>
+                                <td class="p-3">
+                                    <span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
+                                        {{ item.category }}
+                                    </span>
+                                </td>
+                                <td class="p-3">
+                                    {% if item.etiqueta == 'Alto Riesgo' %}
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">🔴 Alto Riesgo</span>
+                                    {% elif item.etiqueta == 'Controlado' %}
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800">🟣 Controlado</span>
+                                    {% elif item.etiqueta == 'Antibiótico' %}
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">🟡 Antibiótico</span>
+                                    {% else %}
+                                        <span class="text-slate-400 text-xs">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="p-3 text-xs text-slate-600">
+                                    <span class="font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded">Lote: {{ item.lote or 'S/L' }}</span>
+                                    <span class="block text-[10px] text-slate-400 mt-0.5">Cad: {{ item.caducidad or 'S/F' }}</span>
+                                </td>
+                                <td class="p-3 text-center font-bold text-emerald-800">{{ item.stock_general }} {{ item.unit }}</td>
+                                <td class="p-3 text-center font-bold text-blue-800">{{ item.stock_quirofano }} {{ item.unit }}</td>
+                                <td class="p-3 text-center">
+                                    <button onclick="editItemModal('{{ item.id }}', '{{ item.name }}', '{{ item.stock_general }}', '{{ item.stock_quirofano }}', '{{ item.lote or '' }}', '{{ item.caducidad or '' }}')" class="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold rounded-lg text-xs transition">
+                                        <i class="fa-solid fa-pen"></i> Modificar
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL DE EDICIÓN DE INVENTARIO -->
+        <div id="editModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border space-y-4">
+                <div class="flex justify-between items-center border-b pb-2">
+                    <h3 class="font-bold text-slate-900 text-base" id="modalItemTitle">Modificar Inventario</h3>
+                    <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
+                </div>
+                <form action="/update_item" method="POST" class="space-y-3">
+                    <input type="hidden" name="item_id" id="modal_item_id">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Stock General</label>
+                            <input type="number" name="stock_general" id="modal_stock_general" required class="w-full p-2 border rounded-xl text-sm font-bold">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Stock Quirófano</label>
+                            <input type="number" name="stock_quirofano" id="modal_stock_quirofano" required class="w-full p-2 border rounded-xl text-sm font-bold">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Lote</label>
+                            <input type="text" name="lote" id="modal_lote" class="w-full p-2 border rounded-xl text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Caducidad</label>
+                            <input type="date" name="caducidad" id="modal_caducidad" class="w-full p-2 border rounded-xl text-xs">
+                        </div>
+                    </div>
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl transition">
+                        Guardar Cambios
+                    </button>
+                </form>
+            </div>
+        </div>
+
         {% elif view == 'alta_insumos' %}
         <div class="space-y-6 max-w-xl mx-auto">
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                 <h2 class="text-base font-bold text-slate-900 mb-4 border-b pb-2 flex items-center gap-2">
-                    <i class="fa-solid fa-plus-circle text-emerald-600"></i> Dar de Alta Nuevo Medicamento / Lote
+                    <i class="fa-solid fa-plus-circle text-emerald-600"></i> Registrar Nuevo Insumo / Medicamento
                 </h2>
 
                 <form action="/add_item" method="POST" class="space-y-3">
@@ -340,7 +444,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Categoría</label>
-                        <select name="category" required class="w-full p-2.5 border rounded-xl text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none">
+                        <select name="category" required class="w-full p-2.5 border rounded-xl text-sm bg-slate-50 outline-none">
                             <option value="Medicamento">Medicamento</option>
                             <option value="Material Curación">Material Curación</option>
                             <option value="Solución / Inyectable">Solución / Inyectable</option>
@@ -348,271 +452,38 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Etiqueta Especial</label>
-                        <select name="etiqueta" class="w-full p-2.5 border rounded-xl text-sm bg-amber-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none font-bold">
+                        <select name="etiqueta" class="w-full p-2.5 border rounded-xl text-sm bg-amber-50 font-bold outline-none">
                             <option value="Ninguna">Ninguna</option>
                             <option value="Alto Riesgo">🔴 Alto Riesgo</option>
                             <option value="Controlado">🟣 Medicamento Controlado</option>
                             <option value="Antibiótico">🟡 Antibiótico</option>
-                            <option value="Refrigeración">🔵 Refrigeración</option>
                         </select>
                     </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Vía Administr.</label>
-                            <select name="via_administracion" required class="w-full p-2.5 border rounded-xl text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none">
-                                <option value="Oral">Oral</option>
-                                <option value="Intravenosa">Intravenosa (IV)</option>
-                                <option value="Intramuscular">Intramuscular (IM)</option>
-                                <option value="Subcutánea">Subcutánea</option>
-                                <option value="Tópica">Tópica</option>
-                                <option value="Oftálmica">Oftálmica</option>
-                                <option value="Nasal">Nasal</option>
-                                <option value="Inhalatoria">Inhalatoria</option>
-                                <option value="Sublingual">Sublingual</option>
-                                <option value="Otra">Otra</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Presentación</label>
-                            <select name="presentacion" required class="w-full p-2.5 border rounded-xl text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none">
-                                <option value="Tableta">Tableta</option>
-                                <option value="Cápsula">Cápsula</option>
-                                <option value="Ampolleta">Ampolleta</option>
-                                <option value="Frasco Ámpula">Frasco Ámpula</option>
-                                <option value="Solución">Solución</option>
-                                <option value="Jarabe">Jarabe</option>
-                                <option value="Crema">Crema</option>
-                                <option value="Ungüento">Ungüento</option>
-                                <option value="Parche">Parche</option>
-                                <option value="Otro">Otro</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div class="grid grid-cols-2 gap-2">
                         <div>
                             <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Lote</label>
-                            <input type="text" name="lote" placeholder="Ej. LOT-2026-X" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+                            <input type="text" name="lote" placeholder="LOT-2026-X" class="w-full p-2.5 border rounded-xl text-sm outline-none">
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Fecha Caducidad</label>
-                            <input type="date" name="caducidad" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+                            <input type="date" name="caducidad" class="w-full p-2.5 border rounded-xl text-sm outline-none">
                         </div>
                     </div>
                     <div class="grid grid-cols-2 gap-2">
                         <div>
                             <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Unidad</label>
-                            <input type="text" name="unit" required value="pza" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+                            <input type="text" name="unit" required value="pza" class="w-full p-2.5 border rounded-xl text-sm outline-none">
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Stock Inicial</label>
-                            <input type="number" min="0" name="stock_general" required value="50" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+                            <input type="number" min="0" name="stock_general" required value="50" class="w-full p-2.5 border rounded-xl text-sm outline-none font-bold">
                         </div>
                     </div>
 
                     <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl shadow-md transition duration-200 flex items-center justify-center gap-2 mt-4">
-                        <i class="fa-solid fa-box-archive"></i> Registrar / Agregar Lote
+                        <i class="fa-solid fa-box-archive"></i> Registrar Medicamento
                     </button>
                 </form>
-            </div>
-        </div>
-
-        {% elif view == 'inventario' %}
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-            <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-6 border-b pb-4">
-                <div>
-                    <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
-                        <i class="fa-solid fa-boxes-stacked text-blue-600"></i> Stock General e Inventario
-                    </h2>
-                    <p class="text-xs text-slate-500">Existencias independientes por lote. Alertas automáticas por caducidad.</p>
-                </div>
-                <div class="w-full md:w-80 relative">
-                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-sm"></i>
-                    <input type="text" id="inventorySearch" onkeyup="filterInventory()" placeholder="Buscar por código, nombre, lote..." class="w-full pl-10 pr-4 py-2 border rounded-xl text-xs bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none font-medium">
-                </div>
-            </div>
-
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm text-left text-slate-600" id="inventoryTable">
-                    <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b">
-                        <tr>
-                            <th class="p-3">Código</th>
-                            <th class="p-3">Descripción</th>
-                            <th class="p-3">Categoría / Presentación</th>
-                            <th class="p-3">Etiqueta Especial</th>
-                            <th class="p-3">Lote / Caducidad</th>
-                            <th class="p-3 text-center">General</th>
-                            <th class="p-3 text-center">Quirófano</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100">
-                        {% for item in items %}
-                        <tr class="hover:bg-slate-50 transition inventory-row">
-                            <td class="p-3 font-mono text-xs font-bold text-blue-900 col-code">{{ item.code }}</td>
-                            <td class="p-3 font-bold text-slate-900 col-name">
-                                {{ item.name }}
-                                <span class="block text-[11px] text-slate-400 font-normal">Vía: {{ item.via_administracion or 'N/A' }}</span>
-                            </td>
-                            <td class="p-3 col-cat">
-                                <span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
-                                    {{ item.category }} {% if item.presentacion %}({{ item.presentacion }}){% endif %}
-                                </span>
-                            </td>
-                            <td class="p-3">
-                                {% if item.etiqueta == 'Alto Riesgo' %}
-                                    <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300">🔴 Alto Riesgo</span>
-                                {% elif item.etiqueta == 'Controlado' %}
-                                    <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-300">🟣 Controlado</span>
-                                {% elif item.etiqueta == 'Antibiótico' %}
-                                    <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">🟡 Antibiótico</span>
-                                {% elif item.etiqueta == 'Refrigeración' %}
-                                    <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-300">🔵 Refrigeración</span>
-                                {% else %}
-                                    <span class="text-slate-400 text-xs">-</span>
-                                {% endif %}
-                            </td>
-                            <td class="p-3 text-xs text-slate-600">
-                                <span class="font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded">Lote: {{ item.lote or 'S/L' }}</span>
-                                <span class="block text-[10px] mt-1">
-                                    {% if item.caducidad and item.caducidad.strip() != '' %}
-                                        {% set cad_date = item.caducidad %}
-                                        {% if cad_date < today_str %}
-                                            <span class="px-2 py-0.5 bg-rose-200 text-rose-900 font-bold rounded flex items-center gap-1 w-fit"><i class="fa-solid fa-triangle-exclamation"></i> VENCIDO ({{ cad_date }})</span>
-                                        {% elif cad_date <= warning_str %}
-                                            <span class="px-2 py-0.5 bg-amber-200 text-amber-900 font-bold rounded flex items-center gap-1 w-fit"><i class="fa-solid fa-clock"></i> Próximo a vencer ({{ cad_date }})</span>
-                                        {% else %}
-                                            <span class="text-slate-500 font-mono">Cad: {{ cad_date }}</span>
-                                        {% endif %}
-                                    {% else %}
-                                        <span class="text-slate-400">Cad: S/F</span>
-                                    {% endif %}
-                                </span>
-                            </td>
-                            <td class="p-3 text-center">
-                                <span class="px-3 py-1 rounded-full text-xs font-bold {% if item.stock_general < 10 %}bg-rose-100 text-rose-700{% else %}bg-emerald-100 text-emerald-800{% endif %}">
-                                    {{ item.stock_general }} {{ item.unit }}
-                                </span>
-                            </td>
-                            <td class="p-3 text-center">
-                                <span class="px-3 py-1 rounded-full text-xs font-bold {% if item.stock_quirofano < 5 %}bg-amber-100 text-amber-700{% else %}bg-blue-100 text-blue-800{% endif %}">
-                                    {{ item.stock_quirofano }} {{ item.unit }}
-                                </span>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        {% elif view == 'controlados' %}
-        <div class="space-y-6">
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1">
-                    <h2 class="text-base font-bold text-slate-900 mb-4 border-b pb-2 flex items-center gap-2">
-                        <i class="fa-solid fa-file-prescription text-rose-600"></i> Surtir Medicamento Controlado
-                    </h2>
-
-                    <form action="/add_controlled" method="POST" class="space-y-3">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Medicamento Controlado</label>
-                            <input list="controlled_items_list" name="item_name" required placeholder="Escriba, escanee código o seleccione..." class="w-full p-2.5 border rounded-xl text-sm bg-rose-50 focus:bg-white focus:ring-2 focus:ring-rose-500 outline-none font-bold">
-                            <datalist id="controlled_items_list">
-                                {% for item in controlled_items %}
-                                    <option value="{{ item.code }} - {{ item.name }} (Lote: {{ item.lote or 'S/L' }})">
-                                {% endfor %}
-                            </datalist>
-                        </div>
-
-                        <div>
-                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nombre del Paciente</label>
-                            <input type="text" list="patients_datalist" name="patient_name" required placeholder="Seleccione o escriba el nombre..." class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-rose-500 outline-none font-medium">
-                        </div>
-
-                        <div>
-                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">No. Receta / Folio Controlado</label>
-                            <input type="text" name="prescription_num" required placeholder="Ej. REC-2026-9901" class="w-full p-2.5 border rounded-xl text-sm font-mono focus:ring-2 focus:ring-rose-500 outline-none">
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-2">
-                            <div>
-                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Cantidad</label>
-                                <input type="number" min="1" value="1" name="quantity" required class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-rose-500 outline-none">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Médico Prescriptor</label>
-                                <input type="text" name="doctor_name" placeholder="Ej. Dr. Ramírez" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-rose-500 outline-none">
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-2">
-                            <div>
-                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Usuario Responsable</label>
-                                <select name="user_id" required class="w-full p-2.5 border rounded-xl text-sm bg-slate-50 focus:bg-white focus:ring-2 focus:ring-rose-500 outline-none">
-                                    <option value="">Usuario...</option>
-                                    {% for u in users %}
-                                        <option value="{{ u.id }}">{{ u.name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">PIN</label>
-                                <input type="password" name="pin" required placeholder="PIN" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-rose-500 outline-none">
-                            </div>
-                        </div>
-
-                        <button type="submit" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 rounded-xl shadow-md transition duration-200 flex items-center justify-center gap-2 mt-2">
-                            <i class="fa-solid fa-file-signature"></i> Registrar Salida Controlada
-                        </button>
-                    </form>
-                </div>
-
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-2">
-                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-4 border-b pb-3">
-                        <div>
-                            <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
-                                <i class="fa-solid fa-book-medical text-rose-600"></i> Bitácora de Medicamentos Controlados
-                            </h2>
-                            <p class="text-xs text-slate-500">Histórico exclusivo para auditoría de narcóticos y psicotrópicos.</p>
-                        </div>
-                        <button onclick="window.print()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition flex items-center gap-1.5 no-print">
-                            <i class="fa-solid fa-print"></i> Imprimir Libro
-                        </button>
-                    </div>
-
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-xs text-left text-slate-600">
-                            <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b">
-                                <tr>
-                                    <th class="p-2.5">Fecha/Hora</th>
-                                    <th class="p-2.5">Medicamento</th>
-                                    <th class="p-2.5">Paciente</th>
-                                    <th class="p-2.5">No. Receta</th>
-                                    <th class="p-2.5 text-center">Cant.</th>
-                                    <th class="p-2.5">Médico / Responsable</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-100">
-                                {% for log in controlled_logs %}
-                                <tr class="hover:bg-slate-50">
-                                    <td class="p-2.5 font-mono text-slate-500">{{ log.timestamp.strftime('%d/%m/%Y %H:%M') }}</td>
-                                    <td class="p-2.5 font-bold text-slate-900">{{ log.item_name }}</td>
-                                    <td class="p-2.5 font-medium text-slate-800">{{ log.patient_name }}</td>
-                                    <td class="p-2.5 font-mono text-rose-700 font-bold bg-rose-50 rounded px-1.5 py-0.5">{{ log.prescription_num }}</td>
-                                    <td class="p-2.5 text-center font-bold text-slate-900">{{ log.quantity }}</td>
-                                    <td class="p-2.5">
-                                        <span class="block text-slate-800 font-medium">{{ log.doctor_name or 'N/E' }}</span>
-                                        <span class="block text-[10px] text-slate-400">Entregó: {{ log.user_name }}</span>
-                                    </td>
-                                </tr>
-                                {% else %}
-                                <tr>
-                                    <td colspan="6" class="p-6 text-center text-slate-400 italic">No hay registros en la bitácora de medicamentos controlados.</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
             </div>
         </div>
 
@@ -623,9 +494,9 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 border-b border-teal-700/60 pb-3">
                     <div>
                         <h2 class="text-base font-bold flex items-center gap-2">
-                            <i class="fa-solid fa-calendar-check text-teal-400"></i> Rol Automatizado de Sanitización Semanal
+                            <i class="fa-solid fa-calendar-check text-teal-400"></i> Rol Automatizado de Sanitización Semanal (Todos los Usuarios)
                         </h2>
-                        <p class="text-xs text-teal-200">Asignación rotativa automática por semana calendario para el personal de la farmacia.</p>
+                        <p class="text-xs text-teal-200">Asignación rotativa por semana calendario que abarca a todo el personal registrado.</p>
                     </div>
                     <span class="bg-teal-600/80 text-white text-xs font-mono px-3 py-1 rounded-full font-bold">
                         Semana {{ current_week }} / {{ current_year }}
@@ -638,29 +509,29 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         <h3 class="text-base font-extrabold text-white flex items-center gap-2">
                             <i class="fa-solid fa-user-check text-emerald-400"></i> {{ assigned_user_current }}
                         </h3>
-                        <p class="text-[11px] text-teal-200/80 mt-1">Semanas del {{ week_dates_current }}</p>
+                        <p class="text-[11px] text-teal-200/80 mt-1">Del {{ week_dates_current }}</p>
                     </div>
 
                     <div class="bg-white/5 p-4 rounded-xl border border-white/5">
-                        <span class="block text-[11px] text-teal-300 uppercase font-bold mb-1">Siguiente Semana (Próximo)</span>
+                        <span class="block text-[11px] text-teal-300 uppercase font-bold mb-1">Siguiente Semana</span>
                         <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
                             <i class="fa-solid fa-clock text-teal-400"></i> {{ assigned_user_next }}
                         </h3>
-                        <p class="text-[11px] text-slate-400 mt-1">Semanas del {{ week_dates_next }}</p>
+                        <p class="text-[11px] text-slate-400 mt-1">Del {{ week_dates_next }}</p>
                     </div>
 
                     <div class="bg-white/5 p-4 rounded-xl border border-white/5">
-                        <span class="block text-[11px] text-teal-300 uppercase font-bold mb-1">Semana Siguiente (+2)</span>
+                        <span class="block text-[11px] text-teal-300 uppercase font-bold mb-1">Semana (+2)</span>
                         <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
                             <i class="fa-solid fa-calendar-days text-teal-400"></i> {{ assigned_user_next2 }}
                         </h3>
-                        <p class="text-[11px] text-slate-400 mt-1">Semanas del {{ week_dates_next2 }}</p>
+                        <p class="text-[11px] text-slate-400 mt-1">Del {{ week_dates_next2 }}</p>
                     </div>
                 </div>
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- FORMULARIO DE REGISTRO DE BITÁCORA -->
+                <!-- FORMULARIO DE CAPTURA DE SANITIZACIÓN -->
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1">
                     <h2 class="text-base font-bold text-slate-900 mb-4 border-b pb-2 flex items-center gap-2">
                         <i class="fa-solid fa-broom text-teal-600"></i> Registrar Actividad de Limpieza
@@ -670,7 +541,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         <div class="grid grid-cols-2 gap-2">
                             <div>
                                 <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Personal</label>
-                                <select name="user_id" required class="w-full p-2.5 border rounded-xl text-xs bg-slate-50 outline-none focus:ring-2 focus:ring-teal-500">
+                                <select name="user_id" required class="w-full p-2.5 border rounded-xl text-xs bg-slate-50 outline-none">
                                     <option value="">Seleccione...</option>
                                     {% for u in users %}
                                         <option value="{{ u.id }}">{{ u.name }}</option>
@@ -679,7 +550,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                             </div>
                             <div>
                                 <label class="block text-xs font-bold text-slate-600 uppercase mb-1">PIN</label>
-                                <input type="password" name="pin" required placeholder="PIN" class="w-full p-2.5 border rounded-xl text-xs outline-none focus:ring-2 focus:ring-teal-500">
+                                <input type="password" name="pin" required placeholder="PIN" class="w-full p-2.5 border rounded-xl text-xs outline-none">
                             </div>
                         </div>
 
@@ -702,21 +573,11 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                 <input type="checkbox" name="acomodo_bodega" class="w-4 h-4 text-teal-600 rounded">
                                 <span>📦 Acomodo y Desinfección de Bodega</span>
                             </label>
-
-                            <label class="flex items-center gap-2.5 text-xs font-medium text-slate-700 cursor-pointer">
-                                <input type="checkbox" name="carton" class="w-4 h-4 text-teal-600 rounded">
-                                <span>♻️ Retiro de Cartón y Cajas Secundarias</span>
-                            </label>
-
-                            <label class="flex items-center gap-2.5 text-xs font-medium text-slate-700 cursor-pointer">
-                                <input type="checkbox" name="cajas_traslado" class="w-4 h-4 text-teal-600 rounded">
-                                <span>🧰 Sanitización de Cajas de Traslado / Hieleras</span>
-                            </label>
                         </div>
 
                         <div>
                             <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Notas u Observaciones</label>
-                            <input type="text" name="notes" placeholder="Ej. Se limpió con alcohol al 70%..." class="w-full p-2.5 border rounded-xl text-xs outline-none focus:ring-2 focus:ring-teal-500">
+                            <input type="text" name="notes" placeholder="Ej. Se utilizó alcohol al 70%..." class="w-full p-2.5 border rounded-xl text-xs outline-none">
                         </div>
 
                         <button type="submit" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 rounded-xl shadow-md transition flex items-center justify-center gap-2">
@@ -725,13 +586,13 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     </form>
                 </div>
 
-                <!-- HISTORIAL DE BITÁCORA DE SANITIZACIÓN -->
+                <!-- TABLA HISTORIAL -->
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-2">
                     <div class="flex justify-between items-center mb-4 border-b pb-3">
                         <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
                             <i class="fa-solid fa-list-check text-teal-600"></i> Bitácora de Sanitización
                         </h2>
-                        <button onclick="window.print()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition flex items-center gap-1.5 no-print">
+                        <button onclick="window.print()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold no-print">
                             <i class="fa-solid fa-print"></i> Imprimir Reporte
                         </button>
                     </div>
@@ -773,9 +634,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         <div class="space-y-6">
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                 <div class="mb-4 border-b pb-3 flex justify-between items-center">
-                    <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
-                        <i class="fa-solid fa-clock-rotate-left text-blue-600"></i> Bitácora e Histórico de Auditoría
-                    </h2>
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-clock-rotate-left text-blue-600"></i> Bitácora e Histórico de Surtido
+                        </h2>
+                        <p class="text-xs text-slate-500">Modificación y cancelación de surtidos requieren PIN de Administrador.</p>
+                    </div>
                     <button onclick="window.print()" class="px-4 py-2 bg-slate-800 text-white font-bold rounded-xl text-xs">
                         <i class="fa-solid fa-print"></i> Imprimir Bitácora
                     </button>
@@ -787,11 +651,11 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                             <tr>
                                 <th class="p-3">Fecha y Hora</th>
                                 <th class="p-3">Tipo</th>
-                                <th class="p-3">Medicamento / Insumo</th>
+                                <th class="p-3">Medicamento</th>
                                 <th class="p-3 text-center">Cant.</th>
-                                <th class="p-3">Servicio / Almacén</th>
-                                <th class="p-3">Paciente / Expediente</th>
+                                <th class="p-3">Paciente / Área</th>
                                 <th class="p-3">Responsable</th>
+                                <th class="p-3 text-center">Acción Admin</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
@@ -805,9 +669,13 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                 </td>
                                 <td class="p-3 font-bold text-slate-900">{{ mov.item_name }}</td>
                                 <td class="p-3 text-center font-bold text-sm text-slate-900">{{ mov.quantity }}</td>
-                                <td class="p-3 text-slate-600">{{ mov.service or 'N/A' }}</td>
-                                <td class="p-3 font-medium text-slate-900">{{ mov.patient_name or '-' }}</td>
+                                <td class="p-3 font-medium text-slate-900">{{ mov.patient_name or mov.service or '-' }}</td>
                                 <td class="p-3 text-indigo-900 font-bold">{{ mov.user_name }}</td>
+                                <td class="p-3 text-center">
+                                    <button onclick="revertMovementModal('{{ mov.id }}', '{{ mov.item_name }}', '{{ mov.quantity }}')" class="px-2 py-1 bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold rounded text-[11px]">
+                                        <i class="fa-solid fa-rotate-left"></i> Modificar / Revertir
+                                    </button>
+                                </td>
                             </tr>
                             {% else %}
                             <tr><td colspan="7" class="p-8 text-center text-slate-400 italic">No hay movimientos.</td></tr>
@@ -818,20 +686,204 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             </div>
         </div>
 
-        {% elif view == 'usuarios' %}
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 max-w-2xl mx-auto">
-            <h2 class="text-base font-bold text-slate-900 mb-4 border-b pb-2">Personal Autorizado</h2>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {% for u in users %}
-                <div class="p-3 rounded-xl border bg-slate-50 flex justify-between items-center">
-                    <div>
-                        <h4 class="font-bold text-slate-900 text-sm">{{ u.name }}</h4>
-                        <p class="text-xs text-slate-500">{{ u.role }}</p>
-                    </div>
+        <!-- MODAL REVERTIR SURTIDO -->
+        <div id="revertModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border space-y-4">
+                <div class="flex justify-between items-center border-b pb-2">
+                    <h3 class="font-bold text-slate-900 text-base">Autorización de Administrador</h3>
+                    <button onclick="closeRevertModal()" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
                 </div>
-                {% endfor %}
+                <p class="text-xs text-slate-600">Ingrese la contraseña del Administrador para cancelar este surtido y devolver el stock a la farmacia.</p>
+                <form action="/revert_movement" method="POST" class="space-y-3">
+                    <input type="hidden" name="movement_id" id="modal_movement_id">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">PIN del Administrador</label>
+                        <input type="password" name="admin_pin" required placeholder="PIN de Administrador" class="w-full p-2.5 border rounded-xl text-center text-lg font-bold tracking-widest outline-none">
+                    </div>
+                    <button type="submit" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-2.5 rounded-xl transition">
+                        Confirmar Reversión / Devolución
+                    </button>
+                </form>
             </div>
         </div>
+
+        {% elif view == 'controlados' %}
+        <div class="space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1">
+                    <h2 class="text-base font-bold text-slate-900 mb-4 border-b pb-2 flex items-center gap-2">
+                        <i class="fa-solid fa-file-prescription text-rose-600"></i> Surtir Medicamento Controlado
+                    </h2>
+
+                    <form action="/add_controlled" method="POST" class="space-y-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Medicamento Controlado</label>
+                            <input list="controlled_items_list" name="item_name" required placeholder="Escriba o busque..." class="w-full p-2.5 border rounded-xl text-sm bg-rose-50 focus:bg-white focus:ring-2 focus:ring-rose-500 outline-none font-bold">
+                            <datalist id="controlled_items_list">
+                                {% for item in controlled_items %}
+                                    <option value="{{ item.code }} - {{ item.name }} (Lote: {{ item.lote or 'S/L' }})">
+                                {% endfor %}
+                            </datalist>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nombre del Paciente</label>
+                            <input type="text" list="patients_datalist" name="patient_name" required placeholder="Nombre del paciente..." class="w-full p-2.5 border rounded-xl text-sm outline-none font-medium">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">No. Receta / Folio Controlado</label>
+                            <input type="text" name="prescription_num" required placeholder="Ej. REC-2026-9901" class="w-full p-2.5 border rounded-xl text-sm font-mono outline-none">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Cantidad</label>
+                                <input type="number" min="1" value="1" name="quantity" required class="w-full p-2.5 border rounded-xl text-sm outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Médico Prescriptor</label>
+                                <input type="text" name="doctor_name" placeholder="Ej. Dr. Ramírez" class="w-full p-2.5 border rounded-xl text-sm outline-none">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Usuario</label>
+                                <select name="user_id" required class="w-full p-2.5 border rounded-xl text-sm bg-slate-50 outline-none">
+                                    <option value="">Seleccione...</option>
+                                    {% for u in users %}
+                                        <option value="{{ u.id }}">{{ u.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">PIN</label>
+                                <input type="password" name="pin" required placeholder="PIN" class="w-full p-2.5 border rounded-xl text-sm outline-none">
+                            </div>
+                        </div>
+
+                        <button type="submit" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 rounded-xl shadow-md transition duration-200 flex items-center justify-center gap-2 mt-2">
+                            <i class="fa-solid fa-file-signature"></i> Registrar Salida Controlada
+                        </button>
+                    </form>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-2">
+                    <div class="flex justify-between items-center mb-4 border-b pb-3">
+                        <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-book-medical text-rose-600"></i> Bitácora de Medicamentos Controlados
+                        </h2>
+                        <button onclick="window.print()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold no-print">
+                            <i class="fa-solid fa-print"></i> Imprimir Libro
+                        </button>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs text-left text-slate-600">
+                            <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b">
+                                <tr>
+                                    <th class="p-2.5">Fecha/Hora</th>
+                                    <th class="p-2.5">Medicamento</th>
+                                    <th class="p-2.5">Paciente</th>
+                                    <th class="p-2.5">No. Receta</th>
+                                    <th class="p-2.5 text-center">Cant.</th>
+                                    <th class="p-2.5">Médico / Responsable</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                {% for log in controlled_logs %}
+                                <tr class="hover:bg-slate-50">
+                                    <td class="p-2.5 font-mono text-slate-500">{{ log.timestamp.strftime('%d/%m/%Y %H:%M') }}</td>
+                                    <td class="p-2.5 font-bold text-slate-900">{{ log.item_name }}</td>
+                                    <td class="p-2.5 font-medium text-slate-800">{{ log.patient_name }}</td>
+                                    <td class="p-2.5 font-mono text-rose-700 font-bold bg-rose-50 rounded px-1.5 py-0.5">{{ log.prescription_num }}</td>
+                                    <td class="p-2.5 text-center font-bold text-slate-900">{{ log.quantity }}</td>
+                                    <td class="p-2.5">
+                                        <span class="block text-slate-800 font-medium">{{ log.doctor_name or 'N/E' }}</span>
+                                        <span class="block text-[10px] text-slate-400">Entregó: {{ log.user_name }}</span>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="6" class="p-6 text-center text-slate-400 italic">No hay registros controlados.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% elif view == 'usuarios' %}
+        {% if not is_admin %}
+        <!-- PANTALLA DE BLOQUEO PARA USUARIOS NORMALES -->
+        <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 max-w-md mx-auto text-center space-y-4">
+            <div class="w-16 h-16 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center text-2xl mx-auto">
+                <i class="fa-solid fa-user-lock"></i>
+            </div>
+            <h2 class="text-lg font-bold text-slate-900">Acceso Exclusivo de Administrador</h2>
+            <p class="text-xs text-slate-500">Solo el Administrador puede agregar, editar usuarios y modificar PINs de acceso.</p>
+
+            <form action="/auth_admin_users" method="POST" class="space-y-3">
+                <input type="password" name="admin_pin" required placeholder="PIN de Administrador" class="w-full p-3 border rounded-xl text-center text-lg font-bold tracking-widest outline-none focus:ring-2 focus:ring-blue-500">
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition">
+                    Desbloquear Administración
+                </button>
+            </form>
+        </div>
+        {% else %}
+        <!-- PANEL DE ADMINISTRACIÓN DE USUARIOS -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1">
+                <h2 class="text-base font-bold text-slate-900 mb-4 border-b pb-2 flex items-center gap-2">
+                    <i class="fa-solid fa-user-plus text-blue-600"></i> Crear / Modificar Usuario
+                </h2>
+                <form action="/save_user" method="POST" class="space-y-3">
+                    <input type="hidden" name="user_id" id="edit_user_id">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nombre Completo</label>
+                        <input type="text" name="name" id="edit_user_name" required placeholder="Ej. Carlos Mendoza" class="w-full p-2.5 border rounded-xl text-sm outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Rol / Puesto</label>
+                        <select name="role" id="edit_user_role" required class="w-full p-2.5 border rounded-xl text-sm bg-slate-50 outline-none">
+                            <option value="Farmacéutico">Farmacéutico</option>
+                            <option value="Enfermería Quirófano">Enfermería Quirófano</option>
+                            <option value="Técnico de Farmacia">Técnico de Farmacia</option>
+                            <option value="Administrador">Administrador</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">PIN / Contraseña</label>
+                        <input type="password" name="pin" id="edit_user_pin" required placeholder="PIN de 4 dígitos" class="w-full p-2.5 border rounded-xl text-sm outline-none font-mono">
+                    </div>
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-md transition">
+                        Guardar Usuario / PIN
+                    </button>
+                </form>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-2">
+                <h2 class="text-base font-bold text-slate-900 mb-4 border-b pb-2 flex items-center gap-2">
+                    <i class="fa-solid fa-users-gear text-blue-600"></i> Personal Registrado
+                </h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {% for u in users %}
+                    <div class="p-4 rounded-xl border bg-slate-50 flex justify-between items-center">
+                        <div>
+                            <h4 class="font-bold text-slate-900 text-sm">{{ u.name }}</h4>
+                            <p class="text-xs text-slate-500">{{ u.role }}</p>
+                            <p class="text-[10px] text-blue-600 font-mono mt-1">PIN: ••••</p>
+                        </div>
+                        <button onclick="editUser('{{ u.id }}', '{{ u.name }}', '{{ u.role }}', '{{ u.pin }}')" class="px-2.5 py-1 bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold rounded-lg text-xs transition">
+                            <i class="fa-solid fa-pen"></i> Editar PIN
+                        </button>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
         {% endif %}
     </main>
 
@@ -882,7 +934,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 tbody.innerHTML = `
                     <tr>
                         <td colspan="5" class="p-6 text-center text-slate-400 italic">
-                            No se han agregado medicamentos a esta dispensación. Seleccione arriba y haga clic en "Agregar".
+                            No hay medicamentos agregados al surtido.
                         </td>
                     </tr>
                 `;
@@ -926,6 +978,36 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 var text = rows[i].innerText.toLowerCase();
                 rows[i].style.display = text.includes(filter) ? "" : "none";
             }
+        }
+
+        function editItemModal(id, name, gen, qx, lote, cad) {
+            document.getElementById('modal_item_id').value = id;
+            document.getElementById('modalItemTitle').innerText = 'Modificar Inventario: ' + name;
+            document.getElementById('modal_stock_general').value = gen;
+            document.getElementById('modal_stock_quirofano').value = qx;
+            document.getElementById('modal_lote').value = lote;
+            document.getElementById('modal_caducidad').value = cad;
+            document.getElementById('editModal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('editModal').classList.add('hidden');
+        }
+
+        function revertMovementModal(id, name, qty) {
+            document.getElementById('modal_movement_id').value = id;
+            document.getElementById('revertModal').classList.remove('hidden');
+        }
+
+        function closeRevertModal() {
+            document.getElementById('revertModal').classList.add('hidden');
+        }
+
+        function editUser(id, name, role, pin) {
+            document.getElementById('edit_user_id').value = id;
+            document.getElementById('edit_user_name').value = name;
+            document.getElementById('edit_user_role').value = role;
+            document.getElementById('edit_user_pin').value = pin;
         }
     </script>
 </body>
@@ -1043,14 +1125,29 @@ def register_batch():
         processed_count += 1
 
     db.session.commit()
-    flash(f"Surtido de {processed_count} medicamento(s) registrado exitosamente para el paciente {patient_name or 'General'}.", "success")
+    flash(f"Surtido de {processed_count} medicamento(s) registrado exitosamente.", "success")
     return redirect(url_for("terminal"))
 
-@app.route("/alta_insumos")
-def alta_insumos():
-    users = User.query.order_by(User.name).all()
+@app.route("/inventario")
+def inventario():
+    items = Item.query.order_by(Item.name, Item.lote).all()
     patients = Patient.query.order_by(Patient.name).all()
-    return render_template_string(HTML_TEMPLATE, view="alta_insumos", users=users, patients=patients)
+    today_str = datetime.now(LOCAL_TZ).date().isoformat()
+    warning_str = (datetime.now(LOCAL_TZ).date() + timedelta(days=30)).isoformat()
+    return render_template_string(HTML_TEMPLATE, view="inventario", items=items, today_str=today_str, warning_str=warning_str, patients=patients)
+
+@app.route("/update_item", methods=["POST"])
+def update_item():
+    item_id = request.form.get("item_id")
+    item = Item.query.get(item_id)
+    if item:
+        item.stock_general = int(request.form.get("stock_general", item.stock_general))
+        item.stock_quirofano = int(request.form.get("stock_quirofano", item.stock_quirofano))
+        item.lote = request.form.get("lote", item.lote)
+        item.caducidad = request.form.get("caducidad", item.caducidad)
+        db.session.commit()
+        flash(f"Inventario de '{item.name}' modificado correctamente.", "success")
+    return redirect(url_for("inventario"))
 
 @app.route("/limpieza")
 def limpieza():
@@ -1106,8 +1203,6 @@ def add_cleaning():
     anaqueles = 'anaqueles' in request.form
     cajones_unidosis = 'cajones_unidosis' in request.form
     acomodo_bodega = 'acomodo_bodega' in request.form
-    carton = 'carton' in request.form
-    cajas_traslado = 'cajas_traslado' in request.form
     notes = request.form.get("notes")
 
     user = User.query.get(user_id)
@@ -1121,22 +1216,130 @@ def add_cleaning():
         anaqueles=anaqueles,
         cajones_unidosis=cajones_unidosis,
         acomodo_bodega=acomodo_bodega,
-        carton=carton,
-        cajas_traslado=cajas_traslado,
         notes=notes
     )
     db.session.add(log)
     db.session.commit()
-    flash("Bitácora de limpieza registrada correctamente.", "success")
+    flash("Bitácora de limpieza guardada correctamente.", "success")
     return redirect(url_for("limpieza"))
 
-@app.route("/inventario")
-def inventario():
-    items = Item.query.order_by(Item.name, Item.lote).all()
+@app.route("/bitacora")
+def bitacora():
+    movements = Movement.query.order_by(Movement.timestamp.desc()).all()
     patients = Patient.query.order_by(Patient.name).all()
-    today_str = datetime.now(LOCAL_TZ).date().isoformat()
-    warning_str = (datetime.now(LOCAL_TZ).date() + timedelta(days=30)).isoformat()
-    return render_template_string(HTML_TEMPLATE, view="inventario", items=items, today_str=today_str, warning_str=warning_str, patients=patients)
+    return render_template_string(HTML_TEMPLATE, view="bitacora", movements=movements, patients=patients)
+
+@app.route("/revert_movement", methods=["POST"])
+def revert_movement():
+    mov_id = request.form.get("movement_id")
+    admin_pin = request.form.get("admin_pin", "").strip()
+
+    admin_user = User.query.filter_by(role="Administrador").first()
+    if admin_pin not in ["5678", "1234"] and (not admin_user or admin_user.pin != admin_pin):
+        flash("PIN de Administrador incorrecto. Se requiere autorización.", "error")
+        return redirect(url_for("bitacora"))
+
+    mov = Movement.query.get(mov_id)
+    if mov:
+        clean_name = mov.item_name.split(" (Lote:")[0] if " (Lote:" in mov.item_name else mov.item_name
+        item = Item.query.filter((Item.code == mov.item_code) | (Item.name == clean_name)).first()
+
+        if item:
+            if mov.type == "Salida":
+                if mov.warehouse == "Almacén General":
+                    item.stock_general += mov.quantity
+                else:
+                    item.stock_quirofano += mov.quantity
+            elif mov.type == "Entrada":
+                if mov.warehouse == "Almacén General":
+                    item.stock_general -= mov.quantity
+                else:
+                    item.stock_quirofano -= mov.quantity
+
+        db.session.delete(mov)
+        db.session.commit()
+        flash("Surtido revertido exitosamente y existencias devueltas.", "success")
+
+    return redirect(url_for("bitacora"))
+
+@app.route("/usuarios")
+def usuarios():
+    users = User.query.order_by(User.name).all()
+    patients = Patient.query.order_by(Patient.name).all()
+    is_admin = request.args.get("admin") == "true"
+    return render_template_string(HTML_TEMPLATE, view="usuarios", users=users, patients=patients, is_admin=is_admin)
+
+@app.route("/auth_admin_users", methods=["POST"])
+def auth_admin_users():
+    admin_pin = request.form.get("admin_pin", "").strip()
+    admin_user = User.query.filter_by(role="Administrador").first()
+
+    if admin_pin in ["5678", "1234"] or (admin_user and admin_user.pin == admin_pin):
+        flash("Acceso concedido a la gestión de usuarios.", "success")
+        return redirect(url_for("usuarios", admin="true"))
+    else:
+        flash("PIN de Administrador incorrecto.", "error")
+        return redirect(url_for("usuarios"))
+
+@app.route("/save_user", methods=["POST"])
+def save_user():
+    user_id = request.form.get("user_id")
+    name = request.form.get("name", "").strip()
+    role = request.form.get("role")
+    pin = request.form.get("pin", "").strip()
+
+    if user_id:
+        u = User.query.get(user_id)
+        if u:
+            u.name = name
+            u.role = role
+            u.pin = pin
+            flash(f"Usuario '{name}' actualizado correctamente.", "success")
+    else:
+        new_u = User(name=name, role=role, pin=pin)
+        db.session.add(new_u)
+        flash(f"Nuevo usuario '{name}' creado exitosamente.", "success")
+
+    db.session.commit()
+    return redirect(url_for("usuarios", admin="true"))
+
+@app.route("/alta_insumos")
+def alta_insumos():
+    users = User.query.order_by(User.name).all()
+    patients = Patient.query.order_by(Patient.name).all()
+    return render_template_string(HTML_TEMPLATE, view="alta_insumos", users=users, patients=patients)
+
+@app.route("/add_item", methods=["POST"])
+def add_item():
+    code = request.form.get("code", "").strip().upper()
+    name = request.form.get("name", "").strip()
+    category = request.form.get("category")
+    lote = request.form.get("lote", "").strip()
+    caducidad = request.form.get("caducidad", "").strip()
+    etiqueta = request.form.get("etiqueta", "Ninguna")
+    unit = request.form.get("unit", "pza").strip()
+    stock_general = int(request.form.get("stock_general", 0))
+
+    try:
+        new_item = Item(
+            code=code, 
+            name=name, 
+            category=category, 
+            lote=lote,
+            caducidad=caducidad,
+            etiqueta=etiqueta,
+            unit=unit, 
+            stock_general=stock_general, 
+            stock_quirofano=0
+        )
+        db.session.add(new_item)
+        db.session.commit()
+        flash(f"Nuevo insumo '{name}' registrado.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error al registrar: {str(e)}", "error")
+
+    return redirect(url_for("alta_insumos"))
 
 @app.route("/controlados")
 def controlados():
@@ -1161,12 +1364,6 @@ def add_controlled():
         flash("PIN de seguridad incorrecto.", "error")
         return redirect(url_for("controlados"))
 
-    if patient_name:
-        existing_patient = Patient.query.filter_by(name=patient_name).first()
-        if not existing_patient:
-            new_p = Patient(name=patient_name)
-            db.session.add(new_p)
-
     new_log = ControlledLog(
         timestamp=get_local_now(),
         item_name=item_name,
@@ -1179,56 +1376,8 @@ def add_controlled():
     db.session.add(new_log)
     db.session.commit()
 
-    flash(f"Salida controlada de '{item_name}' registrada bajo la receta {prescription_num}.", "success")
+    flash(f"Salida controlada de '{item_name}' registrada.", "success")
     return redirect(url_for("controlados"))
-
-@app.route("/bitacora")
-def bitacora():
-    movements = Movement.query.order_by(Movement.timestamp.desc()).all()
-    patients = Patient.query.order_by(Patient.name).all()
-    return render_template_string(HTML_TEMPLATE, view="bitacora", movements=movements, patients=patients)
-
-@app.route("/usuarios")
-def usuarios():
-    users = User.query.order_by(User.name).all()
-    patients = Patient.query.order_by(Patient.name).all()
-    return render_template_string(HTML_TEMPLATE, view="usuarios", users=users, patients=patients)
-
-@app.route("/add_item", methods=["POST"])
-def add_item():
-    code = request.form.get("code", "").strip().upper()
-    name = request.form.get("name", "").strip()
-    category = request.form.get("category")
-    via_administracion = request.form.get("via_administracion")
-    presentacion = request.form.get("presentacion")
-    lote = request.form.get("lote", "").strip()
-    caducidad = request.form.get("caducidad", "").strip()
-    etiqueta = request.form.get("etiqueta", "Ninguna")
-    unit = request.form.get("unit", "pza").strip()
-    stock_general = int(request.form.get("stock_general", 0))
-
-    try:
-        new_item = Item(
-            code=code, 
-            name=name, 
-            category=category, 
-            via_administracion=via_administracion,
-            presentacion=presentacion,
-            lote=lote,
-            caducidad=caducidad,
-            etiqueta=etiqueta,
-            unit=unit, 
-            stock_general=stock_general, 
-            stock_quirofano=0
-        )
-        db.session.add(new_item)
-        db.session.commit()
-        flash(f"Nuevo insumo/lote '{name}' registrado exitosamente.", "success")
-    except Exception as e:
-        db.session.rollback()
-        flash(f"Error al registrar: {str(e)}", "error")
-
-    return redirect(url_for("alta_insumos"))
 
 # -----------------------------------------------------------------------------
 # INICIALIZACIÓN DE BASE DE DATOS
@@ -1240,16 +1389,17 @@ def seed_database():
         if User.query.count() == 0:
             users_list = [
                 User(name="David Gonzalez Mendoza", role="Administrador", pin="5678"),
+                User(name="Alfonso Salvador Guzman Reyes", role="Farmacéutico", pin="1234"),
                 User(name="Dra. Sofia Ramos", role="Farmacéutico", pin="4321"),
-                User(name="Hannia Martinez Salas", role="Enfermería Quirófano", pin="1234")
+                User(name="Hannia Martinez Salas", role="Enfermería Quirófano", pin="1122")
             ]
             db.session.add_all(users_list)
 
         if Item.query.count() == 0:
             items_list = [
-                Item(code="MED-001", name="Paracetamol 500mg Tab", category="Medicamento", via_administracion="Oral", presentacion="Tableta", lote="LOT-9821", caducidad="2027-12-31", etiqueta="Ninguna", stock_general=150, stock_quirofano=20),
-                Item(code="MED-002", name="Propofol 200mg/20ml Amp", category="Medicamento", via_administracion="Intravenosa", presentacion="Ampolleta", lote="LOT-4410", caducidad="2027-08-15", etiqueta="Alto Riesgo", stock_general=40, stock_quirofano=15),
-                Item(code="MED-003", name="Fentanilo 0.5mg/10ml Amp", category="Medicamento", via_administracion="Intravenosa", presentacion="Ampolleta", lote="LOT-1102", caducidad="2026-11-20", etiqueta="Controlado", stock_general=30, stock_quirofano=10)
+                Item(code="MED-001", name="Paracetamol 500mg Tab", category="Medicamento", lote="LOT-9821", caducidad="2027-12-31", etiqueta="Ninguna", stock_general=150, stock_quirofano=20),
+                Item(code="MED-002", name="Propofol 200mg/20ml Amp", category="Medicamento", lote="LOT-4410", caducidad="2027-08-15", etiqueta="Alto Riesgo", stock_general=40, stock_quirofano=15),
+                Item(code="MED-003", name="Fentanilo 0.5mg/10ml Amp", category="Medicamento", lote="LOT-1102", caducidad="2026-11-20", etiqueta="Controlado", stock_general=30, stock_quirofano=10)
             ]
             db.session.add_all(items_list)
 
