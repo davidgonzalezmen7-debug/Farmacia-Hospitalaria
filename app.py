@@ -103,6 +103,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             header, nav, .no-print, button, form { display: none !important; }
             body { background-color: white !important; }
             .print-container { width: 100% !important; margin: 0 !important; padding: 0 !important; }
+            .printable-label { border: 2px dashed #000 !important; box-shadow: none !important; }
         }
     </style>
 </head>
@@ -121,6 +122,9 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             <nav class="flex flex-wrap gap-1 text-xs font-bold">
                 <a href="/terminal" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'terminal' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
                     <i class="fa-solid fa-prescription-bottle-medical"></i> Surtido Múltiple
+                </a>
+                <a href="/etiquetas" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'etiquetas' %}bg-purple-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-purple-100{% endif %}">
+                    <i class="fa-solid fa-tags"></i> Generar Etiquetas
                 </a>
                 <a href="/alta_insumos" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'alta_insumos' %}bg-emerald-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-emerald-100{% endif %}">
                     <i class="fa-solid fa-plus-circle"></i> Alta Insumos
@@ -313,6 +317,113 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     <i class="fa-solid fa-check-double"></i> Procesar Surtido Completo
                 </button>
             </form>
+        </div>
+
+        {% elif view == 'etiquetas' %}
+        <div class="space-y-6 max-w-4xl mx-auto">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 no-print">
+                <div class="border-b pb-3 mb-4 flex justify-between items-center">
+                    <div>
+                        <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-tags text-purple-600"></i> Generador de Etiquetas de Dispensación
+                        </h2>
+                        <p class="text-xs text-slate-500">Complete los datos para generar una etiqueta adhesiva con la información del paciente y medicamento.</p>
+                    </div>
+                    <button onclick="window.print()" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold shadow transition flex items-center gap-2">
+                        <i class="fa-solid fa-print"></i> Imprimir Etiqueta
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nombre del Paciente</label>
+                            <input type="text" id="lbl_patient" placeholder="Ej. Juan Pérez García" oninput="updateLabelPreview()" class="w-full p-2 border rounded-lg text-xs bg-slate-50 font-medium outline-none">
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">No. Expediente / Cama</label>
+                                <input type="text" id="lbl_exp" placeholder="Ej. EXP-1029 / Cama 3" oninput="updateLabelPreview()" class="w-full p-2 border rounded-lg text-xs bg-slate-50 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Servicio / Área</label>
+                                <input type="text" id="lbl_service" placeholder="Ej. Hospitalización" oninput="updateLabelPreview()" class="w-full p-2 border rounded-lg text-xs bg-slate-50 outline-none">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Medicamento / Insumo</label>
+                            <input list="items_list" id="lbl_item" placeholder="Seleccione o escriba medicamento..." oninput="updateLabelPreview()" class="w-full p-2 border rounded-lg text-xs bg-slate-50 font-bold outline-none">
+                        </div>
+                    </div>
+
+                    <div class="space-y-3">
+                        <div class="grid grid-cols-3 gap-2">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Cantidad</label>
+                                <input type="text" id="lbl_qty" placeholder="Ej. 1 pza" oninput="updateLabelPreview()" class="w-full p-2 border rounded-lg text-xs bg-slate-50 text-center font-bold outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Lote</label>
+                                <input type="text" id="lbl_lote" placeholder="Ej. LOT-9912" oninput="updateLabelPreview()" class="w-full p-2 border rounded-lg text-xs bg-slate-50 text-center outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Caducidad</label>
+                                <input type="date" id="lbl_cad" oninput="updateLabelPreview()" class="w-full p-2 border rounded-lg text-xs bg-slate-50 text-center outline-none">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Dosis / Indicaciones</label>
+                            <input type="text" id="lbl_dosis" placeholder="Ej. 1 tableta cada 8 horas vía oral" oninput="updateLabelPreview()" class="w-full p-2 border rounded-lg text-xs bg-slate-50 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Personal Responsable</label>
+                            <input type="text" id="lbl_user" placeholder="Ej. Ing. / Farmacéutico" oninput="updateLabelPreview()" class="w-full p-2 border rounded-lg text-xs bg-slate-50 outline-none">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VISTA PREVIA DE LA ETIQUETA ADHESIVA -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center space-y-4">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 no-print">Previsualización de la Etiqueta (Formato Térmico)</h3>
+                
+                <div class="printable-label max-w-md mx-auto bg-white border-2 border-slate-800 rounded-xl p-5 text-left shadow-md space-y-3 font-mono text-slate-900">
+                    <div class="border-b-2 border-slate-800 pb-2 flex justify-between items-center">
+                        <span class="font-extrabold text-xs tracking-tight uppercase">🏥 FARMACIA HOSPITALARIA</span>
+                        <span class="text-[10px] bg-slate-900 text-white px-2 py-0.5 rounded font-bold" id="prev_fecha">--/--/----</span>
+                    </div>
+
+                    <div class="space-y-1 text-xs">
+                        <div><strong class="text-slate-500">PACIENTE:</strong> <span id="prev_patient" class="font-bold uppercase">--</span></div>
+                        <div class="grid grid-cols-2">
+                            <div><strong class="text-slate-500">EXP/CAMA:</strong> <span id="prev_exp">--</span></div>
+                            <div><strong class="text-slate-500">SERV:</strong> <span id="prev_service">--</span></div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-100 p-2.5 rounded border border-slate-300 space-y-1">
+                        <div class="text-xs font-bold text-blue-900" id="prev_item">-- MEDICAMENTO --</div>
+                        <div class="text-[11px]" id="prev_dosis">Indicaciones: --</div>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-2 text-[11px] border-t border-slate-300 pt-2">
+                        <div><strong>CANT:</strong> <span id="prev_qty">--</span></div>
+                        <div><strong>LOTE:</strong> <span id="prev_lote">--</span></div>
+                        <div><strong>CAD:</strong> <span id="prev_cad">--</span></div>
+                    </div>
+
+                    <div class="text-[10px] text-slate-500 border-t border-dashed pt-1 flex justify-between">
+                        <span>ENTREGÓ: <span id="prev_user" class="font-bold text-slate-700">--</span></span>
+                        <span>DISPENSACIÓN SEGURA</span>
+                    </div>
+                </div>
+
+                <div class="no-print pt-2">
+                    <button onclick="window.print()" class="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-xs shadow-md transition">
+                        <i class="fa-solid fa-print"></i> Imprimir Etiqueta Ahora
+                    </button>
+                </div>
+            </div>
         </div>
 
         {% elif view == 'inventario' %}
@@ -1054,6 +1165,31 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             }
         }
 
+        function updateLabelPreview() {
+            const pName = document.getElementById('lbl_patient').value.trim();
+            const pExp = document.getElementById('lbl_exp').value.trim();
+            const pServ = document.getElementById('lbl_service').value.trim();
+            const pItem = document.getElementById('lbl_item').value.trim();
+            const pQty = document.getElementById('lbl_qty').value.trim();
+            const pLote = document.getElementById('lbl_lote').value.trim();
+            const pCad = document.getElementById('lbl_cad').value.trim();
+            const pDosis = document.getElementById('lbl_dosis').value.trim();
+            const pUser = document.getElementById('lbl_user').value.trim();
+
+            document.getElementById('prev_patient').innerText = pName || '--';
+            document.getElementById('prev_exp').innerText = pExp || '--';
+            document.getElementById('prev_service').innerText = pServ || '--';
+            document.getElementById('prev_item').innerText = pItem || '-- MEDICAMENTO --';
+            document.getElementById('prev_qty').innerText = pQty || '--';
+            document.getElementById('prev_lote').innerText = pLote || '--';
+            document.getElementById('prev_cad').innerText = pCad || '--';
+            document.getElementById('prev_dosis').innerText = 'Indicaciones: ' + (pDosis || '--');
+            document.getElementById('prev_user').innerText = pUser || '--';
+
+            const today = new Date().toLocaleDateString('es-MX');
+            document.getElementById('prev_fecha').innerText = today;
+        }
+
         function openEditItemModal(id, code, name, category, via, pres, etiq, lote, cad, gen, qx) {
             document.getElementById('modal_item_id').value = id;
             document.getElementById('modal_code').value = code;
@@ -1105,6 +1241,13 @@ def terminal():
     users = User.query.order_by(User.name).all()
     patients = Patient.query.order_by(Patient.name).all()
     return render_template_string(HTML_TEMPLATE, view="terminal", items=items, users=users, patients=patients)
+
+@app.route("/etiquetas")
+def etiquetas():
+    items = Item.query.order_by(Item.name, Item.lote).all()
+    patients = Patient.query.order_by(Patient.name).all()
+    users = User.query.order_by(User.name).all()
+    return render_template_string(HTML_TEMPLATE, view="etiquetas", items=items, patients=patients, users=users)
 
 @app.route("/register_batch", methods=["POST"])
 def register_batch():
