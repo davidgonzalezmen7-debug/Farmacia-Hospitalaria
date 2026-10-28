@@ -166,9 +166,10 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             {% endfor %}
         </datalist>
 
-        <datalist id="items_datalist">
+        <!-- DATALIST LIMPIO SIN ID PARA MEDICAMENTOS -->
+        <datalist id="items_list">
             {% for item in items %}
-                <option value="{{ item.name }} (Lote: {{ item.lote or 'S/L' }})">
+                <option value="{{ item.name }} (Lote: {{ item.lote or 'S/L' }})">Stock Gen: {{ item.stock_general }} | Qx: {{ item.stock_quirofano }} | {{ item.etiqueta }}</option>
             {% endfor %}
         </datalist>
 
@@ -229,18 +230,22 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     <h3 class="text-xs font-bold text-blue-900 uppercase flex items-center gap-1.5">
                         <i class="fa-solid fa-bed-pulse"></i> Información del Paciente y Servicio
                     </h3>
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                         <div>
                             <label class="block text-[11px] font-semibold text-slate-600 mb-1">Nombre del Paciente</label>
                             <input type="text" list="patients_datalist" name="patient_name" id="patient_name" placeholder="Ej. Juan Pérez" class="w-full p-2 border rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none bg-white font-medium">
                         </div>
                         <div>
-                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">No. Expediente / Cama</label>
-                            <input type="text" name="patient_id" id="patient_id" placeholder="Ej. EXP-9823 / Cama 4" class="w-full p-2 border rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Fecha de Nacimiento</label>
+                            <input type="text" name="patient_fnac" id="patient_fnac" placeholder="Ej. 14/07/1967" class="w-full p-2 border rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Habitación / Cama / UCI</label>
+                            <input type="text" name="patient_id" id="patient_id" placeholder="Ej. UCI-5" class="w-full p-2 border rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none bg-white">
                         </div>
                         <div>
                             <label class="block text-[11px] font-semibold text-slate-600 mb-1">Servicio / Área</label>
-                            <input type="text" name="service" id="service_area" placeholder="Ej. Urgencias / Hospitalización" class="w-full p-2 border rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                            <input type="text" name="service" id="service_area" placeholder="Ej. Urgencias" class="w-full p-2 border rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none bg-white">
                         </div>
                     </div>
                 </div>
@@ -251,14 +256,13 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     </h3>
                     
                     <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-                        <div class="md:col-span-5">
+                        <div class="md:col-span-4">
                             <label class="block text-[11px] font-semibold text-slate-600 mb-1">Medicamento / Lote</label>
-                            <input list="items_list" id="temp_item" placeholder="Buscar medicamento o código..." class="w-full p-2 border rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none bg-white font-medium">
-                            <datalist id="items_list">
-                                {% for item in items %}
-                                    <option value="[ID:{{ item.id }}] {{ item.code }} - {{ item.name }} (Lote: {{ item.lote or 'S/L' }})">Gen: {{ item.stock_general }} | Qx: {{ item.stock_quirofano }} | {{ item.etiqueta }}</option>
-                                {% endfor %}
-                            </datalist>
+                            <input list="items_list" id="temp_item" placeholder="Buscar medicamento..." class="w-full p-2 border rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none bg-white font-medium">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Vía Admin.</label>
+                            <input type="text" id="temp_via" placeholder="Ej. ORAL" class="w-full p-2 border rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none bg-white font-bold uppercase">
                         </div>
                         <div class="md:col-span-2">
                             <label class="block text-[11px] font-semibold text-slate-600 mb-1">Tipo</label>
@@ -268,7 +272,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                 <option value="Entrada">Entrada (Stock)</option>
                             </select>
                         </div>
-                        <div class="md:col-span-2">
+                        <div class="md:col-span-1">
                             <label class="block text-[11px] font-semibold text-slate-600 mb-1">Origen</label>
                             <select id="temp_warehouse" class="w-full p-2 border rounded-lg text-xs bg-white outline-none">
                                 <option value="Almacén General">Almacén General</option>
@@ -280,7 +284,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                             <input type="number" min="1" id="temp_quantity" value="1" class="w-full p-2 border rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none text-center font-bold">
                         </div>
                         <div class="md:col-span-2">
-                            <button type="button" onclick="addToCart()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-3 rounded-lg text-xs transition flex items-center justify-center gap-1 shadow-sm">
+                            <button type="button" onclick="addToCart()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-2 rounded-lg text-xs transition flex items-center justify-center gap-1 shadow-sm">
                                 <i class="fa-solid fa-cart-plus"></i> Agregar
                             </button>
                         </div>
@@ -298,6 +302,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                             <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b">
                                 <tr>
                                     <th class="p-2.5">Medicamento / Lote</th>
+                                    <th class="p-2.5">Vía</th>
                                     <th class="p-2.5">Tipo</th>
                                     <th class="p-2.5">Almacén</th>
                                     <th class="p-2.5 text-center">Cantidad</th>
@@ -306,7 +311,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                             </thead>
                             <tbody id="cartTableBody" class="divide-y divide-slate-100">
                                 <tr>
-                                    <td colspan="5" class="p-6 text-center text-slate-400 italic">
+                                    <td colspan="6" class="p-6 text-center text-slate-400 italic">
                                         No hay medicamentos agregados al surtido.
                                     </td>
                                 </tr>
@@ -376,7 +381,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Medicamento / Denominación</label>
-                            <input list="items_datalist" id="lbl_item" placeholder="Seleccione o escriba medicamento..." oninput="updateLabelPreview()" class="w-full p-2 border rounded-lg text-xs bg-slate-50 font-bold outline-none">
+                            <input list="items_list" id="lbl_item" placeholder="Seleccione o escriba medicamento..." oninput="updateLabelPreview()" class="w-full p-2 border rounded-lg text-xs bg-slate-50 font-bold outline-none">
                         </div>
                     </div>
 
@@ -434,7 +439,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     </div>
 
                     <div class="py-1 text-center bg-slate-100 rounded border border-slate-300">
-                        <div class="font-extrabold text-xs tracking-wide text-blue-900 uppercase" id="v1_item">NIFEDIPINO 30 MG</div>
+                        <div class="font-extrabold text-xs tracking-wide text-blue-900 uppercase" id="v1_item">ACETATO DE METILPREDNISOLONA 40 MG (LOTE: C25A204)</div>
                     </div>
 
                     <div class="grid grid-cols-2 gap-1 text-[11px]">
@@ -444,7 +449,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
                     <div class="flex justify-between items-center border border-slate-900 p-1 text-xs font-bold bg-white">
                         <div>Hora: <span id="v1_hora">--:--</span></div>
-                        <div class="bg-slate-200 px-2 py-0.5 rounded" id="v1_dosis_cant">2 TAB</div>
+                        <div class="bg-slate-200 px-2 py-0.5 rounded" id="v1_dosis_cant">1 pza(s)</div>
                     </div>
 
                     <div class="flex justify-between text-[10px] pt-1 text-slate-600 border-t border-dashed">
@@ -982,7 +987,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                             <input list="controlled_items_list" name="item_name" required placeholder="Escriba o busque..." class="w-full p-2.5 border rounded-xl text-sm bg-rose-50 focus:bg-white focus:ring-2 focus:ring-rose-500 outline-none font-bold">
                             <datalist id="controlled_items_list">
                                 {% for item in controlled_items %}
-                                    <option value="{{ item.code }} - {{ item.name }} (Lote: {{ item.lote or 'S/L' }})">
+                                    <option value="{{ item.name }} (Lote: {{ item.lote or 'S/L' }})">
                                 {% endfor %}
                             </datalist>
                         </div>
@@ -1165,6 +1170,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         function addToCart() {
             const itemInput = document.getElementById('temp_item');
             const itemSearchValue = itemInput.value.trim();
+            const viaInput = document.getElementById('temp_via').value.trim() || 'ORAL';
             const type = document.getElementById('temp_type').value;
             const warehouse = document.getElementById('temp_warehouse').value;
             const quantity = parseInt(document.getElementById('temp_quantity').value) || 1;
@@ -1176,12 +1182,14 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
             cart.push({
                 item_search: itemSearchValue,
+                via: viaInput,
                 type: type,
                 warehouse: warehouse,
                 quantity: quantity
             });
 
             itemInput.value = '';
+            document.getElementById('temp_via').value = '';
             document.getElementById('temp_quantity').value = 1;
             renderCart();
         }
@@ -1200,7 +1208,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             if (cart.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="5" class="p-6 text-center text-slate-400 italic">
+                        <td colspan="6" class="p-6 text-center text-slate-400 italic">
                             No hay medicamentos agregados al surtido.
                         </td>
                     </tr>
@@ -1211,17 +1219,20 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             let html = '';
             cart.forEach((item, index) => {
                 let patientVal = document.getElementById('patient_name').value;
+                let fnacVal = document.getElementById('patient_fnac').value;
                 let serviceVal = document.getElementById('service_area').value;
+                let habVal = document.getElementById('patient_id').value;
                 let userVal = document.getElementById('user_name_hidden').value || '';
 
                 html += `
                     <tr class="hover:bg-slate-50">
                         <td class="p-2.5 font-bold text-slate-800">${item.item_search}</td>
+                        <td class="p-2.5 font-semibold uppercase text-xs">${item.via}</td>
                         <td class="p-2.5 font-medium text-xs">${item.type}</td>
                         <td class="p-2.5 text-xs text-slate-500">${item.warehouse}</td>
                         <td class="p-2.5 text-center font-bold text-sm text-slate-900">${item.quantity}</td>
                         <td class="p-2.5 text-center space-x-1">
-                            <a href="/etiquetas?patient=${encodeURIComponent(patientVal)}&item=${encodeURIComponent(item.item_search)}&qty=${encodeURIComponent(item.quantity)}&user=${encodeURIComponent(userVal)}&service=${encodeURIComponent(serviceVal)}" class="px-2 py-1 bg-purple-100 hover:bg-purple-200 text-purple-800 font-bold rounded text-[11px] inline-flex items-center gap-1">
+                            <a href="/etiquetas?patient=${encodeURIComponent(patientVal)}&fnac=${encodeURIComponent(fnacVal)}&item=${encodeURIComponent(item.item_search)}&via=${encodeURIComponent(item.via)}&qty=${encodeURIComponent(item.quantity)}&user=${encodeURIComponent(userVal)}&habitacion=${encodeURIComponent(habVal)}" class="px-2 py-1 bg-purple-100 hover:bg-purple-200 text-purple-800 font-bold rounded text-[11px] inline-flex items-center gap-1">
                                 <i class="fa-solid fa-tag"></i> Etiqueta
                             </a>
                             <button type="button" onclick="removeFromCart(${index})" class="px-2 py-1 bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold rounded text-xs transition">
@@ -1287,11 +1298,11 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             document.getElementById('v1_patient').innerText = pName || 'VENTURA CARLOS PETRONILO';
             document.getElementById('v1_fnac').innerText = pFnac || '14/07/1967';
             document.getElementById('v1_habitacion').innerText = pHab || 'UCI-5';
-            document.getElementById('v1_item').innerText = pItem || 'NIFEDIPINO 30 MG';
+            document.getElementById('v1_item').innerText = pItem || 'ACETATO DE METILPREDNISOLONA 40 MG (LOTE: C25A204)';
             document.getElementById('v1_via').innerText = pVia || 'ORAL';
             document.getElementById('v1_fprep').innerText = today;
             document.getElementById('v1_hora').innerText = timeNow;
-            document.getElementById('v1_dosis_cant').innerText = pDosisCant || '2 TAB';
+            document.getElementById('v1_dosis_cant').innerText = pDosisCant || '1 pza(s)';
             document.getElementById('v1_folio').innerText = pFolio || '--';
             document.getElementById('v1_user').innerText = pUser || '--';
 
@@ -1312,10 +1323,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             const urlParams = new URLSearchParams(window.location.search);
             if(urlParams.has('patient') || urlParams.has('item')) {
                 if(urlParams.get('patient')) document.getElementById('lbl_patient').value = urlParams.get('patient');
+                if(urlParams.get('fnac')) document.getElementById('lbl_fnac').value = urlParams.get('fnac');
                 if(urlParams.get('item')) document.getElementById('lbl_item').value = urlParams.get('item');
+                if(urlParams.get('via')) document.getElementById('lbl_via').value = urlParams.get('via');
                 if(urlParams.get('qty')) document.getElementById('lbl_dosis_cant').value = urlParams.get('qty') + ' pza(s)';
                 if(urlParams.get('user')) document.getElementById('lbl_user').value = urlParams.get('user');
-                if(urlParams.get('service')) document.getElementById('lbl_habitacion').value = urlParams.get('service');
+                if(urlParams.get('habitacion')) document.getElementById('lbl_habitacion').value = urlParams.get('habitacion');
                 updateLabelPreview();
             }
         }
@@ -1405,6 +1418,7 @@ def register_batch():
     user_id = request.form.get("user_id")
     pin = request.form.get("pin")
     patient_name = request.form.get("patient_name", "").strip()
+    patient_fnac = request.form.get("patient_fnac", "").strip()
     patient_id = request.form.get("patient_id", "").strip()
     service = request.form.get("service", "").strip()
     notes = request.form.get("notes", "").strip()
@@ -1435,21 +1449,12 @@ def register_batch():
 
     for cart_item in cart_items:
         item_search = cart_item.get("item_search", "").strip()
+        via_admin = cart_item.get("via", "ORAL")
         mov_type = cart_item.get("type")
         warehouse = cart_item.get("warehouse")
         quantity = int(cart_item.get("quantity", 1))
 
-        item = None
-        if item_search.startswith("[ID:") and "]" in item_search:
-            try:
-                item_id = int(item_search.split("[ID:")[1].split("]")[0])
-                item = Item.query.get(item_id)
-            except Exception:
-                item = None
-
-        if not item:
-            clean_code = item_search.split(" - ")[0] if " - " in item_search else item_search
-            item = Item.query.filter((Item.code == clean_code) | (Item.name.ilike(f"%{item_search}%"))).first()
+        item = Item.query.filter(Item.name.ilike(f"%{item_search}%")).first()
 
         if not item:
             continue
@@ -1485,7 +1490,7 @@ def register_batch():
         mov = Movement(
             timestamp=get_local_now(),
             item_code=item.code,
-            item_name=f"{item.name} (Lote: {item.lote or 'S/L'})",
+            item_name=f"{item.name} (Lote: {item.lote or 'S/L'}) [Vía: {via_admin}]",
             type=mov_type,
             quantity=quantity,
             warehouse=warehouse,
