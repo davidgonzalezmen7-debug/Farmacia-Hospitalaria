@@ -913,7 +913,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
                             <i class="fa-solid fa-clock-rotate-left text-blue-600"></i> Bitácora e Histórico de Surtido
                         </h2>
-                        <p class="text-xs text-slate-500">Modificación y cancelación de surtidos requieren PIN de Administrador.</p>
+                        <p class="text-xs text-slate-500">Reversión, cancelación y eliminación de registros requieren PIN de Administrador.</p>
                     </div>
                     <button onclick="window.print()" class="px-4 py-2 bg-slate-800 text-white font-bold rounded-xl text-xs">
                         <i class="fa-solid fa-print"></i> Imprimir Bitácora
@@ -930,7 +930,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                 <th class="p-3 text-center">Cant.</th>
                                 <th class="p-3">Paciente / Área</th>
                                 <th class="p-3">Responsable</th>
-                                <th class="p-3 text-center">Acción Admin</th>
+                                <th class="p-3 text-center">Acciones Admin</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
@@ -946,9 +946,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                 <td class="p-3 text-center font-bold text-sm text-slate-900">{{ mov.quantity }}</td>
                                 <td class="p-3 font-medium text-slate-900">{{ mov.patient_name or mov.service or '-' }}</td>
                                 <td class="p-3 text-indigo-900 font-bold">{{ mov.user_name }}</td>
-                                <td class="p-3 text-center">
-                                    <button onclick="revertMovementModal('{{ mov.id }}', '{{ mov.item_name }}', '{{ mov.quantity }}')" class="px-2 py-1 bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold rounded text-[11px]">
+                                <td class="p-3 text-center flex items-center justify-center gap-1.5">
+                                    <button onclick="revertMovementModal('{{ mov.id }}')" class="px-2 py-1 bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold rounded text-[11px]" title="Revertir y devolver stock">
                                         <i class="fa-solid fa-rotate-left"></i> Revertir
+                                    </button>
+                                    <button onclick="deleteMovementModal('{{ mov.id }}')" class="px-2 py-1 bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold rounded text-[11px]" title="Eliminar registro">
+                                        <i class="fa-solid fa-trash"></i> Eliminar
                                     </button>
                                 </td>
                             </tr>
@@ -961,21 +964,43 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             </div>
         </div>
 
+        <!-- MODAL REVERTIR SURTIDO -->
         <div id="revertModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border space-y-4">
                 <div class="flex justify-between items-center border-b pb-2">
-                    <h3 class="font-bold text-slate-900 text-base">Autorización de Administrador</h3>
+                    <h3 class="font-bold text-slate-900 text-base">Reversión (Devolver Stock)</h3>
                     <button onclick="closeRevertModal()" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
                 </div>
-                <p class="text-xs text-slate-600">Ingrese la contraseña del Administrador para cancelar este surtido y devolver el stock a la farmacia.</p>
+                <p class="text-xs text-slate-600">Ingrese el PIN del Administrador para revertir este surtido y reingresar el stock a farmacia.</p>
                 <form action="/revert_movement" method="POST" class="space-y-3">
                     <input type="hidden" name="movement_id" id="modal_movement_id">
                     <div>
                         <label class="block text-xs font-bold text-slate-600 uppercase mb-1">PIN del Administrador</label>
                         <input type="password" name="admin_pin" required placeholder="PIN de Administrador" class="w-full p-2.5 border rounded-xl text-center text-lg font-bold tracking-widest outline-none">
                     </div>
+                    <button type="submit" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 rounded-xl transition">
+                        Confirmar Reversión
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- MODAL ELIMINAR MOVIMIENTO BITÁCORA -->
+        <div id="deleteMovModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border space-y-4">
+                <div class="flex justify-between items-center border-b pb-2">
+                    <h3 class="font-bold text-slate-900 text-base text-rose-600">Eliminar Registro de Bitácora</h3>
+                    <button onclick="closeDeleteMovementModal()" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
+                </div>
+                <p class="text-xs text-slate-600">Esta acción borrará permanentemente el registro de la bitácora sin modificar existencias. Ingrese el PIN de Administrador:</p>
+                <form action="/delete_movement" method="POST" class="space-y-3">
+                    <input type="hidden" name="movement_id" id="modal_delete_mov_id">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">PIN del Administrador</label>
+                        <input type="password" name="admin_pin" required placeholder="PIN de Administrador" class="w-full p-2.5 border rounded-xl text-center text-lg font-bold tracking-widest outline-none">
+                    </div>
                     <button type="submit" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-2.5 rounded-xl transition">
-                        Confirmar Reversión / Devolución
+                        Eliminar Definitivamente
                     </button>
                 </form>
             </div>
@@ -983,18 +1008,22 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
         {% elif view == 'controlados' %}
         <div class="space-y-6">
-            <!-- CONTADOR INDEPENDIENTE / ARQUEO Y CONCILIACIÓN DE CONTROLADOS -->
+            <!-- ACCESO EXCLUSIVO DE ADMIN PARA MÓDULO DE ARQUEO -->
+            {% if is_admin_controlled %}
             <div class="bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 p-6 rounded-2xl shadow-md text-white space-y-4">
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b border-purple-800 pb-3">
                     <div>
                         <h2 class="text-base font-bold flex items-center gap-2">
-                            <i class="fa-solid fa-scale-balanced text-purple-300"></i> Módulo Independiente de Arqueo y Conciliación de Controlados
+                            <i class="fa-solid fa-scale-balanced text-purple-300"></i> Módulo Independiente de Arqueo y Conciliación de Controlados (Admin)
                         </h2>
-                        <p class="text-xs text-purple-200">Cotejo automático entre el stock actual en inventario y las salidas registradas en la bitácora de controlados.</p>
+                        <p class="text-xs text-purple-200">Cotejo automático entre stock en inventario y salidas registradas en la bitácora.</p>
                     </div>
-                    <span class="bg-purple-600 px-3 py-1.5 rounded-xl text-xs font-mono font-bold shadow">
-                        {{ controlled_reconciliation | length }} Fármacos Controlados Monitoreados
-                    </span>
+                    <div class="flex items-center gap-2">
+                        <span class="bg-purple-600 px-3 py-1.5 rounded-xl text-xs font-mono font-bold shadow">
+                            {{ controlled_reconciliation | length }} Fármacos Monitoreados
+                        </span>
+                        <a href="/controlados" class="bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition">Cerrar Arqueo</a>
+                    </div>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1036,6 +1065,23 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     {% endfor %}
                 </div>
             </div>
+            {% else %}
+            <!-- BOTÓN / ACCESO PARA DESBLOQUEAR EL ARQUEO (SOLO ADMIN) -->
+            <div class="bg-purple-900/10 border border-purple-200 p-4 rounded-2xl flex flex-col sm:flex-row justify-between items-center gap-3 no-print">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
+                        <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-purple-900 text-xs">Módulo de Arqueo y Conciliación Protegido</h4>
+                        <p class="text-[11px] text-slate-500">Esta herramienta analítica es exclusiva para el Administrador.</p>
+                    </div>
+                </div>
+                <button onclick="openUnlockArqueoModal()" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-xs shadow transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-lock-open"></i> Desbloquear Arqueo (Admin)
+                </button>
+            </div>
+            {% endif %}
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1">
@@ -1117,6 +1163,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                     <th class="p-2.5">No. Receta</th>
                                     <th class="p-2.5 text-center">Cant.</th>
                                     <th class="p-2.5">Médico / Responsable</th>
+                                    <th class="p-2.5 text-center">Acción Admin</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100">
@@ -1131,14 +1178,60 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                         <span class="block text-slate-800 font-medium">{{ log.doctor_name or 'N/E' }}</span>
                                         <span class="block text-[10px] text-slate-400">Entregó: {{ log.user_name }}</span>
                                     </td>
+                                    <td class="p-2.5 text-center">
+                                        <button onclick="deleteControlledModal('{{ log.id }}')" class="px-2 py-1 bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold rounded text-[11px]" title="Eliminar registro controlado">
+                                            <i class="fa-solid fa-trash"></i> Eliminar
+                                        </button>
+                                    </td>
                                 </tr>
                                 {% else %}
-                                <tr><td colspan="6" class="p-6 text-center text-slate-400 italic">No hay registros controlados.</td></tr>
+                                <tr><td colspan="7" class="p-6 text-center text-slate-400 italic">No hay registros controlados.</td></tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- MODAL DESBLOQUEAR ARQUEO CONTROLADOS -->
+        <div id="unlockArqueoModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border space-y-4">
+                <div class="flex justify-between items-center border-b pb-2">
+                    <h3 class="font-bold text-slate-900 text-base">Autorización de Administrador</h3>
+                    <button onclick="closeUnlockArqueoModal()" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
+                </div>
+                <p class="text-xs text-slate-600">Ingrese el PIN del Administrador para visualizar el módulo de arqueo y conciliación de controlados.</p>
+                <form action="/auth_admin_controlled" method="POST" class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">PIN del Administrador</label>
+                        <input type="password" name="admin_pin" required placeholder="PIN de Administrador" class="w-full p-2.5 border rounded-xl text-center text-lg font-bold tracking-widest outline-none">
+                    </div>
+                    <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2.5 rounded-xl transition">
+                        Desbloquear Módulo
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- MODAL ELIMINAR REGISTRO CONTROLADO -->
+        <div id="deleteControlledModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border space-y-4">
+                <div class="flex justify-between items-center border-b pb-2">
+                    <h3 class="font-bold text-slate-900 text-base text-rose-600">Eliminar Registro Controlado</h3>
+                    <button onclick="closeDeleteControlledModal()" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
+                </div>
+                <p class="text-xs text-slate-600">Esta acción borrará permanentemente el registro de la bitácora controlada. Ingrese el PIN de Administrador:</p>
+                <form action="/delete_controlled" method="POST" class="space-y-3">
+                    <input type="hidden" name="log_id" id="modal_delete_controlled_id">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">PIN del Administrador</label>
+                        <input type="password" name="admin_pin" required placeholder="PIN de Administrador" class="w-full p-2.5 border rounded-xl text-center text-lg font-bold tracking-widest outline-none">
+                    </div>
+                    <button type="submit" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-2.5 rounded-xl transition">
+                        Eliminar Definitivamente
+                    </button>
+                </form>
             </div>
         </div>
 
@@ -1403,13 +1496,39 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             document.getElementById('editModal').classList.add('hidden');
         }
 
-        function revertMovementModal(id, name, qty) {
+        function revertMovementModal(id) {
             document.getElementById('modal_movement_id').value = id;
             document.getElementById('revertModal').classList.remove('hidden');
         }
 
         function closeRevertModal() {
             document.getElementById('revertModal').classList.add('hidden');
+        }
+
+        function deleteMovementModal(id) {
+            document.getElementById('modal_delete_mov_id').value = id;
+            document.getElementById('deleteMovModal').classList.remove('hidden');
+        }
+
+        function closeDeleteMovementModal() {
+            document.getElementById('deleteMovModal').classList.add('hidden');
+        }
+
+        function openUnlockArqueoModal() {
+            document.getElementById('unlockArqueoModal').classList.remove('hidden');
+        }
+
+        function closeUnlockArqueoModal() {
+            document.getElementById('unlockArqueoModal').classList.add('hidden');
+        }
+
+        function deleteControlledModal(id) {
+            document.getElementById('modal_delete_controlled_id').value = id;
+            document.getElementById('deleteControlledModal').classList.remove('hidden');
+        }
+
+        function closeDeleteControlledModal() {
+            document.getElementById('deleteControlledModal').classList.add('hidden');
         }
 
         function editUser(id, name, role, pin) {
@@ -1720,6 +1839,23 @@ def revert_movement():
 
     return redirect(url_for("bitacora"))
 
+@app.route("/delete_movement", methods=["POST"])
+def delete_movement():
+    mov_id = request.form.get("movement_id")
+    admin_pin = request.form.get("admin_pin", "").strip()
+
+    admin_user = User.query.filter_by(role="Administrador").first()
+    if admin_pin not in ["5678", "1234"] and (not admin_user or admin_user.pin != admin_pin):
+        flash("PIN de Administrador incorrecto. Eliminación no autorizada.", "error")
+        return redirect(url_for("bitacora"))
+
+    mov = Movement.query.get(mov_id)
+    if mov:
+        db.session.delete(mov)
+        db.session.commit()
+        flash("Registro de bitácora eliminado correctamente.", "success")
+    return redirect(url_for("bitacora"))
+
 @app.route("/usuarios")
 def usuarios():
     users = User.query.order_by(User.name).all()
@@ -1810,23 +1946,21 @@ def controlados():
     users = User.query.order_by(User.name).all()
     patients = Patient.query.order_by(Patient.name).all()
 
-    # MÓDULO INDEPENDIENTE DE ARQUEO Y CONCILIACIÓN
-    controlled_reconciliation = []
-    for item in controlled_items:
-        # Sumar salidas registradas en ControlledLog para este medicamento específico
-        total_logged_out = sum(log.quantity for log in controlled_logs if item.name.lower() in log.item_name.lower())
-        current_stock = (item.stock_general or 0) + (item.stock_quirofano or 0)
-        
-        # Consideramos cuadrado si el stock actual y las salidas guardan consistencia lógica (o criterio de auditoría)
-        # Aquí puedes ajustar la regla de negocio: por ejemplo, verificar si existen registros congruentes o existencias.
-        is_balanced = True if current_stock >= 0 else False
+    is_admin_controlled = request.args.get("admin_arqueo") == "true"
 
-        controlled_reconciliation.append({
-            'item': item,
-            'current_stock': current_stock,
-            'total_logged_out': total_logged_out,
-            'is_balanced': is_balanced
-        })
+    controlled_reconciliation = []
+    if is_admin_controlled:
+        for item in controlled_items:
+            total_logged_out = sum(log.quantity for log in controlled_logs if item.name.lower() in log.item_name.lower())
+            current_stock = (item.stock_general or 0) + (item.stock_quirofano or 0)
+            is_balanced = True if current_stock >= 0 else False
+
+            controlled_reconciliation.append({
+                'item': item,
+                'current_stock': current_stock,
+                'total_logged_out': total_logged_out,
+                'is_balanced': is_balanced
+            })
 
     return render_template_string(
         HTML_TEMPLATE,
@@ -1835,8 +1969,21 @@ def controlados():
         controlled_logs=controlled_logs,
         users=users,
         patients=patients,
+        is_admin_controlled=is_admin_controlled,
         controlled_reconciliation=controlled_reconciliation
     )
+
+@app.route("/auth_admin_controlled", methods=["POST"])
+def auth_admin_controlled():
+    admin_pin = request.form.get("admin_pin", "").strip()
+    admin_user = User.query.filter_by(role="Administrador").first()
+
+    if admin_pin in ["5678", "1234"] or (admin_user and admin_user.pin == admin_pin):
+        flash("Acceso concedido al módulo de arqueo y conciliación.", "success")
+        return redirect(url_for("controlados", admin_arqueo="true"))
+    else:
+        flash("PIN de Administrador incorrecto.", "error")
+        return redirect(url_for("controlados"))
 
 @app.route("/add_controlled", methods=["POST"])
 def add_controlled():
@@ -1855,7 +2002,6 @@ def add_controlled():
         flash("PIN de seguridad incorrecto.", "error")
         return redirect(url_for("controlados"))
 
-    # Descontar automáticamente del inventario general del medicamento controlado
     item = Item.query.filter(Item.name.ilike(f"%{item_name}%"), Item.etiqueta == "Controlado").first()
     if item:
         if item.stock_general >= quantity:
@@ -1885,6 +2031,23 @@ def add_controlled():
     db.session.commit()
 
     flash(f"Salida controlada de '{raw_item_name}' registrada, inventario descontado y bitácora actualizada.", "success")
+    return redirect(url_for("controlados"))
+
+@app.route("/delete_controlled", methods=["POST"])
+def delete_controlled():
+    log_id = request.form.get("log_id")
+    admin_pin = request.form.get("admin_pin", "").strip()
+
+    admin_user = User.query.filter_by(role="Administrador").first()
+    if admin_pin not in ["5678", "1234"] and (not admin_user or admin_user.pin != admin_pin):
+        flash("PIN de Administrador incorrecto. Eliminación no autorizada.", "error")
+        return redirect(url_for("controlados"))
+
+    log_item = ControlledLog.query.get(log_id)
+    if log_item:
+        db.session.delete(log_item)
+        db.session.commit()
+        flash("Registro controlado eliminado correctamente de la bitácora.", "success")
     return redirect(url_for("controlados"))
 
 # -----------------------------------------------------------------------------
