@@ -103,7 +103,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             header, nav, .no-print, button, form { display: none !important; }
             body { background-color: white !important; }
             .print-container { width: 100% !important; margin: 0 !important; padding: 0 !important; }
-            .printable-label { border: 2px dashed #000 !important; box-shadow: none !important; }
+            .printable-label { border: 2px solid #000 !important; box-shadow: none !important; page-break-inside: avoid; }
         }
     </style>
 </head>
@@ -320,101 +320,156 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         </div>
 
         {% elif view == 'etiquetas' %}
-        <div class="space-y-6 max-w-4xl mx-auto">
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 no-print">
-                <div class="border-b pb-3 mb-4 flex justify-between items-center">
+        <div class="space-y-6 max-w-5xl mx-auto">
+            <form action="/save_patient_from_label" method="POST" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 no-print">
+                <div class="border-b pb-3 mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                     <div>
                         <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
-                            <i class="fa-solid fa-tags text-purple-600"></i> Generador de Etiquetas de Dispensación
+                            <i class="fa-solid fa-tags text-purple-600"></i> Generador de Formatos de Etiquetas Hospitalarias
                         </h2>
-                        <p class="text-xs text-slate-500">Complete los datos para generar una etiqueta adhesiva con la información del paciente y medicamento.</p>
+                        <p class="text-xs text-slate-500">Seleccione el formato y complete los datos para generar e imprimir la etiqueta exacta.</p>
                     </div>
-                    <button onclick="window.print()" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold shadow transition flex items-center gap-2">
-                        <i class="fa-solid fa-print"></i> Imprimir Etiqueta
-                    </button>
+                    <div class="flex gap-2 w-full sm:w-auto">
+                        <button type="submit" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow transition flex items-center justify-center gap-1.5">
+                            <i class="fa-solid fa-user-plus"></i> Guardar Paciente
+                        </button>
+                        <button type="button" onclick="window.print()" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold shadow transition flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-print"></i> Imprimir Etiquetas
+                        </button>
+                    </div>
+                </div>
+
+                <!-- SELECTOR DE FORMATO -->
+                <div class="mb-4 flex gap-4 bg-purple-50 p-3 rounded-xl border border-purple-200">
+                    <label class="flex items-center gap-2 font-bold text-xs text-purple-900 cursor-pointer">
+                        <input type="radio" name="format_type" value="vertical" checked onchange="toggleLabelFormat()" class="text-purple-600">
+                        <span>🏷️ Formato 1: Etiqueta Vertical (Datos Paciente / Nifedipino)</span>
+                    </label>
+                    <label class="flex items-center gap-2 font-bold text-xs text-purple-900 cursor-pointer">
+                        <input type="radio" name="format_type" value="horizontal" onchange="toggleLabelFormat()" class="text-purple-600">
+                        <span>🏷️ Formato 2: Etiqueta Horizontal Unidosis (Paracetamol / Lote / Caducidad)</span>
+                    </label>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="space-y-3">
                         <div>
                             <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nombre del Paciente</label>
-                            <input type="text" id="lbl_patient" placeholder="Ej. Juan Pérez García" oninput="updateLabelPreview()" class="w-full p-2 border rounded-lg text-xs bg-slate-50 font-medium outline-none">
+                            <input type="text" id="lbl_patient" name="patient_name" list="patients_datalist" placeholder="Ej. Ventura Carlos Petronilo" oninput="updateLabelPreview()" required class="w-full p-2 border rounded-lg text-xs bg-slate-50 font-medium outline-none">
                         </div>
                         <div class="grid grid-cols-2 gap-2">
                             <div>
-                                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">No. Expediente / Cama</label>
-                                <input type="text" id="lbl_exp" placeholder="Ej. EXP-1029 / Cama 3" oninput="updateLabelPreview()" class="w-full p-2 border rounded-lg text-xs bg-slate-50 outline-none">
+                                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Fecha de Nacimiento</label>
+                                <input type="text" id="lbl_fnac" placeholder="Ej. 14/07/1967" oninput="updateLabelPreview()" class="w-full p-2 border rounded-lg text-xs bg-slate-50 outline-none">
                             </div>
                             <div>
-                                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Servicio / Área</label>
-                                <input type="text" id="lbl_service" placeholder="Ej. Hospitalización" oninput="updateLabelPreview()" class="w-full p-2 border rounded-lg text-xs bg-slate-50 outline-none">
+                                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Habitación / UCI / Cama</label>
+                                <input type="text" id="lbl_habitacion" placeholder="Ej. UCI-5" oninput="updateLabelPreview()" class="w-full p-2 border rounded-lg text-xs bg-slate-50 outline-none">
                             </div>
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Medicamento / Insumo</label>
-                            <input list="items_list" id="lbl_item" placeholder="Seleccione o escriba medicamento..." oninput="updateLabelPreview()" class="w-full p-2 border rounded-lg text-xs bg-slate-50 font-bold outline-none">
+                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Medicamento / Dosis (Título Grande)</label>
+                            <input list="items_list" id="lbl_item" placeholder="Ej. NIFEDIPINO 30 MG" oninput="updateLabelPreview()" class="w-full p-2 border rounded-lg text-xs bg-slate-50 font-bold outline-none">
                         </div>
                     </div>
 
                     <div class="space-y-3">
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Vía de Administración</label>
+                                <input type="text" id="lbl_via" placeholder="Ej. ORAL" oninput="updateLabelPreview()" class="w-full p-2 border rounded-lg text-xs bg-slate-50 outline-none font-bold">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Dosis / Cantidad (Ej. 2 TAB)</label>
+                                <input type="text" id="lbl_dosis_cant" placeholder="Ej. 2 TAB" oninput="updateLabelPreview()" class="w-full p-2 border rounded-lg text-xs bg-slate-50 outline-none font-bold">
+                            </div>
+                        </div>
                         <div class="grid grid-cols-3 gap-2">
                             <div>
-                                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Cantidad</label>
-                                <input type="text" id="lbl_qty" placeholder="Ej. 1 pza" oninput="updateLabelPreview()" class="w-full p-2 border rounded-lg text-xs bg-slate-50 text-center font-bold outline-none">
-                            </div>
-                            <div>
                                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Lote</label>
-                                <input type="text" id="lbl_lote" placeholder="Ej. LOT-9912" oninput="updateLabelPreview()" class="w-full p-2 border rounded-lg text-xs bg-slate-50 text-center outline-none">
+                                <input type="text" id="lbl_lote" placeholder="Ej. SJ2544" oninput="updateLabelPreview()" class="w-full p-2 border rounded-lg text-xs bg-slate-50 text-center outline-none">
                             </div>
                             <div>
-                                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Caducidad</label>
-                                <input type="date" id="lbl_cad" oninput="updateLabelPreview()" class="w-full p-2 border rounded-lg text-xs bg-slate-50 text-center outline-none">
+                                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Folio</label>
+                                <input type="text" id="lbl_folio" placeholder="Ej. 71" oninput="updateLabelPreview()" class="w-full p-2 border rounded-lg text-xs bg-slate-50 text-center outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Caducidad / Vigencia</label>
+                                <input type="text" id="lbl_cad" placeholder="Ej. 10/01/2027" oninput="updateLabelPreview()" class="w-full p-2 border rounded-lg text-xs bg-slate-50 text-center outline-none">
                             </div>
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Dosis / Indicaciones</label>
-                            <input type="text" id="lbl_dosis" placeholder="Ej. 1 tableta cada 8 horas vía oral" oninput="updateLabelPreview()" class="w-full p-2 border rounded-lg text-xs bg-slate-50 outline-none">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Personal Responsable</label>
-                            <input type="text" id="lbl_user" placeholder="Ej. Ing. / Farmacéutico" oninput="updateLabelPreview()" class="w-full p-2 border rounded-lg text-xs bg-slate-50 outline-none">
+                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Responsable / Preparó</label>
+                            <input type="text" id="lbl_user" placeholder="Ej. GODINEZ RUIZ" oninput="updateLabelPreview()" class="w-full p-2 border rounded-lg text-xs bg-slate-50 outline-none">
                         </div>
                     </div>
                 </div>
-            </div>
+            </form>
 
-            <!-- VISTA PREVIA DE LA ETIQUETA ADHESIVA -->
+            <!-- VISTA PREVIA DE LAS ETIQUETAS -->
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center space-y-4">
-                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 no-print">Previsualización de la Etiqueta (Formato Térmico)</h3>
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 no-print">Previsualización de la Etiqueta Seleccionada</h3>
                 
-                <div class="printable-label max-w-md mx-auto bg-white border-2 border-slate-800 rounded-xl p-5 text-left shadow-md space-y-3 font-mono text-slate-900">
-                    <div class="border-b-2 border-slate-800 pb-2 flex justify-between items-center">
-                        <span class="font-extrabold text-xs tracking-tight uppercase">🏥 FARMACIA HOSPITALARIA</span>
-                        <span class="text-[10px] bg-slate-900 text-white px-2 py-0.5 rounded font-bold" id="prev_fecha">--/--/----</span>
-                    </div>
-
-                    <div class="space-y-1 text-xs">
-                        <div><strong class="text-slate-500">PACIENTE:</strong> <span id="prev_patient" class="font-bold uppercase">--</span></div>
-                        <div class="grid grid-cols-2">
-                            <div><strong class="text-slate-500">EXP/CAMA:</strong> <span id="prev_exp">--</span></div>
-                            <div><strong class="text-slate-500">SERV:</strong> <span id="prev_service">--</span></div>
+                <!-- CONTENEDOR FORMATO 1: VERTICAL -->
+                <div id="previewVertical" class="printable-label w-[280px] mx-auto bg-white border-2 border-slate-900 rounded-lg p-3 text-left shadow-md space-y-2 font-mono text-slate-900">
+                    <div class="border-b border-slate-900 pb-1.5 flex justify-between items-start">
+                        <div>
+                            <div class="font-extrabold text-[13px] uppercase leading-tight" id="v_patient">VENTURA CARLOS PETRONILO</div>
+                            <div class="text-[10px] text-slate-600 mt-0.5">Fecha de nacimiento: <span id="v_fnac" class="font-bold">14/07/1967</span></div>
+                            <div class="text-[10px] text-slate-600">Habitación: <span id="v_habitacion" class="font-bold">UCI-5</span></div>
+                        </div>
+                        <div class="text-right font-extrabold text-[10px]">
+                            <span class="border border-slate-900 px-1 py-0.5 rounded">HD</span>
                         </div>
                     </div>
 
-                    <div class="bg-slate-100 p-2.5 rounded border border-slate-300 space-y-1">
-                        <div class="text-xs font-bold text-blue-900" id="prev_item">-- MEDICAMENTO --</div>
-                        <div class="text-[11px]" id="prev_dosis">Indicaciones: --</div>
+                    <div class="py-2 text-center border-b border-slate-900">
+                        <div class="font-extrabold text-sm tracking-wide text-blue-900 uppercase" id="v_item">NIFEDIPINO 30 MG</div>
                     </div>
 
-                    <div class="grid grid-cols-3 gap-2 text-[11px] border-t border-slate-300 pt-2">
-                        <div><strong>CANT:</strong> <span id="prev_qty">--</span></div>
-                        <div><strong>LOTE:</strong> <span id="prev_lote">--</span></div>
-                        <div><strong>CAD:</strong> <span id="prev_cad">--</span></div>
+                    <div class="grid grid-cols-2 gap-1 text-[11px]">
+                        <div>Vía: <strong id="v_via" class="uppercase">ORAL</strong></div>
+                        <div>F. prep: <span id="v_fprep">--/--/----</span></div>
                     </div>
 
-                    <div class="text-[10px] text-slate-500 border-t border-dashed pt-1 flex justify-between">
-                        <span>ENTREGÓ: <span id="prev_user" class="font-bold text-slate-700">--</span></span>
-                        <span>DISPENSACIÓN SEGURA</span>
+                    <div class="flex justify-between items-center border border-slate-900 p-1 text-xs font-bold">
+                        <div>Hora: <span id="v_hora">--:--</span></div>
+                        <div class="bg-slate-200 px-2 py-0.5 rounded" id="v_dosis_cant">2 TAB</div>
+                    </div>
+
+                    <div class="flex justify-between text-[10px] pt-1 text-slate-600 border-t border-dashed">
+                        <span>Folio: <strong id="v_folio">--</strong></span>
+                        <span>Prep: <span id="v_user" class="uppercase">--</span></span>
+                    </div>
+                </div>
+
+                <!-- CONTENEDOR FORMATO 2: HORIZONTAL UNIDOSIS -->
+                <div id="previewHorizontal" class="printable-label hidden w-[450px] mx-auto bg-white border-2 border-slate-900 rounded-lg p-3 text-left shadow-md space-y-2 font-mono text-slate-900">
+                    <div class="border-b border-slate-900 pb-1 flex justify-between items-center">
+                        <span class="font-extrabold text-[10px] uppercase">Denominación genérica o distintiva</span>
+                        <span class="text-[9px]" id="h_fprep">Fecha y hora de preparación: --/--/----</span>
+                    </div>
+
+                    <div>
+                        <div class="font-extrabold text-base uppercase text-blue-900" id="h_item">PARACETAMOL</div>
+                    </div>
+
+                    <div class="grid grid-cols-4 gap-1 text-[10px] border-t border-b border-slate-300 py-1">
+                        <div>Dosis:<br><strong id="h_dosis_cant">500 mg</strong></div>
+                        <div>Forma farma.:<br><strong id="h_forma">Tableta</strong></div>
+                        <div>Lote:<br><strong id="h_lote">SJ2544</strong></div>
+                        <div>Fabricante:<br><strong>BIOMEP</strong></div>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-1 text-[10px]">
+                        <div>Vía adminis.:<br><strong id="h_via" class="uppercase">Oral</strong></div>
+                        <div>Folio:<br><strong id="h_folio">71</strong></div>
+                        <div>Vigencia:<br><strong id="h_cad">10/01/2027</strong></div>
+                    </div>
+
+                    <div class="border-t border-dashed pt-1 flex justify-between text-[9px] text-slate-600">
+                        <span>Paciente: <strong id="h_patient" class="uppercase">--</strong></span>
+                        <span>Se preparó: <strong id="h_user" class="uppercase">--</strong></span>
                     </div>
                 </div>
 
@@ -1165,29 +1220,57 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             }
         }
 
+        function toggleLabelFormat() {
+            const formatType = document.querySelector('input[name="format_type"]:checked').value;
+            const vPreview = document.getElementById('previewVertical');
+            const hPreview = document.getElementById('previewHorizontal');
+
+            if (formatType === 'vertical') {
+                vPreview.classList.remove('hidden');
+                hPreview.classList.add('hidden');
+            } else {
+                vPreview.classList.add('hidden');
+                hPreview.classList.remove('hidden');
+            }
+        }
+
         function updateLabelPreview() {
             const pName = document.getElementById('lbl_patient').value.trim();
-            const pExp = document.getElementById('lbl_exp').value.trim();
-            const pServ = document.getElementById('lbl_service').value.trim();
+            const pFnac = document.getElementById('lbl_fnac').value.trim();
+            const pHab = document.getElementById('lbl_habitacion').value.trim();
             const pItem = document.getElementById('lbl_item').value.trim();
-            const pQty = document.getElementById('lbl_qty').value.trim();
+            const pVia = document.getElementById('lbl_via').value.trim();
+            const pDosisCant = document.getElementById('lbl_dosis_cant').value.trim();
             const pLote = document.getElementById('lbl_lote').value.trim();
+            const pFolio = document.getElementById('lbl_folio').value.trim();
             const pCad = document.getElementById('lbl_cad').value.trim();
-            const pDosis = document.getElementById('lbl_dosis').value.trim();
             const pUser = document.getElementById('lbl_user').value.trim();
 
-            document.getElementById('prev_patient').innerText = pName || '--';
-            document.getElementById('prev_exp').innerText = pExp || '--';
-            document.getElementById('prev_service').innerText = pServ || '--';
-            document.getElementById('prev_item').innerText = pItem || '-- MEDICAMENTO --';
-            document.getElementById('prev_qty').innerText = pQty || '--';
-            document.getElementById('prev_lote').innerText = pLote || '--';
-            document.getElementById('prev_cad').innerText = pCad || '--';
-            document.getElementById('prev_dosis').innerText = 'Indicaciones: ' + (pDosis || '--');
-            document.getElementById('prev_user').innerText = pUser || '--';
-
             const today = new Date().toLocaleDateString('es-MX');
-            document.getElementById('prev_fecha').innerText = today;
+
+            // Actualizar Formato Vertical
+            document.getElementById('v_patient').innerText = pName || 'VENTURA CARLOS PETRONILO';
+            document.getElementById('v_fnac').innerText = pFnac || '14/07/1967';
+            document.getElementById('v_habitacion').innerText = pHab || 'UCI-5';
+            document.getElementById('v_item').innerText = pItem || 'NIFEDIPINO 30 MG';
+            document.getElementById('v_via').innerText = pVia || 'ORAL';
+            document.getElementById('v_fprep').innerText = today;
+            document.getElementById('v_hora').innerText = new Date().toLocaleTimeString('es-MX', {hour: '2-digit', minute:'2-digit'});
+            document.getElementById('v_dosis_cant').innerText = pDosisCant || '2 TAB';
+            document.getElementById('v_folio').innerText = pFolio || '--';
+            document.getElementById('v_user').innerText = pUser || '--';
+
+            // Actualizar Formato Horizontal Unidosis
+            document.getElementById('h_patient').innerText = pName || '--';
+            document.getElementById('h_fprep').innerText = 'Fecha y hora de preparación: ' + today + ' ' + new Date().toLocaleTimeString('es-MX', {hour: '2-digit', minute:'2-digit'});
+            document.getElementById('h_item').innerText = pItem || 'PARACETAMOL';
+            document.getElementById('h_dosis_cant').innerText = pDosisCant || '500 mg';
+            document.getElementById('h_forma').innerText = pVia || 'Tableta';
+            document.getElementById('h_lote').innerText = pLote || 'SJ2544';
+            document.getElementById('h_via').innerText = pVia || 'Oral';
+            document.getElementById('h_folio').innerText = pFolio || '71';
+            document.getElementById('h_cad').innerText = pCad || '10/01/2027';
+            document.getElementById('h_user').innerText = pUser || '--';
         }
 
         function openEditItemModal(id, code, name, category, via, pres, etiq, lote, cad, gen, qx) {
@@ -1225,6 +1308,11 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             document.getElementById('edit_user_role').value = role;
             document.getElementById('edit_user_pin').value = pin;
         }
+
+        // Inicializar preview al cargar
+        window.onload = function() {
+            updateLabelPreview();
+        };
     </script>
 </body>
 </html>
@@ -1248,6 +1336,22 @@ def etiquetas():
     patients = Patient.query.order_by(Patient.name).all()
     users = User.query.order_by(User.name).all()
     return render_template_string(HTML_TEMPLATE, view="etiquetas", items=items, patients=patients, users=users)
+
+@app.route("/save_patient_from_label", methods=["POST"])
+def save_patient_from_label():
+    patient_name = request.form.get("patient_name", "").strip()
+    if patient_name:
+        existing = Patient.query.filter_by(name=patient_name).first()
+        if not existing:
+            new_p = Patient(name=patient_name)
+            db.session.add(new_p)
+            db.session.commit()
+            flash(f"Paciente '{patient_name}' guardado exitosamente en el catálogo.", "success")
+        else:
+            flash(f"El paciente '{patient_name}' ya se encontraba registrado.", "success")
+    else:
+        flash("Por favor ingrese un nombre de paciente válido.", "error")
+    return redirect(url_for("etiquetas"))
 
 @app.route("/register_batch", methods=["POST"])
 def register_batch():
@@ -1392,7 +1496,6 @@ def limpieza():
     cleaning_logs = CleaningLog.query.order_by(CleaningLog.timestamp.desc()).all()
     users = User.query.order_by(User.id).all()
     
-    # EXCLUSIÓN ESTRICTA DE ADMINISTRADORES
     operational_users = User.query.filter(User.role != "Administrador").order_by(User.id).all()
 
     now = get_local_now()
@@ -1406,7 +1509,6 @@ def limpieza():
         last_day = first_day + timedelta(days=6)
         return f"{first_day.strftime('%d/%m')} al {last_day.strftime('%d/%m')}"
 
-    # CATÁLOGO DE ACTIVIDADES A ROTAR ENTRE LOS USUARIOS OPERATIVOS
     cleaning_tasks = [
         "🗄️ Sanitización Diaria de Anaqueles y Estantes",
         "💊 Limpieza Diaria de Cajones Unidosis",
@@ -1420,7 +1522,6 @@ def limpieza():
         num_tasks = len(cleaning_tasks)
 
         for idx, u in enumerate(operational_users):
-            # CÁLCULO DE LA ACTIVIDAD SEGÚN LA SEMANA ACTUAL Y EL ÍNDICE DEL USUARIO
             task_index_this_week = (current_week + idx) % num_tasks
             task_index_next_week = (current_week + 1 + idx) % num_tasks
 
@@ -1618,6 +1719,12 @@ def add_controlled():
         flash("PIN de seguridad incorrecto.", "error")
         return redirect(url_for("controlados"))
 
+    if patient_name:
+        existing_patient = Patient.query.filter_by(name=patient_name).first()
+        if not existing_patient:
+            new_p = Patient(name=patient_name)
+            db.session.add(new_p)
+
     new_log = ControlledLog(
         timestamp=get_local_now(),
         item_name=item_name,
@@ -1630,7 +1737,7 @@ def add_controlled():
     db.session.add(new_log)
     db.session.commit()
 
-    flash(f"Salida controlada de '{item_name}' registrada.", "success")
+    flash(f"Salida controlada de '{item_name}' registrada y paciente guardado.", "success")
     return redirect(url_for("controlados"))
 
 # -----------------------------------------------------------------------------
