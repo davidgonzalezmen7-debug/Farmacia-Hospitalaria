@@ -347,7 +347,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     </label>
                     <label class="flex items-center gap-2 font-bold text-xs text-purple-900 cursor-pointer">
                         <input type="radio" name="format_type" value="horizontal2" onchange="toggleLabelFormat()" class="text-purple-600">
-                        <span>🏷️ Formato 2: Etiqueta Horizontal Unidosis (Sin apartado de Paciente)</span>
+                        <span>🏷️ Formato 2: Etiqueta Horizontal Unidosis (Sin apartado de Paciente + Logo Hospital Obregón)</span>
                     </label>
                 </div>
 
@@ -411,14 +411,14 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 no-print">Previsualización de la Etiqueta Seleccionada</h3>
                 
                 <!-- CONTENEDOR FORMATO 1: HORIZONTAL CON PACIENTE Y LOGO HOSPITAL OBREGÓN -->
-                <div id="previewHoriz1" class="printable-label w-[420px] mx-auto bg-white border-2 border-slate-900 rounded-lg p-3 text-left shadow-md space-y-2 font-mono text-slate-900">
-                    <div class="border-b border-slate-900 pb-1.5 flex justify-between items-center">
+                <div id="previewHoriz1" class="printable-label w-[450px] mx-auto bg-white border-2 border-slate-900 rounded-lg p-3.5 text-left shadow-md space-y-2 font-mono text-slate-900">
+                    <div class="border-b border-slate-900 pb-2 flex justify-between items-center">
                         <div>
                             <div class="font-extrabold text-xs uppercase leading-tight" id="v1_patient">VENTURA CARLOS PETRONILO</div>
                             <div class="text-[10px] text-slate-600 mt-0.5">Fecha de nacimiento: <span id="v1_fnac" class="font-bold">14/07/1967</span> | Habitación: <span id="v1_habitacion" class="font-bold">UCI-5</span></div>
                         </div>
                         <!-- LOGO HOSPITAL OBREGÓN -->
-                        <div class="text-right flex items-center gap-1 border border-slate-800 px-2 py-1 rounded bg-slate-50">
+                        <div class="text-right flex items-center gap-1.5 border border-slate-800 px-2 py-1 rounded bg-slate-50">
                             <span class="font-extrabold text-sm tracking-tighter text-blue-900">HD</span>
                             <div class="text-[8px] leading-tight font-bold uppercase text-slate-800">
                                 Hospital<br>Obregón
@@ -446,31 +446,40 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     </div>
                 </div>
 
-                <!-- CONTENEDOR FORMATO 2: HORIZONTAL UNIDOSIS (SIN APARTADO PACIENTE) -->
-                <div id="previewHoriz2" class="printable-label hidden w-[420px] mx-auto bg-white border-2 border-slate-900 rounded-lg p-3 text-left shadow-md space-y-2 font-mono text-slate-900">
-                    <div class="border-b border-slate-900 pb-1 flex justify-between items-center">
-                        <span class="font-extrabold text-[10px] uppercase">Denominación genérica o distintiva</span>
-                        <span class="text-[9px]" id="h2_fprep">Fecha y hora de preparación: --/--/----</span>
+                <!-- CONTENEDOR FORMATO 2: HORIZONTAL UNIDOSIS (SIN PACIENTE + LOGO HOSPITAL OBREGÓN) -->
+                <div id="previewHoriz2" class="printable-label hidden w-[450px] mx-auto bg-white border-2 border-slate-900 rounded-lg p-3.5 text-left shadow-md space-y-2 font-mono text-slate-900">
+                    <div class="border-b border-slate-900 pb-2 flex justify-between items-center">
+                        <div>
+                            <span class="font-extrabold text-[10px] uppercase block">Denominación genérica o distintiva</span>
+                            <span class="text-[9px] text-slate-500" id="h2_fprep">Fecha y hora de preparación: --/--/----</span>
+                        </div>
+                        <!-- LOGO HOSPITAL OBREGÓN -->
+                        <div class="text-right flex items-center gap-1.5 border border-slate-800 px-2 py-1 rounded bg-slate-50">
+                            <span class="font-extrabold text-sm tracking-tighter text-blue-900">HD</span>
+                            <div class="text-[8px] leading-tight font-bold uppercase text-slate-800">
+                                Hospital<br>Obregón
+                            </div>
+                        </div>
                     </div>
 
                     <div>
                         <div class="font-extrabold text-sm uppercase text-blue-900" id="h2_item">PARACETAMOL</div>
                     </div>
 
-                    <div class="grid grid-cols-4 gap-1 text-[10px] border-t border-b border-slate-300 py-1">
+                    <div class="grid grid-cols-4 gap-1 text-[10px] border-t border-b border-slate-300 py-1.5 bg-slate-50 px-1 rounded">
                         <div>Dosis:<br><strong id="h2_dosis_cant">500 mg</strong></div>
                         <div>Forma farma.:<br><strong id="h2_forma">Tableta</strong></div>
                         <div>Lote:<br><strong id="h2_lote">SJ2544</strong></div>
                         <div>Fabricante:<br><strong>BIOMEP</strong></div>
                     </div>
 
-                    <div class="grid grid-cols-3 gap-1 text-[10px]">
+                    <div class="grid grid-cols-3 gap-1 text-[10px] px-1">
                         <div>Vía adminis.:<br><strong id="h2_via" class="uppercase">Oral</strong></div>
                         <div>Folio:<br><strong id="h2_folio">71</strong></div>
                         <div>Vigencia:<br><strong id="h2_cad">10/01/2027</strong></div>
                     </div>
 
-                    <div class="border-t border-dashed pt-1 flex justify-between text-[9px] text-slate-600">
+                    <div class="border-t border-dashed pt-1.5 flex justify-between text-[10px] text-slate-600">
                         <span>Se preparó: <strong id="h2_user" class="uppercase">--</strong></span>
                         <span class="font-bold text-blue-900">UNIDOSIS HOSPITALARIA</span>
                     </div>
@@ -883,7 +892,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
                             <i class="fa-solid fa-clock-rotate-left text-blue-600"></i> Bitácora e Histórico de Surtido
                         </h2>
-                        <p class="text-xs text-slate-500">Modificación y cancelación de surtidos requieren PIN de Administrador.</p>
+                        <p class="text-xs text-slate-500">Haga clic en 'Generar Etiqueta' para traspasar los datos del surtido al formato de impresión.</p>
                     </div>
                     <button onclick="window.print()" class="px-4 py-2 bg-slate-800 text-white font-bold rounded-xl text-xs">
                         <i class="fa-solid fa-print"></i> Imprimir Bitácora
@@ -900,7 +909,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                 <th class="p-3 text-center">Cant.</th>
                                 <th class="p-3">Paciente / Área</th>
                                 <th class="p-3">Responsable</th>
-                                <th class="p-3 text-center">Acción Admin</th>
+                                <th class="p-3 text-center">Acciones</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
@@ -916,9 +925,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                 <td class="p-3 text-center font-bold text-sm text-slate-900">{{ mov.quantity }}</td>
                                 <td class="p-3 font-medium text-slate-900">{{ mov.patient_name or mov.service or '-' }}</td>
                                 <td class="p-3 text-indigo-900 font-bold">{{ mov.user_name }}</td>
-                                <td class="p-3 text-center">
+                                <td class="p-3 text-center space-x-1">
+                                    <a href="/etiquetas?patient={{ mov.patient_name | urlencode }}&item={{ mov.item_name | urlencode }}&qty={{ mov.quantity | urlencode }}&user={{ mov.user_name | urlencode }}&service={{ mov.service | urlencode }}" class="px-2.5 py-1 bg-purple-100 hover:bg-purple-200 text-purple-700 font-bold rounded text-[11px] inline-flex items-center gap-1">
+                                        <i class="fa-solid fa-tag"></i> Etiqueta
+                                    </a>
                                     <button onclick="revertMovementModal('{{ mov.id }}', '{{ mov.item_name }}', '{{ mov.quantity }}')" class="px-2 py-1 bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold rounded text-[11px]">
-                                        <i class="fa-solid fa-rotate-left"></i> Modificar / Revertir
+                                        <i class="fa-solid fa-rotate-left"></i> Revertir
                                     </button>
                                 </td>
                             </tr>
@@ -1264,7 +1276,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             document.getElementById('v1_folio').innerText = pFolio || '--';
             document.getElementById('v1_user').innerText = pUser || '--';
 
-            // Actualizar Formato 2 (Horizontal Unidosis sin paciente)
+            // Actualizar Formato 2 (Horizontal Unidosis sin paciente + Logo Obregón)
             document.getElementById('h2_fprep').innerText = 'Fecha y hora de preparación: ' + today + ' ' + timeNow;
             document.getElementById('h2_item').innerText = pItem || 'PARACETAMOL';
             document.getElementById('h2_dosis_cant').innerText = pDosisCant || '500 mg';
@@ -1274,6 +1286,19 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             document.getElementById('h2_folio').innerText = pFolio || '71';
             document.getElementById('h2_cad').innerText = pCad || '10/01/2027';
             document.getElementById('h2_user').innerText = pUser || '--';
+        }
+
+        // AUTO-LLENADO DESDE URL (VINCULACIÓN CON BITÁCORA)
+        function loadParamsFromURL() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if(urlParams.has('patient') || urlParams.has('item')) {
+                if(urlParams.get('patient')) document.getElementById('lbl_patient').value = urlParams.get('patient');
+                if(urlParams.get('item')) document.getElementById('lbl_item').value = urlParams.get('item');
+                if(urlParams.get('qty')) document.getElementById('lbl_dosis_cant').value = urlParams.get('qty') + ' pza(s)';
+                if(urlParams.get('user')) document.getElementById('lbl_user').value = urlParams.get('user');
+                if(urlParams.get('service')) document.getElementById('lbl_habitacion').value = urlParams.get('service');
+                updateLabelPreview();
+            }
         }
 
         function openEditItemModal(id, code, name, category, via, pres, etiq, lote, cad, gen, qx) {
@@ -1314,6 +1339,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
         window.onload = function() {
             updateLabelPreview();
+            loadParamsFromURL();
         };
     </script>
 </body>
