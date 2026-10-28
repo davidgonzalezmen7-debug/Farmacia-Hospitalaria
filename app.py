@@ -306,7 +306,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                     <th class="p-2.5">Tipo</th>
                                     <th class="p-2.5">Almacén</th>
                                     <th class="p-2.5 text-center">Cantidad</th>
-                                    <th class="p-2.5 text-center">Acciones / Etiqueta</th>
+                                    <th class="p-2.5 text-center">Acción</th>
                                 </tr>
                             </thead>
                             <tbody id="cartTableBody" class="divide-y divide-slate-100">
@@ -326,7 +326,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 </div>
 
                 <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl shadow-md transition duration-200 flex items-center justify-center gap-2 text-sm">
-                    <i class="fa-solid fa-check-double"></i> Procesar Surtido Completo y Guardar
+                    <i class="fa-solid fa-check-double"></i> Procesar Surtido Completo, Guardar y Generar Etiquetas
                 </button>
             </form>
         </div>
@@ -1218,12 +1218,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
             let html = '';
             cart.forEach((item, index) => {
-                let patientVal = document.getElementById('patient_name').value;
-                let fnacVal = document.getElementById('patient_fnac').value;
-                let serviceVal = document.getElementById('service_area').value;
-                let habVal = document.getElementById('patient_id').value;
-                let userVal = document.getElementById('user_name_hidden').value || '';
-
                 html += `
                     <tr class="hover:bg-slate-50">
                         <td class="p-2.5 font-bold text-slate-800">${item.item_search}</td>
@@ -1231,10 +1225,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         <td class="p-2.5 font-medium text-xs">${item.type}</td>
                         <td class="p-2.5 text-xs text-slate-500">${item.warehouse}</td>
                         <td class="p-2.5 text-center font-bold text-sm text-slate-900">${item.quantity}</td>
-                        <td class="p-2.5 text-center space-x-1">
-                            <a href="/etiquetas?patient=${encodeURIComponent(patientVal)}&fnac=${encodeURIComponent(fnacVal)}&item=${encodeURIComponent(item.item_search)}&via=${encodeURIComponent(item.via)}&qty=${encodeURIComponent(item.quantity)}&user=${encodeURIComponent(userVal)}&habitacion=${encodeURIComponent(habVal)}" class="px-2 py-1 bg-purple-100 hover:bg-purple-200 text-purple-800 font-bold rounded text-[11px] inline-flex items-center gap-1">
-                                <i class="fa-solid fa-tag"></i> Etiqueta
-                            </a>
+                        <td class="p-2.5 text-center">
                             <button type="button" onclick="removeFromCart(${index})" class="px-2 py-1 bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold rounded text-xs transition">
                                 <i class="fa-solid fa-trash"></i>
                             </button>
@@ -1318,7 +1309,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             document.getElementById('h2_user').innerText = pUser || '--';
         }
 
-        // AUTO-LLENADO DESDE URL (VINCULACIÓN CON SURTIDO MÚLTIPLE)
+        // AUTO-LLENADO DESDE URL (VINCULACIÓN POST-SURTIDO)
         function loadParamsFromURL() {
             const urlParams = new URLSearchParams(window.location.search);
             if(urlParams.has('patient') || urlParams.has('item')) {
@@ -1446,6 +1437,9 @@ def register_batch():
             db.session.add(new_p)
 
     processed_count = 0
+    first_item_name = ""
+    first_via = "ORAL"
+    first_qty = 1
 
     for cart_item in cart_items:
         item_search = cart_item.get("item_search", "").strip()
@@ -1453,6 +1447,11 @@ def register_batch():
         mov_type = cart_item.get("type")
         warehouse = cart_item.get("warehouse")
         quantity = int(cart_item.get("quantity", 1))
+
+        if processed_count == 0:
+            first_item_name = item_search
+            first_via = via_admin
+            first_qty = quantity
 
         item = Item.query.filter(Item.name.ilike(f"%{item_search}%")).first()
 
@@ -1504,8 +1503,10 @@ def register_batch():
         processed_count += 1
 
     db.session.commit()
-    flash(f"Surtido de {processed_count} medicamento(s) registrado exitosamente.", "success")
-    return redirect(url_for("terminal"))
+    flash(f"Surtido de {processed_count} medicamento(s) registrado y guardado exitosamente.", "success")
+    
+    # Redirigir automáticamente a etiquetas con los datos cargados para impresión inmediata
+    return redirect(url_for("etiquetas", patient=patient_name, fnac=patient_fnac, item=first_item_name, via=first_via, qty=first_qty, user=user.name, habitacion=patient_id or service))
 
 @app.route("/inventario")
 def inventario():
