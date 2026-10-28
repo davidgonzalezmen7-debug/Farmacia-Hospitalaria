@@ -1016,7 +1016,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         <h2 class="text-base font-bold flex items-center gap-2">
                             <i class="fa-solid fa-scale-balanced text-purple-300"></i> Módulo Independiente de Arqueo y Conciliación de Controlados (Admin)
                         </h2>
-                        <p class="text-xs text-purple-200">Cotejo automático entre stock en inventario y salidas registradas en la bitácora.</p>
+                        <p class="text-xs text-purple-200">Cotejo automático entre stock actual y salidas registradas.</p>
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="bg-purple-600 px-3 py-1.5 rounded-xl text-xs font-mono font-bold shadow">
@@ -1031,13 +1031,13 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     <div class="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-purple-700/50 space-y-3">
                         <div class="flex justify-between items-start">
                             <h4 class="font-bold text-sm text-white truncate max-w-[200px]" title="{{ rec.item.name }}">{{ rec.item.name }}</h4>
-                            {% if rec.is_balanced %}
+                            {% if rec.status == 'Conciliado' %}
                                 <span class="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded-full text-[10px] font-extrabold flex items-center gap-1">
-                                    <i class="fa-solid fa-circle-check"></i> Cuadrado
+                                    <i class="fa-solid fa-circle-check"></i> Conciliado (Cuadrado)
                                 </span>
                             {% else %}
                                 <span class="bg-rose-500/20 text-rose-300 border border-rose-500/40 px-2 py-0.5 rounded-full text-[10px] font-extrabold flex items-center gap-1">
-                                    <i class="fa-solid fa-triangle-exclamation"></i> Desviación
+                                    <i class="fa-solid fa-triangle-exclamation"></i> Discrepancia
                                 </span>
                             {% endif %}
                         </div>
@@ -1055,7 +1055,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
                         <div class="text-[11px] text-purple-200 flex justify-between">
                             <span>Lote: <strong class="text-white">{{ rec.item.lote or 'S/L' }}</strong></span>
-                            <span>Estado: <strong class="{% if rec.is_balanced %}text-emerald-300{% else %}text-rose-300{% endif %}">{% if rec.is_balanced %}Sincronizado{% else %}Discrepancia{% endif %}</strong></span>
+                            <span>Estado: <strong class="{% if rec.status == 'Conciliado' %}text-emerald-300{% else %}text-rose-300{% endif %}">{{ rec.status }}</strong></span>
                         </div>
                     </div>
                     {% else %}
@@ -1953,13 +1953,16 @@ def controlados():
         for item in controlled_items:
             total_logged_out = sum(log.quantity for log in controlled_logs if item.name.lower() in log.item_name.lower())
             current_stock = (item.stock_general or 0) + (item.stock_quirofano or 0)
-            is_balanced = True if current_stock >= 0 else False
+            
+            # Criterio de Conciliación: Si el stock actual es válido y no hay desviaciones negativas
+            # Puedes ajustar esta condición según las reglas específicas de auditoría de tu hospital.
+            status = "Conciliado" if current_stock >= 0 else "Discrepancia"
 
             controlled_reconciliation.append({
                 'item': item,
                 'current_stock': current_stock,
                 'total_logged_out': total_logged_out,
-                'is_balanced': is_balanced
+                'status': status
             })
 
     return render_template_string(
