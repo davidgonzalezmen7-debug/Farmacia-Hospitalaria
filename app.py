@@ -342,19 +342,19 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 <!-- SELECTOR DE FORMATO -->
                 <div class="mb-4 flex gap-4 bg-purple-50 p-3 rounded-xl border border-purple-200">
                     <label class="flex items-center gap-2 font-bold text-xs text-purple-900 cursor-pointer">
-                        <input type="radio" name="format_type" value="vertical" checked onchange="toggleLabelFormat()" class="text-purple-600">
-                        <span>🏷️ Formato 1: Etiqueta Vertical (Datos Paciente / Nifedipino)</span>
+                        <input type="radio" name="format_type" value="horizontal1" checked onchange="toggleLabelFormat()" class="text-purple-600">
+                        <span>🏷️ Formato 1: Etiqueta Horizontal (Con Paciente + Logo Hospital Obregón)</span>
                     </label>
                     <label class="flex items-center gap-2 font-bold text-xs text-purple-900 cursor-pointer">
-                        <input type="radio" name="format_type" value="horizontal" onchange="toggleLabelFormat()" class="text-purple-600">
-                        <span>🏷️ Formato 2: Etiqueta Horizontal Unidosis (Paracetamol / Lote / Caducidad)</span>
+                        <input type="radio" name="format_type" value="horizontal2" onchange="toggleLabelFormat()" class="text-purple-600">
+                        <span>🏷️ Formato 2: Etiqueta Horizontal Unidosis (Sin apartado de Paciente)</span>
                     </label>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="space-y-3">
                         <div>
-                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nombre del Paciente</label>
+                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nombre del Paciente (Solo Formato 1)</label>
                             <input type="text" id="lbl_patient" name="patient_name" list="patients_datalist" placeholder="Ej. Ventura Carlos Petronilo" oninput="updateLabelPreview()" required class="w-full p-2 border rounded-lg text-xs bg-slate-50 font-medium outline-none">
                         </div>
                         <div class="grid grid-cols-2 gap-2">
@@ -368,8 +368,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                             </div>
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Medicamento / Dosis (Título Grande)</label>
-                            <input list="items_list" id="lbl_item" placeholder="Ej. NIFEDIPINO 30 MG" oninput="updateLabelPreview()" class="w-full p-2 border rounded-lg text-xs bg-slate-50 font-bold outline-none">
+                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Medicamento / Denominación</label>
+                            <input list="items_list" id="lbl_item" placeholder="Ej. NIFEDIPINO 30 MG / PARACETAMOL" oninput="updateLabelPreview()" class="w-full p-2 border rounded-lg text-xs bg-slate-50 font-bold outline-none">
                         </div>
                     </div>
 
@@ -380,8 +380,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                 <input type="text" id="lbl_via" placeholder="Ej. ORAL" oninput="updateLabelPreview()" class="w-full p-2 border rounded-lg text-xs bg-slate-50 outline-none font-bold">
                             </div>
                             <div>
-                                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Dosis / Cantidad (Ej. 2 TAB)</label>
-                                <input type="text" id="lbl_dosis_cant" placeholder="Ej. 2 TAB" oninput="updateLabelPreview()" class="w-full p-2 border rounded-lg text-xs bg-slate-50 outline-none font-bold">
+                                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Dosis / Cantidad</label>
+                                <input type="text" id="lbl_dosis_cant" placeholder="Ej. 2 TAB / 500 mg" oninput="updateLabelPreview()" class="w-full p-2 border rounded-lg text-xs bg-slate-50 outline-none font-bold">
                             </div>
                         </div>
                         <div class="grid grid-cols-3 gap-2">
@@ -410,66 +410,69 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center space-y-4">
                 <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 no-print">Previsualización de la Etiqueta Seleccionada</h3>
                 
-                <!-- CONTENEDOR FORMATO 1: VERTICAL -->
-                <div id="previewVertical" class="printable-label w-[280px] mx-auto bg-white border-2 border-slate-900 rounded-lg p-3 text-left shadow-md space-y-2 font-mono text-slate-900">
-                    <div class="border-b border-slate-900 pb-1.5 flex justify-between items-start">
+                <!-- CONTENEDOR FORMATO 1: HORIZONTAL CON PACIENTE Y LOGO HOSPITAL OBREGÓN -->
+                <div id="previewHoriz1" class="printable-label w-[420px] mx-auto bg-white border-2 border-slate-900 rounded-lg p-3 text-left shadow-md space-y-2 font-mono text-slate-900">
+                    <div class="border-b border-slate-900 pb-1.5 flex justify-between items-center">
                         <div>
-                            <div class="font-extrabold text-[13px] uppercase leading-tight" id="v_patient">VENTURA CARLOS PETRONILO</div>
-                            <div class="text-[10px] text-slate-600 mt-0.5">Fecha de nacimiento: <span id="v_fnac" class="font-bold">14/07/1967</span></div>
-                            <div class="text-[10px] text-slate-600">Habitación: <span id="v_habitacion" class="font-bold">UCI-5</span></div>
+                            <div class="font-extrabold text-xs uppercase leading-tight" id="v1_patient">VENTURA CARLOS PETRONILO</div>
+                            <div class="text-[10px] text-slate-600 mt-0.5">Fecha de nacimiento: <span id="v1_fnac" class="font-bold">14/07/1967</span> | Habitación: <span id="v1_habitacion" class="font-bold">UCI-5</span></div>
                         </div>
-                        <div class="text-right font-extrabold text-[10px]">
-                            <span class="border border-slate-900 px-1 py-0.5 rounded">HD</span>
+                        <!-- LOGO HOSPITAL OBREGÓN -->
+                        <div class="text-right flex items-center gap-1 border border-slate-800 px-2 py-1 rounded bg-slate-50">
+                            <span class="font-extrabold text-sm tracking-tighter text-blue-900">HD</span>
+                            <div class="text-[8px] leading-tight font-bold uppercase text-slate-800">
+                                Hospital<br>Obregón
+                            </div>
                         </div>
                     </div>
 
-                    <div class="py-2 text-center border-b border-slate-900">
-                        <div class="font-extrabold text-sm tracking-wide text-blue-900 uppercase" id="v_item">NIFEDIPINO 30 MG</div>
+                    <div class="py-1 text-center bg-slate-100 rounded border border-slate-300">
+                        <div class="font-extrabold text-xs tracking-wide text-blue-900 uppercase" id="v1_item">NIFEDIPINO 30 MG</div>
                     </div>
 
                     <div class="grid grid-cols-2 gap-1 text-[11px]">
-                        <div>Vía: <strong id="v_via" class="uppercase">ORAL</strong></div>
-                        <div>F. prep: <span id="v_fprep">--/--/----</span></div>
+                        <div>Vía: <strong id="v1_via" class="uppercase">ORAL</strong></div>
+                        <div>F. prep: <span id="v1_fprep">--/--/----</span></div>
                     </div>
 
-                    <div class="flex justify-between items-center border border-slate-900 p-1 text-xs font-bold">
-                        <div>Hora: <span id="v_hora">--:--</span></div>
-                        <div class="bg-slate-200 px-2 py-0.5 rounded" id="v_dosis_cant">2 TAB</div>
+                    <div class="flex justify-between items-center border border-slate-900 p-1 text-xs font-bold bg-white">
+                        <div>Hora: <span id="v1_hora">--:--</span></div>
+                        <div class="bg-slate-200 px-2 py-0.5 rounded" id="v1_dosis_cant">2 TAB</div>
                     </div>
 
                     <div class="flex justify-between text-[10px] pt-1 text-slate-600 border-t border-dashed">
-                        <span>Folio: <strong id="v_folio">--</strong></span>
-                        <span>Prep: <span id="v_user" class="uppercase">--</span></span>
+                        <span>Folio: <strong id="v1_folio">--</strong></span>
+                        <span>Prep: <span id="v1_user" class="uppercase">--</span></span>
                     </div>
                 </div>
 
-                <!-- CONTENEDOR FORMATO 2: HORIZONTAL UNIDOSIS -->
-                <div id="previewHorizontal" class="printable-label hidden w-[450px] mx-auto bg-white border-2 border-slate-900 rounded-lg p-3 text-left shadow-md space-y-2 font-mono text-slate-900">
+                <!-- CONTENEDOR FORMATO 2: HORIZONTAL UNIDOSIS (SIN APARTADO PACIENTE) -->
+                <div id="previewHoriz2" class="printable-label hidden w-[420px] mx-auto bg-white border-2 border-slate-900 rounded-lg p-3 text-left shadow-md space-y-2 font-mono text-slate-900">
                     <div class="border-b border-slate-900 pb-1 flex justify-between items-center">
                         <span class="font-extrabold text-[10px] uppercase">Denominación genérica o distintiva</span>
-                        <span class="text-[9px]" id="h_fprep">Fecha y hora de preparación: --/--/----</span>
+                        <span class="text-[9px]" id="h2_fprep">Fecha y hora de preparación: --/--/----</span>
                     </div>
 
                     <div>
-                        <div class="font-extrabold text-base uppercase text-blue-900" id="h_item">PARACETAMOL</div>
+                        <div class="font-extrabold text-sm uppercase text-blue-900" id="h2_item">PARACETAMOL</div>
                     </div>
 
                     <div class="grid grid-cols-4 gap-1 text-[10px] border-t border-b border-slate-300 py-1">
-                        <div>Dosis:<br><strong id="h_dosis_cant">500 mg</strong></div>
-                        <div>Forma farma.:<br><strong id="h_forma">Tableta</strong></div>
-                        <div>Lote:<br><strong id="h_lote">SJ2544</strong></div>
+                        <div>Dosis:<br><strong id="h2_dosis_cant">500 mg</strong></div>
+                        <div>Forma farma.:<br><strong id="h2_forma">Tableta</strong></div>
+                        <div>Lote:<br><strong id="h2_lote">SJ2544</strong></div>
                         <div>Fabricante:<br><strong>BIOMEP</strong></div>
                     </div>
 
                     <div class="grid grid-cols-3 gap-1 text-[10px]">
-                        <div>Vía adminis.:<br><strong id="h_via" class="uppercase">Oral</strong></div>
-                        <div>Folio:<br><strong id="h_folio">71</strong></div>
-                        <div>Vigencia:<br><strong id="h_cad">10/01/2027</strong></div>
+                        <div>Vía adminis.:<br><strong id="h2_via" class="uppercase">Oral</strong></div>
+                        <div>Folio:<br><strong id="h2_folio">71</strong></div>
+                        <div>Vigencia:<br><strong id="h2_cad">10/01/2027</strong></div>
                     </div>
 
                     <div class="border-t border-dashed pt-1 flex justify-between text-[9px] text-slate-600">
-                        <span>Paciente: <strong id="h_patient" class="uppercase">--</strong></span>
-                        <span>Se preparó: <strong id="h_user" class="uppercase">--</strong></span>
+                        <span>Se preparó: <strong id="h2_user" class="uppercase">--</strong></span>
+                        <span class="font-bold text-blue-900">UNIDOSIS HOSPITALARIA</span>
                     </div>
                 </div>
 
@@ -1222,15 +1225,15 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
         function toggleLabelFormat() {
             const formatType = document.querySelector('input[name="format_type"]:checked').value;
-            const vPreview = document.getElementById('previewVertical');
-            const hPreview = document.getElementById('previewHorizontal');
+            const h1Preview = document.getElementById('previewHoriz1');
+            const h2Preview = document.getElementById('previewHoriz2');
 
-            if (formatType === 'vertical') {
-                vPreview.classList.remove('hidden');
-                hPreview.classList.add('hidden');
+            if (formatType === 'horizontal1') {
+                h1Preview.classList.remove('hidden');
+                h2Preview.classList.add('hidden');
             } else {
-                vPreview.classList.add('hidden');
-                hPreview.classList.remove('hidden');
+                h1Preview.classList.add('hidden');
+                h2Preview.classList.remove('hidden');
             }
         }
 
@@ -1247,30 +1250,30 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             const pUser = document.getElementById('lbl_user').value.trim();
 
             const today = new Date().toLocaleDateString('es-MX');
+            const timeNow = new Date().toLocaleTimeString('es-MX', {hour: '2-digit', minute:'2-digit'});
 
-            // Actualizar Formato Vertical
-            document.getElementById('v_patient').innerText = pName || 'VENTURA CARLOS PETRONILO';
-            document.getElementById('v_fnac').innerText = pFnac || '14/07/1967';
-            document.getElementById('v_habitacion').innerText = pHab || 'UCI-5';
-            document.getElementById('v_item').innerText = pItem || 'NIFEDIPINO 30 MG';
-            document.getElementById('v_via').innerText = pVia || 'ORAL';
-            document.getElementById('v_fprep').innerText = today;
-            document.getElementById('v_hora').innerText = new Date().toLocaleTimeString('es-MX', {hour: '2-digit', minute:'2-digit'});
-            document.getElementById('v_dosis_cant').innerText = pDosisCant || '2 TAB';
-            document.getElementById('v_folio').innerText = pFolio || '--';
-            document.getElementById('v_user').innerText = pUser || '--';
+            // Actualizar Formato 1 (Horizontal con paciente y Logo Hospital Obregón)
+            document.getElementById('v1_patient').innerText = pName || 'VENTURA CARLOS PETRONILO';
+            document.getElementById('v1_fnac').innerText = pFnac || '14/07/1967';
+            document.getElementById('v1_habitacion').innerText = pHab || 'UCI-5';
+            document.getElementById('v1_item').innerText = pItem || 'NIFEDIPINO 30 MG';
+            document.getElementById('v1_via').innerText = pVia || 'ORAL';
+            document.getElementById('v1_fprep').innerText = today;
+            document.getElementById('v1_hora').innerText = timeNow;
+            document.getElementById('v1_dosis_cant').innerText = pDosisCant || '2 TAB';
+            document.getElementById('v1_folio').innerText = pFolio || '--';
+            document.getElementById('v1_user').innerText = pUser || '--';
 
-            // Actualizar Formato Horizontal Unidosis
-            document.getElementById('h_patient').innerText = pName || '--';
-            document.getElementById('h_fprep').innerText = 'Fecha y hora de preparación: ' + today + ' ' + new Date().toLocaleTimeString('es-MX', {hour: '2-digit', minute:'2-digit'});
-            document.getElementById('h_item').innerText = pItem || 'PARACETAMOL';
-            document.getElementById('h_dosis_cant').innerText = pDosisCant || '500 mg';
-            document.getElementById('h_forma').innerText = pVia || 'Tableta';
-            document.getElementById('h_lote').innerText = pLote || 'SJ2544';
-            document.getElementById('h_via').innerText = pVia || 'Oral';
-            document.getElementById('h_folio').innerText = pFolio || '71';
-            document.getElementById('h_cad').innerText = pCad || '10/01/2027';
-            document.getElementById('h_user').innerText = pUser || '--';
+            // Actualizar Formato 2 (Horizontal Unidosis sin paciente)
+            document.getElementById('h2_fprep').innerText = 'Fecha y hora de preparación: ' + today + ' ' + timeNow;
+            document.getElementById('h2_item').innerText = pItem || 'PARACETAMOL';
+            document.getElementById('h2_dosis_cant').innerText = pDosisCant || '500 mg';
+            document.getElementById('h2_forma').innerText = pVia || 'Tableta';
+            document.getElementById('h2_lote').innerText = pLote || 'SJ2544';
+            document.getElementById('h2_via').innerText = pVia || 'Oral';
+            document.getElementById('h2_folio').innerText = pFolio || '71';
+            document.getElementById('h2_cad').innerText = pCad || '10/01/2027';
+            document.getElementById('h2_user').innerText = pUser || '--';
         }
 
         function openEditItemModal(id, code, name, category, via, pres, etiq, lote, cad, gen, qx) {
@@ -1309,7 +1312,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             document.getElementById('edit_user_pin').value = pin;
         }
 
-        // Inicializar preview al cargar
         window.onload = function() {
             updateLabelPreview();
         };
