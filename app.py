@@ -541,20 +541,28 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                 <td class="p-3 font-mono text-xs font-bold text-blue-900">{{ item.code }}</td>
                                 <td class="p-3 font-bold text-slate-900">
                                     {{ item.name }}
-                                    <span class="block text-[11px] text-slate-400 font-normal">Vía: {{ item.via_administracion or 'N/A' }}</span>
+                                    <span class="block text-[11px] text-slate-400 font-normal">Vía: {{ item.via_administracion or 'N/A' }} | Forma: {{ item.presentacion or 'N/A' }}</span>
                                 </td>
                                 <td class="p-3">
                                     <span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
-                                        {{ item.category }} {% if item.presentacion %}({{ item.presentacion }}){% endif %}
+                                        {{ item.category }}
                                     </span>
                                 </td>
                                 <td class="p-3">
-                                    {% if item.etiqueta == 'Alto Riesgo' %}
-                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">🔴 Alto Riesgo</span>
+                                    {% if item.etiqueta == 'Medicamento de alto Riesgo(MAR)' or item.etiqueta == 'Alto Riesgo' %}
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">🔴 {{ item.etiqueta }}</span>
                                     {% elif item.etiqueta == 'Controlado' %}
                                         <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800">🟣 Controlado</span>
                                     {% elif item.etiqueta == 'Antibiótico' %}
                                         <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">🟡 Antibiótico</span>
+                                    {% elif item.etiqueta == 'Alto costo' %}
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">💰 Alto Costo</span>
+                                    {% elif item.etiqueta == 'Autorizado' %}
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800">✅ Autorizado</span>
+                                    {% elif item.etiqueta == 'Ginecología' %}
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-pink-100 text-pink-800">🌸 Ginecología</span>
+                                    {% elif item.etiqueta == 'Anestesia' %}
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-800">💉 Anestesia</span>
                                     {% else %}
                                         <span class="text-slate-400 text-xs">-</span>
                                     {% endif %}
@@ -619,21 +627,25 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                             <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Etiqueta Especial</label>
                             <select name="etiqueta" id="modal_etiqueta" class="w-full p-2 border rounded-xl text-xs font-bold">
                                 <option value="Ninguna">Ninguna</option>
-                                <option value="Alto Riesgo">🔴 Alto Riesgo</option>
+                                <option value="Medicamento de alto Riesgo(MAR)">🔴 Medicamento de alto Riesgo(MAR)</option>
                                 <option value="Controlado">🟣 Controlado</option>
                                 <option value="Antibiótico">🟡 Antibiótico</option>
+                                <option value="Alto costo">💰 Alto costo</option>
+                                <option value="Autorizado">✅ Autorizado</option>
+                                <option value="Ginecología">🌸 Ginecología</option>
+                                <option value="Anestesia">💉 Anestesia</option>
                             </select>
                         </div>
                     </div>
 
                     <div class="grid grid-cols-2 gap-3">
                         <div>
-                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Vía Administr.</label>
-                            <input type="text" name="via_administracion" id="modal_via" class="w-full p-2 border rounded-xl text-xs">
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Vía Administración</label>
+                            <input type="text" name="via_administracion" id="modal_via" placeholder="Ej. Oral / IV" class="w-full p-2 border rounded-xl text-xs">
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Presentación</label>
-                            <input type="text" name="presentacion" id="modal_presentacion" class="w-full p-2 border rounded-xl text-xs">
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Forma Farmacéutica</label>
+                            <input type="text" name="presentacion" id="modal_presentacion" placeholder="Ej. Tableta / Ampolleta" class="w-full p-2 border rounded-xl text-xs">
                         </div>
                     </div>
 
@@ -682,6 +694,16 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nombre / Descripción</label>
                         <input type="text" name="name" required placeholder="Ej. Omeprazol 40mg" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
                     </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Vía de Administración</label>
+                            <input type="text" name="via_administracion" placeholder="Ej. Oral / Intravenosa" class="w-full p-2.5 border rounded-xl text-sm outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Forma Farmacéutica</label>
+                            <input type="text" name="presentacion" placeholder="Ej. Tableta / Ampolleta" class="w-full p-2.5 border rounded-xl text-sm outline-none">
+                        </div>
+                    </div>
                     <div>
                         <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Categoría</label>
                         <select name="category" required class="w-full p-2.5 border rounded-xl text-sm bg-slate-50 outline-none">
@@ -694,9 +716,13 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Etiqueta Especial</label>
                         <select name="etiqueta" class="w-full p-2.5 border rounded-xl text-sm bg-amber-50 font-bold outline-none">
                             <option value="Ninguna">Ninguna</option>
-                            <option value="Alto Riesgo">🔴 Alto Riesgo</option>
+                            <option value="Medicamento de alto Riesgo(MAR)">🔴 Medicamento de alto Riesgo (MAR)</option>
                             <option value="Controlado">🟣 Medicamento Controlado</option>
                             <option value="Antibiótico">🟡 Antibiótico</option>
+                            <option value="Alto costo">💰 Alto costo</option>
+                            <option value="Autorizado">✅ Autorizado</option>
+                            <option value="Ginecología">🌸 Ginecología</option>
+                            <option value="Anestesia">💉 Anestesia</option>
                         </select>
                     </div>
                     <div class="grid grid-cols-2 gap-2">
@@ -1443,7 +1469,6 @@ def register_batch():
 
     for cart_item in cart_items:
         raw_search = cart_item.get("item_search", "").strip()
-        # Limpiar el nombre del medicamento extrayendo solo la parte anterior a "(Lote:"
         item_search = raw_search.split(" (Lote:")[0].strip() if " (Lote:" in raw_search else raw_search
         
         via_admin = cart_item.get("via", "ORAL")
@@ -1723,6 +1748,8 @@ def alta_insumos():
 def add_item():
     code = request.form.get("code", "").strip().upper()
     name = request.form.get("name", "").strip()
+    via_administracion = request.form.get("via_administracion", "").strip()
+    presentacion = request.form.get("presentacion", "").strip()
     category = request.form.get("category")
     lote = request.form.get("lote", "").strip()
     caducidad = request.form.get("caducidad", "").strip()
@@ -1733,7 +1760,9 @@ def add_item():
     try:
         new_item = Item(
             code=code, 
-            name=name, 
+            name=name,
+            via_administracion=via_administracion,
+            presentacion=presentacion,
             category=category, 
             lote=lote,
             caducidad=caducidad,
@@ -1744,7 +1773,7 @@ def add_item():
         )
         db.session.add(new_item)
         db.session.commit()
-        flash(f"Nuevo insumo '{name}' registrado.", "success")
+        flash(f"Nuevo insumo '{name}' registrado exitosamente.", "success")
     except Exception as e:
         db.session.rollback()
         flash(f"Error al registrar: {str(e)}", "error")
@@ -1814,7 +1843,7 @@ def seed_database():
         if Item.query.count() == 0:
             items_list = [
                 Item(code="MED-001", name="Paracetamol 500mg Tab", category="Medicamento", via_administracion="Oral", presentacion="Tableta", lote="LOT-9821", caducidad="2027-12-31", etiqueta="Ninguna", stock_general=150, stock_quirofano=20),
-                Item(code="MED-002", name="Propofol 200mg/20ml Amp", category="Medicamento", via_administracion="Intravenosa", presentacion="Ampolleta", lote="LOT-4410", caducidad="2027-08-15", etiqueta="Alto Riesgo", stock_general=40, stock_quirofano=15),
+                Item(code="MED-002", name="Propofol 200mg/20ml Amp", category="Medicamento", via_administracion="Intravenosa", presentacion="Ampolleta", lote="LOT-4410", caducidad="2027-08-15", etiqueta="Medicamento de alto Riesgo(MAR)", stock_general=40, stock_quirofano=15),
                 Item(code="MED-003", name="Fentanilo 0.5mg/10ml Amp", category="Medicamento", via_administracion="Intravenosa", presentacion="Ampolleta", lote="LOT-1102", caducidad="2026-11-20", etiqueta="Controlado", stock_general=30, stock_quirofano=10)
             ]
             db.session.add_all(items_list)
