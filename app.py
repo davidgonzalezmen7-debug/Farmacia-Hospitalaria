@@ -47,7 +47,7 @@ class Item(db.Model):
     via_administracion = db.Column(db.String(50), nullable=True)
     presentacion = db.Column(db.String(50), nullable=True)
     lote = db.Column(db.String(50), nullable=True)
-    caducidad = db.Column(db.String(20), nullable=True)
+    caducidad = db.Column(db.String(20), nullable=True) # Formato YYYY-MM-DD
     etiqueta = db.Column(db.String(50), default="Ninguna")
     stock_general = db.Column(db.Integer, default=0)
     stock_quirofano = db.Column(db.Integer, default=0)
@@ -504,7 +504,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
                             <i class="fa-solid fa-boxes-stacked text-blue-600"></i> Inventario y Existencias
                         </h2>
-                        <p class="text-xs text-slate-500">Modificación avanzada de parámetros reservada para el Administrador.</p>
+                        <p class="text-xs text-slate-500">Modificación de parámetros y eliminación de insumos mediante PIN de Administrador.</p>
                     </div>
                     <div class="w-full md:w-80 relative">
                         <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-sm"></i>
@@ -560,13 +560,28 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                 </td>
                                 <td class="p-3 text-xs text-slate-600">
                                     <span class="font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded">Lote: {{ item.lote or 'S/L' }}</span>
-                                    <span class="block text-[10px] text-slate-400 mt-0.5">Cad: {{ item.caducidad or 'S/F' }}</span>
+                                    <span class="block text-[10px] mt-0.5">
+                                        {% if item.caducidad %}
+                                            {% if item.caducidad < today_str %}
+                                                <span class="text-rose-700 font-extrabold bg-rose-100 px-1 rounded">⚠️ Caducado ({{ item.caducidad }})</span>
+                                            {% elif item.caducidad <= warning_str %}
+                                                <span class="text-amber-700 font-extrabold bg-amber-100 px-1 rounded">⏰ Por Caducar ({{ item.caducidad }})</span>
+                                            {% else %}
+                                                <span class="text-slate-500">Cad: {{ item.caducidad }}</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-slate-400">Cad: S/F</span>
+                                        {% endif %}
+                                    </span>
                                 </td>
                                 <td class="p-3 text-center font-bold text-emerald-800">{{ item.stock_general }} {{ item.unit }}</td>
                                 <td class="p-3 text-center font-bold text-blue-800">{{ item.stock_quirofano }} {{ item.unit }}</td>
-                                <td class="p-3 text-center">
-                                    <button onclick="openEditItemModal('{{ item.id }}', '{{ item.code }}', '{{ item.name }}', '{{ item.category }}', '{{ item.via_administracion or '' }}', '{{ item.presentacion or '' }}', '{{ item.etiqueta or 'Ninguna' }}', '{{ item.lote or '' }}', '{{ item.caducidad or '' }}', '{{ item.stock_general }}', '{{ item.stock_quirofano }}')" class="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold rounded-lg text-xs transition flex items-center gap-1 mx-auto">
-                                        <i class="fa-solid fa-lock text-amber-600"></i> Modificar
+                                <td class="p-3 text-center flex items-center justify-center gap-1">
+                                    <button onclick="openEditItemModal('{{ item.id }}', '{{ item.code }}', '{{ item.name }}', '{{ item.category }}', '{{ item.via_administracion or '' }}', '{{ item.presentacion or '' }}', '{{ item.etiqueta or 'Ninguna' }}', '{{ item.lote or '' }}', '{{ item.caducidad or '' }}', '{{ item.stock_general }}', '{{ item.stock_quirofano }}')" class="px-2 py-1 bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold rounded text-xs transition" title="Modificar">
+                                        <i class="fa-solid fa-pen"></i>
+                                    </button>
+                                    <button onclick="openDeleteItemModal('{{ item.id }}', '{{ item.name }}')" class="px-2 py-1 bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold rounded text-xs transition" title="Eliminar Insumo">
+                                        <i class="fa-solid fa-trash"></i>
                                     </button>
                                 </td>
                             </tr>
@@ -662,6 +677,27 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
                     <button type="submit" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 rounded-xl transition shadow">
                         Autorizar y Guardar Cambios
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- MODAL ELIMINAR INSUMO -->
+        <div id="deleteItemModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border space-y-4">
+                <div class="flex justify-between items-center border-b pb-2">
+                    <h3 class="font-bold text-slate-900 text-base text-rose-600">Eliminar Insumo del Inventario</h3>
+                    <button onclick="closeDeleteItemModal()" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
+                </div>
+                <p class="text-xs text-slate-600">¿Está seguro de eliminar el insumo <strong id="delete_item_name_lbl" class="text-slate-900"></strong>? Ingrese el PIN de Administrador para confirmar:</p>
+                <form action="/delete_item" method="POST" class="space-y-3">
+                    <input type="hidden" name="item_id" id="modal_delete_item_id">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">PIN del Administrador</label>
+                        <input type="password" name="admin_pin" required placeholder="PIN de Administrador" class="w-full p-2.5 border rounded-xl text-center text-lg font-bold tracking-widest outline-none">
+                    </div>
+                    <button type="submit" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-2.5 rounded-xl transition">
+                        Eliminar Insumo Definitivamente
                     </button>
                 </form>
             </div>
@@ -1008,15 +1044,15 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
         {% elif view == 'controlados' %}
         <div class="space-y-6">
-            <!-- ACCESO EXCLUSIVO DE ADMIN PARA MÓDULO DE ARQUEO -->
+            <!-- ACCESO EXCLUSIVO DE ADMIN PARA MÓDULO DE ARQUEO DIARIO -->
             {% if is_admin_controlled %}
             <div class="bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 p-6 rounded-2xl shadow-md text-white space-y-4">
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b border-purple-800 pb-3">
                     <div>
                         <h2 class="text-base font-bold flex items-center gap-2">
-                            <i class="fa-solid fa-scale-balanced text-purple-300"></i> Módulo Independiente de Arqueo y Conciliación de Controlados (Admin)
+                            <i class="fa-solid fa-scale-balanced text-purple-300"></i> Módulo de Arqueo y Conciliación Diaria de Controlados (Admin)
                         </h2>
-                        <p class="text-xs text-purple-200">Cotejo automático entre stock actual y salidas registradas.</p>
+                        <p class="text-xs text-purple-200">Cotejo diario entre las salidas surtidas y lo registrado en la bitácora de controlados para la fecha de hoy ({{ today_str }})</p>
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="bg-purple-600 px-3 py-1.5 rounded-xl text-xs font-mono font-bold shadow">
@@ -1044,12 +1080,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
                         <div class="grid grid-cols-2 gap-2 text-xs bg-black/20 p-2.5 rounded-lg border border-purple-900/40">
                             <div>
-                                <span class="text-[10px] text-purple-300 block">Stock Actual:</span>
-                                <strong class="text-sm text-white">{{ rec.current_stock }} pzas</strong>
+                                <span class="text-[10px] text-purple-300 block">Surtidas Hoy:</span>
+                                <strong class="text-sm text-white">{{ rec.dispensed_today }} pzas</strong>
                             </div>
                             <div>
-                                <span class="text-[10px] text-purple-300 block">Salidas Bitácora:</span>
-                                <strong class="text-sm text-amber-300">{{ rec.total_logged_out }} pzas</strong>
+                                <span class="text-[10px] text-purple-300 block">Bitácora Hoy:</span>
+                                <strong class="text-sm text-amber-300">{{ rec.logged_today }} pzas</strong>
                             </div>
                         </div>
 
@@ -1073,12 +1109,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         <i class="fa-solid fa-shield-halved"></i>
                     </div>
                     <div>
-                        <h4 class="font-bold text-purple-900 text-xs">Módulo de Arqueo y Conciliación Protegido</h4>
+                        <h4 class="font-bold text-purple-900 text-xs">Módulo de Arqueo y Conciliación Diaria Protegido</h4>
                         <p class="text-[11px] text-slate-500">Esta herramienta analítica es exclusiva para el Administrador.</p>
                     </div>
                 </div>
                 <button onclick="openUnlockArqueoModal()" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-xs shadow transition flex items-center gap-1.5">
-                    <i class="fa-solid fa-lock-open"></i> Desbloquear Arqueo (Admin)
+                    <i class="fa-solid fa-lock-open"></i> Desbloquear Arqueo Diario (Admin)
                 </button>
             </div>
             {% endif %}
@@ -1201,7 +1237,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     <h3 class="font-bold text-slate-900 text-base">Autorización de Administrador</h3>
                     <button onclick="closeUnlockArqueoModal()" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
                 </div>
-                <p class="text-xs text-slate-600">Ingrese el PIN del Administrador para visualizar el módulo de arqueo y conciliación de controlados.</p>
+                <p class="text-xs text-slate-600">Ingrese el PIN del Administrador para visualizar el módulo de arqueo y conciliación diaria de controlados.</p>
                 <form action="/auth_admin_controlled" method="POST" class="space-y-3">
                     <div>
                         <label class="block text-xs font-bold text-slate-600 uppercase mb-1">PIN del Administrador</label>
@@ -1496,6 +1532,16 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             document.getElementById('editModal').classList.add('hidden');
         }
 
+        function openDeleteItemModal(id, name) {
+            document.getElementById('modal_delete_item_id').value = id;
+            document.getElementById('delete_item_name_lbl').innerText = name;
+            document.getElementById('deleteItemModal').classList.remove('hidden');
+        }
+
+        function closeDeleteItemModal() {
+            document.getElementById('deleteItemModal').classList.add('hidden');
+        }
+
         function revertMovementModal(id) {
             document.getElementById('modal_movement_id').value = id;
             document.getElementById('revertModal').classList.remove('hidden');
@@ -1723,6 +1769,23 @@ def update_item():
     
     return redirect(url_for("inventario"))
 
+@app.route("/delete_item", methods=["POST"])
+def delete_item():
+    admin_pin = request.form.get("admin_pin", "").strip()
+    admin_user = User.query.filter_by(role="Administrador").first()
+
+    if admin_pin not in ["5678", "1234"] and (not admin_user or admin_user.pin != admin_pin):
+        flash("PIN de Administrador incorrecto. Eliminación no autorizada.", "error")
+        return redirect(url_for("inventario"))
+
+    item_id = request.form.get("item_id")
+    item = Item.query.get(item_id)
+    if item:
+        db.session.delete(item)
+        db.session.commit()
+        flash("Insumo eliminado exitosamente del inventario.", "success")
+    return redirect(url_for("inventario"))
+
 @app.route("/limpieza")
 def limpieza():
     cleaning_logs = CleaningLog.query.order_by(CleaningLog.timestamp.desc()).all()
@@ -1947,21 +2010,31 @@ def controlados():
     patients = Patient.query.order_by(Patient.name).all()
 
     is_admin_controlled = request.args.get("admin_arqueo") == "true"
+    today_date = datetime.now(LOCAL_TZ).date()
+    today_str = today_date.strftime('%d/%m/%Y')
 
     controlled_reconciliation = []
     if is_admin_controlled:
         for item in controlled_items:
-            total_logged_out = sum(log.quantity for log in controlled_logs if item.name.lower() in log.item_name.lower())
-            current_stock = (item.stock_general or 0) + (item.stock_quirofano or 0)
-            
-            # Criterio de Conciliación: Si el stock actual es válido y no hay desviaciones negativas
-            # Puedes ajustar esta condición según las reglas específicas de auditoría de tu hospital.
-            status = "Conciliado" if current_stock >= 0 else "Discrepancia"
+            # 1. Sumar salidas surtidas HOY en la terminal general (Movement tipo 'Salida' con el nombre del fármaco en la fecha de hoy)
+            dispensed_today = sum(
+                mov.quantity for mov in Movement.query.filter(Movement.type == 'Salida').all()
+                if item.name.lower() in mov.item_name.lower() and mov.timestamp.date() == today_date
+            )
+
+            # 2. Sumar registros de salida HOY en la bitácora de controlados (ControlledLog)
+            logged_today = sum(
+                log.quantity for log in controlled_logs
+                if item.name.lower() in log.item_name.lower() and log.timestamp.date() == today_date
+            )
+
+            # Criterio de cotejo diario
+            status = "Conciliado" if dispensed_today == logged_today else "Discrepancia"
 
             controlled_reconciliation.append({
                 'item': item,
-                'current_stock': current_stock,
-                'total_logged_out': total_logged_out,
+                'dispensed_today': dispensed_today,
+                'logged_today': logged_today,
                 'status': status
             })
 
@@ -1973,6 +2046,7 @@ def controlados():
         users=users,
         patients=patients,
         is_admin_controlled=is_admin_controlled,
+        today_str=today_str,
         controlled_reconciliation=controlled_reconciliation
     )
 
@@ -1982,7 +2056,7 @@ def auth_admin_controlled():
     admin_user = User.query.filter_by(role="Administrador").first()
 
     if admin_pin in ["5678", "1234"] or (admin_user and admin_user.pin == admin_pin):
-        flash("Acceso concedido al módulo de arqueo y conciliación.", "success")
+        flash("Acceso concedido al módulo de arqueo y conciliación diaria.", "success")
         return redirect(url_for("controlados", admin_arqueo="true"))
     else:
         flash("PIN de Administrador incorrecto.", "error")
