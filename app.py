@@ -1442,14 +1442,17 @@ def register_batch():
     first_qty = 1
 
     for cart_item in cart_items:
-        item_search = cart_item.get("item_search", "").strip()
+        raw_search = cart_item.get("item_search", "").strip()
+        # Limpiar el nombre del medicamento extrayendo solo la parte anterior a "(Lote:"
+        item_search = raw_search.split(" (Lote:")[0].strip() if " (Lote:" in raw_search else raw_search
+        
         via_admin = cart_item.get("via", "ORAL")
         mov_type = cart_item.get("type")
         warehouse = cart_item.get("warehouse")
         quantity = int(cart_item.get("quantity", 1))
 
         if processed_count == 0:
-            first_item_name = item_search
+            first_item_name = raw_search
             first_via = via_admin
             first_qty = quantity
 
@@ -1503,9 +1506,8 @@ def register_batch():
         processed_count += 1
 
     db.session.commit()
-    flash(f"Surtido de {processed_count} medicamento(s) registrado y guardado exitosamente.", "success")
+    flash(f"Surtido de {processed_count} medicamento(s) registrado y guardado exitosamente en bitácora.", "success")
     
-    # Redirigir automáticamente a etiquetas con los datos cargados para impresión inmediata
     return redirect(url_for("etiquetas", patient=patient_name, fnac=patient_fnac, item=first_item_name, via=first_via, qty=first_qty, user=user.name, habitacion=patient_id or service))
 
 @app.route("/inventario")
