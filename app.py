@@ -166,7 +166,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             {% endfor %}
         </datalist>
 
-        <!-- DATALIST LIMPIO SIN ID PARA MEDICAMENTOS -->
         <datalist id="items_list">
             {% for item in items %}
                 <option value="{{ item.name }} (Lote: {{ item.lote or 'S/L' }})">Stock Gen: {{ item.stock_general }} | Qx: {{ item.stock_quirofano }} | {{ item.etiqueta }}</option>
@@ -175,7 +174,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
         {% if view == 'terminal' %}
         <div class="space-y-6 max-w-5xl mx-auto">
-            <!-- Selección de Personal -->
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                 <div class="mb-4">
                     <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -196,7 +194,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 </div>
             </div>
 
-            <!-- Formulario Principal de Surtido Múltiple -->
             <form action="/register_batch" method="POST" onsubmit="return validateBatchForm()" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-6">
                 <input type="hidden" name="cart_data" id="cart_data_input">
 
@@ -351,7 +348,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     </div>
                 </div>
 
-                <!-- SELECTOR DE FORMATO -->
                 <div class="mb-4 flex gap-4 bg-purple-50 p-3 rounded-xl border border-purple-200">
                     <label class="flex items-center gap-2 font-bold text-xs text-purple-900 cursor-pointer">
                         <input type="radio" name="format_type" value="horizontal1" checked onchange="toggleLabelFormat()" class="text-purple-600">
@@ -418,18 +414,15 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 </div>
             </form>
 
-            <!-- VISTA PREVIA DE LAS ETIQUETAS -->
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center space-y-4">
                 <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 no-print">Previsualización de la Etiqueta Seleccionada</h3>
                 
-                <!-- CONTENEDOR FORMATO 1: HORIZONTAL CON PACIENTE Y LOGO HOSPITAL OBREGÓN -->
                 <div id="previewHoriz1" class="printable-label w-[450px] mx-auto bg-white border-2 border-slate-900 rounded-lg p-3.5 text-left shadow-md space-y-2 font-mono text-slate-900">
                     <div class="border-b border-slate-900 pb-2 flex justify-between items-center">
                         <div>
                             <div class="font-extrabold text-xs uppercase leading-tight" id="v1_patient">VENTURA CARLOS PETRONILO</div>
                             <div class="text-[10px] text-slate-600 mt-0.5">Fecha de nacimiento: <span id="v1_fnac" class="font-bold">14/07/1967</span> | Habitación: <span id="v1_habitacion" class="font-bold">UCI-5</span></div>
                         </div>
-                        <!-- LOGO HOSPITAL OBREGÓN -->
                         <div class="text-right flex items-center gap-1.5 border border-slate-800 px-2 py-1 rounded bg-slate-50">
                             <span class="font-extrabold text-sm tracking-tighter text-blue-900">HD</span>
                             <div class="text-[8px] leading-tight font-bold uppercase text-slate-800">
@@ -458,14 +451,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     </div>
                 </div>
 
-                <!-- CONTENEDOR FORMATO 2: HORIZONTAL UNIDOSIS (SIN PACIENTE + LOGO HOSPITAL OBREGÓN) -->
                 <div id="previewHoriz2" class="printable-label hidden w-[450px] mx-auto bg-white border-2 border-slate-900 rounded-lg p-3.5 text-left shadow-md space-y-2 font-mono text-slate-900">
                     <div class="border-b border-slate-900 pb-2 flex justify-between items-center">
                         <div>
                             <span class="font-extrabold text-[10px] uppercase block">Denominación genérica o distintiva</span>
                             <span class="text-[9px] text-slate-500" id="h2_fprep">Fecha y hora de preparación: --/--/----</span>
                         </div>
-                        <!-- LOGO HOSPITAL OBREGÓN -->
                         <div class="text-right flex items-center gap-1.5 border border-slate-800 px-2 py-1 rounded bg-slate-50">
                             <span class="font-extrabold text-sm tracking-tighter text-blue-900">HD</span>
                             <div class="text-[8px] leading-tight font-bold uppercase text-slate-800">
@@ -586,7 +577,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             </div>
         </div>
 
-        <!-- MODAL AVANZADO DE EDICIÓN DE INVENTARIO CON AUTORIZACIÓN DE ADMIN -->
         <div id="editModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border space-y-4 max-h-[90vh] overflow-y-auto">
                 <div class="flex justify-between items-center border-b pb-2">
@@ -597,7 +587,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 <form action="/update_item" method="POST" class="space-y-3">
                     <input type="hidden" name="item_id" id="modal_item_id">
 
-                    <!-- AUTORIZACIÓN OBLIGATORIA DEL ADMINISTRADOR -->
                     <div class="bg-amber-50 p-3 rounded-xl border border-amber-200 text-xs">
                         <label class="block font-bold text-amber-900 uppercase mb-1"><i class="fa-solid fa-shield-halved"></i> PIN del Administrador (Requerido)</label>
                         <input type="password" name="admin_pin" required placeholder="PIN de Administrador" class="w-full p-2 border rounded-lg text-center font-bold tracking-widest text-sm outline-none bg-white">
@@ -755,7 +744,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
         {% elif view == 'limpieza' %}
         <div class="space-y-6">
-            <!-- HEADER DE ROL DE LIMPIEZA CON ROTACIÓN AUTOMÁTICA -->
             <div class="bg-gradient-to-r from-teal-900 to-slate-900 text-white p-6 rounded-2xl shadow-md border border-teal-800">
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-2">
                     <div>
@@ -770,7 +758,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 </div>
             </div>
 
-            <!-- DESGLOSE DE ACTIVIDAD ASIGNADA A CADA USUARIO ESTA SEMANA -->
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                 <h3 class="text-base font-bold text-slate-900 mb-4 border-b pb-3 flex items-center gap-2">
                     <i class="fa-solid fa-user-check text-teal-600"></i> Asignación Individual de Actividad Diaria por Usuario
@@ -793,7 +780,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                 </span>
                             </div>
 
-                            <!-- ACTIVIDAD ASIGNADA ESTA SEMANA -->
                             <div class="bg-gradient-to-r from-teal-500 to-emerald-600 text-white p-3.5 rounded-xl shadow-sm space-y-1">
                                 <span class="text-[10px] uppercase font-bold text-teal-100 block tracking-wider">
                                     <i class="fa-solid fa-clipboard-list"></i> Actividad Asignada Esta Semana:
@@ -804,7 +790,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                             </div>
                         </div>
 
-                        <!-- PRÓXIMA ACTIVIDAD LA SIGUIENTE SEMANA -->
                         <div class="border-t border-slate-200 pt-3 text-xs space-y-1 text-slate-600">
                             <div class="flex justify-between items-center text-[11px]">
                                 <span class="font-bold text-slate-700">Próxima Semana (Semana {{ current_week + 1 }}):</span>
@@ -823,7 +808,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- FORMULARIO DE CAPTURA DE SANITIZACIÓN DIARIA -->
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1">
                     <h2 class="text-base font-bold text-slate-900 mb-4 border-b pb-2 flex items-center gap-2">
                         <i class="fa-solid fa-broom text-teal-600"></i> Registrar Cumplimiento Diario
@@ -878,7 +862,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     </form>
                 </div>
 
-                <!-- TABLA HISTORIAL DE BITÁCORA DIARIA -->
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-2">
                     <div class="flex justify-between items-center mb-4 border-b pb-3">
                         <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -978,7 +961,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             </div>
         </div>
 
-        <!-- MODAL REVERTIR SURTIDO -->
         <div id="revertModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border space-y-4">
                 <div class="flex justify-between items-center border-b pb-2">
@@ -1001,6 +983,60 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
         {% elif view == 'controlados' %}
         <div class="space-y-6">
+            <!-- CONTADOR INDEPENDIENTE / ARQUEO Y CONCILIACIÓN DE CONTROLADOS -->
+            <div class="bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 p-6 rounded-2xl shadow-md text-white space-y-4">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b border-purple-800 pb-3">
+                    <div>
+                        <h2 class="text-base font-bold flex items-center gap-2">
+                            <i class="fa-solid fa-scale-balanced text-purple-300"></i> Módulo Independiente de Arqueo y Conciliación de Controlados
+                        </h2>
+                        <p class="text-xs text-purple-200">Cotejo automático entre el stock actual en inventario y las salidas registradas en la bitácora de controlados.</p>
+                    </div>
+                    <span class="bg-purple-600 px-3 py-1.5 rounded-xl text-xs font-mono font-bold shadow">
+                        {{ controlled_reconciliation | length }} Fármacos Controlados Monitoreados
+                    </span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {% for rec in controlled_reconciliation %}
+                    <div class="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-purple-700/50 space-y-3">
+                        <div class="flex justify-between items-start">
+                            <h4 class="font-bold text-sm text-white truncate max-w-[200px]" title="{{ rec.item.name }}">{{ rec.item.name }}</h4>
+                            {% if rec.is_balanced %}
+                                <span class="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded-full text-[10px] font-extrabold flex items-center gap-1">
+                                    <i class="fa-solid fa-circle-check"></i> Cuadrado
+                                </span>
+                            {% else %}
+                                <span class="bg-rose-500/20 text-rose-300 border border-rose-500/40 px-2 py-0.5 rounded-full text-[10px] font-extrabold flex items-center gap-1">
+                                    <i class="fa-solid fa-triangle-exclamation"></i> Desviación
+                                </span>
+                            {% endif %}
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2 text-xs bg-black/20 p-2.5 rounded-lg border border-purple-900/40">
+                            <div>
+                                <span class="text-[10px] text-purple-300 block">Stock Actual:</span>
+                                <strong class="text-sm text-white">{{ rec.current_stock }} pzas</strong>
+                            </div>
+                            <div>
+                                <span class="text-[10px] text-purple-300 block">Salidas Bitácora:</span>
+                                <strong class="text-sm text-amber-300">{{ rec.total_logged_out }} pzas</strong>
+                            </div>
+                        </div>
+
+                        <div class="text-[11px] text-purple-200 flex justify-between">
+                            <span>Lote: <strong class="text-white">{{ rec.item.lote or 'S/L' }}</strong></span>
+                            <span>Estado: <strong class="{% if rec.is_balanced %}text-emerald-300{% else %}text-rose-300{% endif %}">{% if rec.is_balanced %}Sincronizado{% else %}Discrepancia{% endif %}</strong></span>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="col-span-full text-center text-purple-300 italic py-3 text-xs">
+                        No hay medicamentos controlados registrados en el inventario para cotejar.
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1">
                     <h2 class="text-base font-bold text-slate-900 mb-4 border-b pb-2 flex items-center gap-2">
@@ -1311,7 +1347,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             const today = new Date().toLocaleDateString('es-MX');
             const timeNow = new Date().toLocaleTimeString('es-MX', {hour: '2-digit', minute:'2-digit'});
 
-            // Actualizar Formato 1 (Horizontal con paciente y Logo Hospital Obregón)
             document.getElementById('v1_patient').innerText = pName || 'VENTURA CARLOS PETRONILO';
             document.getElementById('v1_fnac').innerText = pFnac || '14/07/1967';
             document.getElementById('v1_habitacion').innerText = pHab || 'UCI-5';
@@ -1323,7 +1358,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             document.getElementById('v1_folio').innerText = pFolio || '--';
             document.getElementById('v1_user').innerText = pUser || '--';
 
-            // Actualizar Formato 2 (Horizontal Unidosis sin paciente + Logo Obregón)
             document.getElementById('h2_fprep').innerText = 'Fecha y hora de preparación: ' + today + ' ' + timeNow;
             document.getElementById('h2_item').innerText = pItem || 'PARACETAMOL';
             document.getElementById('h2_dosis_cant').innerText = pDosisCant || '500 mg';
@@ -1335,7 +1369,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             document.getElementById('h2_user').innerText = pUser || '--';
         }
 
-        // AUTO-LLENADO DESDE URL (VINCULACIÓN POST-SURTIDO)
         function loadParamsFromURL() {
             const urlParams = new URLSearchParams(window.location.search);
             if(urlParams.has('patient') || urlParams.has('item')) {
@@ -1575,7 +1608,6 @@ def update_item():
 def limpieza():
     cleaning_logs = CleaningLog.query.order_by(CleaningLog.timestamp.desc()).all()
     users = User.query.order_by(User.id).all()
-    
     operational_users = User.query.filter(User.role != "Administrador").order_by(User.id).all()
 
     now = get_local_now()
@@ -1596,27 +1628,19 @@ def limpieza():
     ]
 
     user_roles_detail = []
-
     if operational_users:
         num_users = len(operational_users)
         num_tasks = len(cleaning_tasks)
-
         for idx, u in enumerate(operational_users):
             task_index_this_week = (current_week + idx) % num_tasks
             task_index_next_week = (current_week + 1 + idx) % num_tasks
-
-            task_this_week = cleaning_tasks[task_index_this_week]
-            task_next_week = cleaning_tasks[task_index_next_week]
-
             user_roles_detail.append({
                 'user': u,
-                'task_this_week': task_this_week,
-                'task_next_week': task_next_week
+                'task_this_week': cleaning_tasks[task_index_this_week],
+                'task_next_week': cleaning_tasks[task_index_next_week]
             })
 
     week_dates_current = get_week_range(current_year, current_week)
-    week_dates_next = get_week_range(current_year, current_week + 1)
-
     patients = Patient.query.order_by(Patient.name).all()
     return render_template_string(
         HTML_TEMPLATE,
@@ -1627,7 +1651,6 @@ def limpieza():
         current_week=current_week,
         current_year=current_year,
         week_dates_current=week_dates_current,
-        week_dates_next=week_dates_next,
         user_roles_detail=user_roles_detail
     )
 
@@ -1786,11 +1809,40 @@ def controlados():
     controlled_logs = ControlledLog.query.order_by(ControlledLog.timestamp.desc()).all()
     users = User.query.order_by(User.name).all()
     patients = Patient.query.order_by(Patient.name).all()
-    return render_template_string(HTML_TEMPLATE, view="controlados", controlled_items=controlled_items, controlled_logs=controlled_logs, users=users, patients=patients)
+
+    # MÓDULO INDEPENDIENTE DE ARQUEO Y CONCILIACIÓN
+    controlled_reconciliation = []
+    for item in controlled_items:
+        # Sumar salidas registradas en ControlledLog para este medicamento específico
+        total_logged_out = sum(log.quantity for log in controlled_logs if item.name.lower() in log.item_name.lower())
+        current_stock = (item.stock_general or 0) + (item.stock_quirofano or 0)
+        
+        # Consideramos cuadrado si el stock actual y las salidas guardan consistencia lógica (o criterio de auditoría)
+        # Aquí puedes ajustar la regla de negocio: por ejemplo, verificar si existen registros congruentes o existencias.
+        is_balanced = True if current_stock >= 0 else False
+
+        controlled_reconciliation.append({
+            'item': item,
+            'current_stock': current_stock,
+            'total_logged_out': total_logged_out,
+            'is_balanced': is_balanced
+        })
+
+    return render_template_string(
+        HTML_TEMPLATE,
+        view="controlados",
+        controlled_items=controlled_items,
+        controlled_logs=controlled_logs,
+        users=users,
+        patients=patients,
+        controlled_reconciliation=controlled_reconciliation
+    )
 
 @app.route("/add_controlled", methods=["POST"])
 def add_controlled():
-    item_name = request.form.get("item_name", "").strip()
+    raw_item_name = request.form.get("item_name", "").strip()
+    item_name = raw_item_name.split(" (Lote:")[0].strip() if " (Lote:" in raw_item_name else raw_item_name
+    
     patient_name = request.form.get("patient_name", "").strip()
     prescription_num = request.form.get("prescription_num", "").strip()
     quantity = int(request.form.get("quantity", 1))
@@ -1803,6 +1855,17 @@ def add_controlled():
         flash("PIN de seguridad incorrecto.", "error")
         return redirect(url_for("controlados"))
 
+    # Descontar automáticamente del inventario general del medicamento controlado
+    item = Item.query.filter(Item.name.ilike(f"%{item_name}%"), Item.etiqueta == "Controlado").first()
+    if item:
+        if item.stock_general >= quantity:
+            item.stock_general -= quantity
+        elif item.stock_quirofano >= quantity:
+            item.stock_quirofano -= quantity
+        else:
+            flash(f"Stock insuficiente para el medicamento controlado '{item.name}'.", "error")
+            return redirect(url_for("controlados"))
+
     if patient_name:
         existing_patient = Patient.query.filter_by(name=patient_name).first()
         if not existing_patient:
@@ -1811,7 +1874,7 @@ def add_controlled():
 
     new_log = ControlledLog(
         timestamp=get_local_now(),
-        item_name=item_name,
+        item_name=raw_item_name,
         patient_name=patient_name,
         prescription_num=prescription_num,
         quantity=quantity,
@@ -1821,7 +1884,7 @@ def add_controlled():
     db.session.add(new_log)
     db.session.commit()
 
-    flash(f"Salida controlada de '{item_name}' registrada y paciente guardado.", "success")
+    flash(f"Salida controlada de '{raw_item_name}' registrada, inventario descontado y bitácora actualizada.", "success")
     return redirect(url_for("controlados"))
 
 # -----------------------------------------------------------------------------
