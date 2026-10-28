@@ -166,6 +166,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             {% endfor %}
         </datalist>
 
+        <datalist id="items_datalist">
+            {% for item in items %}
+                <option value="{{ item.name }} (Lote: {{ item.lote or 'S/L' }})">
+            {% endfor %}
+        </datalist>
+
         {% if view == 'terminal' %}
         <div class="space-y-6 max-w-5xl mx-auto">
             <!-- Selección de Personal -->
@@ -178,7 +184,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 </div>
                 <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
                     {% for u in users %}
-                    <button type="button" onclick="selectUser('{{ u.id }}')" class="p-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-blue-50 hover:border-blue-400 transition text-center group flex flex-col items-center">
+                    <button type="button" onclick="selectUser('{{ u.id }}', '{{ u.name }}')" class="p-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-blue-50 hover:border-blue-400 transition text-center group flex flex-col items-center">
                         <div class="w-9 h-9 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm mb-1.5 group-hover:scale-110 transition">
                             <i class="fa-solid {% if 'Admin' in u.role or 'Farmacia' in u.role %}fa-user-shield{% elif 'Enfermer' in u.role %}fa-user-nurse{% else %}fa-user-doctor{% endif %}"></i>
                         </div>
@@ -205,12 +211,13 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-blue-50/50 p-4 rounded-xl border border-blue-100">
                     <div>
                         <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Usuario Responsable</label>
-                        <select name="user_id" id="userSelect" required class="w-full p-2.5 border rounded-xl text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+                        <select name="user_id" id="userSelect" required onchange="updateSelectedUserName()" class="w-full p-2.5 border rounded-xl text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none">
                             <option value="">Seleccione Usuario...</option>
                             {% for u in users %}
-                                <option value="{{ u.id }}">{{ u.name }} ({{ u.role }})</option>
+                                <option value="{{ u.id }}" data-name="{{ u.name }}">{{ u.name }} ({{ u.role }})</option>
                             {% endfor %}
                         </select>
+                        <input type="hidden" name="user_name_hidden" id="user_name_hidden">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-slate-700 uppercase mb-1">PIN / Contraseña</label>
@@ -229,11 +236,11 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         </div>
                         <div>
                             <label class="block text-[11px] font-semibold text-slate-600 mb-1">No. Expediente / Cama</label>
-                            <input type="text" name="patient_id" placeholder="Ej. EXP-9823 / Cama 4" class="w-full p-2 border rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                            <input type="text" name="patient_id" id="patient_id" placeholder="Ej. EXP-9823 / Cama 4" class="w-full p-2 border rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none bg-white">
                         </div>
                         <div>
                             <label class="block text-[11px] font-semibold text-slate-600 mb-1">Servicio / Área</label>
-                            <input type="text" name="service" placeholder="Ej. Urgencias / Hospitalización" class="w-full p-2 border rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                            <input type="text" name="service" id="service_area" placeholder="Ej. Urgencias / Hospitalización" class="w-full p-2 border rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none bg-white">
                         </div>
                     </div>
                 </div>
@@ -294,7 +301,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                     <th class="p-2.5">Tipo</th>
                                     <th class="p-2.5">Almacén</th>
                                     <th class="p-2.5 text-center">Cantidad</th>
-                                    <th class="p-2.5 text-center">Acción</th>
+                                    <th class="p-2.5 text-center">Acciones / Etiqueta</th>
                                 </tr>
                             </thead>
                             <tbody id="cartTableBody" class="divide-y divide-slate-100">
@@ -314,7 +321,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 </div>
 
                 <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl shadow-md transition duration-200 flex items-center justify-center gap-2 text-sm">
-                    <i class="fa-solid fa-check-double"></i> Procesar Surtido Completo
+                    <i class="fa-solid fa-check-double"></i> Procesar Surtido Completo y Guardar
                 </button>
             </form>
         </div>
@@ -347,7 +354,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     </label>
                     <label class="flex items-center gap-2 font-bold text-xs text-purple-900 cursor-pointer">
                         <input type="radio" name="format_type" value="horizontal2" onchange="toggleLabelFormat()" class="text-purple-600">
-                        <span>🏷️ Formato 2: Etiqueta Horizontal Unidosis (Sin apartado de Paciente + Logo Hospital Obregón)</span>
+                        <span>🏷️ Formato 2: Etiqueta Horizontal Unidosis (Sin Paciente + Todos los Insumos + Logo)</span>
                     </label>
                 </div>
 
@@ -369,7 +376,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Medicamento / Denominación</label>
-                            <input list="items_list" id="lbl_item" placeholder="Ej. NIFEDIPINO 30 MG / PARACETAMOL" oninput="updateLabelPreview()" class="w-full p-2 border rounded-lg text-xs bg-slate-50 font-bold outline-none">
+                            <input list="items_datalist" id="lbl_item" placeholder="Seleccione o escriba medicamento..." oninput="updateLabelPreview()" class="w-full p-2 border rounded-lg text-xs bg-slate-50 font-bold outline-none">
                         </div>
                     </div>
 
@@ -892,7 +899,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
                             <i class="fa-solid fa-clock-rotate-left text-blue-600"></i> Bitácora e Histórico de Surtido
                         </h2>
-                        <p class="text-xs text-slate-500">Haga clic en 'Generar Etiqueta' para traspasar los datos del surtido al formato de impresión.</p>
+                        <p class="text-xs text-slate-500">Modificación y cancelación de surtidos requieren PIN de Administrador.</p>
                     </div>
                     <button onclick="window.print()" class="px-4 py-2 bg-slate-800 text-white font-bold rounded-xl text-xs">
                         <i class="fa-solid fa-print"></i> Imprimir Bitácora
@@ -909,7 +916,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                 <th class="p-3 text-center">Cant.</th>
                                 <th class="p-3">Paciente / Área</th>
                                 <th class="p-3">Responsable</th>
-                                <th class="p-3 text-center">Acciones</th>
+                                <th class="p-3 text-center">Acción Admin</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
@@ -925,10 +932,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                 <td class="p-3 text-center font-bold text-sm text-slate-900">{{ mov.quantity }}</td>
                                 <td class="p-3 font-medium text-slate-900">{{ mov.patient_name or mov.service or '-' }}</td>
                                 <td class="p-3 text-indigo-900 font-bold">{{ mov.user_name }}</td>
-                                <td class="p-3 text-center space-x-1">
-                                    <a href="/etiquetas?patient={{ mov.patient_name | urlencode }}&item={{ mov.item_name | urlencode }}&qty={{ mov.quantity | urlencode }}&user={{ mov.user_name | urlencode }}&service={{ mov.service | urlencode }}" class="px-2.5 py-1 bg-purple-100 hover:bg-purple-200 text-purple-700 font-bold rounded text-[11px] inline-flex items-center gap-1">
-                                        <i class="fa-solid fa-tag"></i> Etiqueta
-                                    </a>
+                                <td class="p-3 text-center">
                                     <button onclick="revertMovementModal('{{ mov.id }}', '{{ mov.item_name }}', '{{ mov.quantity }}')" class="px-2 py-1 bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold rounded text-[11px]">
                                         <i class="fa-solid fa-rotate-left"></i> Revertir
                                     </button>
@@ -1145,9 +1149,17 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <script>
         let cart = [];
 
-        function selectUser(id) {
+        function selectUser(id, name) {
             var elem = document.getElementById('userSelect');
             if(elem) elem.value = id;
+            document.getElementById('user_name_hidden').value = name;
+        }
+
+        function updateSelectedUserName() {
+            var select = document.getElementById('userSelect');
+            var opt = select.options[select.selectedIndex];
+            var name = opt.getAttribute('data-name') || '';
+            document.getElementById('user_name_hidden').value = name;
         }
 
         function addToCart() {
@@ -1198,13 +1210,20 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
             let html = '';
             cart.forEach((item, index) => {
+                let patientVal = document.getElementById('patient_name').value;
+                let serviceVal = document.getElementById('service_area').value;
+                let userVal = document.getElementById('user_name_hidden').value || '';
+
                 html += `
                     <tr class="hover:bg-slate-50">
                         <td class="p-2.5 font-bold text-slate-800">${item.item_search}</td>
                         <td class="p-2.5 font-medium text-xs">${item.type}</td>
                         <td class="p-2.5 text-xs text-slate-500">${item.warehouse}</td>
                         <td class="p-2.5 text-center font-bold text-sm text-slate-900">${item.quantity}</td>
-                        <td class="p-2.5 text-center">
+                        <td class="p-2.5 text-center space-x-1">
+                            <a href="/etiquetas?patient=${encodeURIComponent(patientVal)}&item=${encodeURIComponent(item.item_search)}&qty=${encodeURIComponent(item.quantity)}&user=${encodeURIComponent(userVal)}&service=${encodeURIComponent(serviceVal)}" class="px-2 py-1 bg-purple-100 hover:bg-purple-200 text-purple-800 font-bold rounded text-[11px] inline-flex items-center gap-1">
+                                <i class="fa-solid fa-tag"></i> Etiqueta
+                            </a>
                             <button type="button" onclick="removeFromCart(${index})" class="px-2 py-1 bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold rounded text-xs transition">
                                 <i class="fa-solid fa-trash"></i>
                             </button>
@@ -1288,7 +1307,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             document.getElementById('h2_user').innerText = pUser || '--';
         }
 
-        // AUTO-LLENADO DESDE URL (VINCULACIÓN CON BITÁCORA)
+        // AUTO-LLENADO DESDE URL (VINCULACIÓN CON SURTIDO MÚLTIPLE)
         function loadParamsFromURL() {
             const urlParams = new URLSearchParams(window.location.search);
             if(urlParams.has('patient') || urlParams.has('item')) {
