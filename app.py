@@ -1,3 +1,6 @@
+Aquí tienes el código completo con la actualización en los estilos de impresión para asegurar que se ajuste perfectamente a tu etiqueta térmica de **51 mm x 25 mm** (con orientación horizontal y márgenes optimizados):
+
+```python
 import os
 from datetime import datetime, date, timedelta, timezone
 import json
@@ -87,7 +90,7 @@ class CleaningLog(db.Model):
     notes = db.Column(db.String(250), nullable=True)
 
 # -----------------------------------------------------------------------------
-# PLANTILLA HTML INTEGRADA (CON ESTILOS TÉRMICOS 51x25 mm)
+# PLANTILLA HTML INTEGRADA (CON ESTILOS TÉRMICOS 51x25 mm ACTUALIZADOS)
 # -----------------------------------------------------------------------------
 
 HTML_TEMPLATE = """<!DOCTYPE html>
@@ -101,7 +104,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <style>
         @media print {
             @page {
-                size: 51mm 25mm;
+                size: 51mm 25mm landscape;
                 margin: 0mm;
             }
             body, html {
@@ -124,10 +127,10 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             }
             .printable-label {
                 display: block !important;
-                width: 50mm !important;
-                height: 24mm !important;
-                margin: 0.5mm auto !important;
-                padding: 1mm !important;
+                width: 49mm !important;
+                height: 23mm !important;
+                margin: 0 auto !important;
+                padding: 0.5mm !important;
                 border: none !important;
                 box-shadow: none !important;
                 page-break-inside: avoid;
@@ -2182,3 +2185,5 @@ seed_database()
 
 if __name__ == "__main__":
     app.run(debug=True)
+
+```
