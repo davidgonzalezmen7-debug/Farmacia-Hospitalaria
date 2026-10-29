@@ -87,7 +87,7 @@ class CleaningLog(db.Model):
     notes = db.Column(db.String(250), nullable=True)
 
 # -----------------------------------------------------------------------------
-# PLANTILLA HTML INTEGRADA
+# PLANTILLA HTML INTEGRADA (CON ESTILOS TÉRMICOS 51x25 mm)
 # -----------------------------------------------------------------------------
 
 HTML_TEMPLATE = """<!DOCTYPE html>
@@ -100,15 +100,47 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         @media print {
-            header, nav, .no-print, button, form { display: none !important; }
-            body { background-color: white !important; }
-            .print-container { width: 100% !important; margin: 0 !important; padding: 0 !important; }
-            .printable-label { border: 2px solid #000 !important; box-shadow: none !important; page-break-inside: avoid; }
+            @page {
+                size: 51mm 25mm;
+                margin: 0mm;
+            }
+            body, html {
+                width: 51mm;
+                height: 25mm;
+                margin: 0 !important;
+                padding: 0 !important;
+                background-color: white !important;
+            }
+            header, nav, .no-print, button, form { 
+                display: none !important; 
+            }
+            main.print-container {
+                display: block !important;
+                width: 51mm !important;
+                height: 25mm !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                overflow: hidden !important;
+            }
+            .printable-label {
+                display: block !important;
+                width: 50mm !important;
+                height: 24mm !important;
+                margin: 0.5mm auto !important;
+                padding: 1mm !important;
+                border: none !important;
+                box-shadow: none !important;
+                page-break-inside: avoid;
+                background: white !important;
+            }
+            .hidden-print-section {
+                display: none !important;
+            }
         }
     </style>
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800 font-sans">
-    <header class="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white shadow-lg sticky top-0 z-40">
+    <header class="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white shadow-lg sticky top-0 z-40 no-print">
         <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col md:flex-row justify-between items-center gap-4">
             <div class="flex items-center gap-3">
                 <div class="bg-blue-600 p-2.5 rounded-xl shadow-inner">
@@ -334,16 +366,16 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 <div class="border-b pb-3 mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                     <div>
                         <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
-                            <i class="fa-solid fa-tags text-purple-600"></i> Generador de Formatos de Etiquetas Hospitalarias
+                            <i class="fa-solid fa-tags text-purple-600"></i> Generador de Etiquetas Térmicas (51 x 25 mm)
                         </h2>
-                        <p class="text-xs text-slate-500">Seleccione el formato y complete los datos para generar e imprimir la etiqueta exacta.</p>
+                        <p class="text-xs text-slate-500">Seleccione el formato y complete los datos para generar la etiqueta térmica exacta.</p>
                     </div>
                     <div class="flex gap-2 w-full sm:w-auto">
                         <button type="submit" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow transition flex items-center justify-center gap-1.5">
                             <i class="fa-solid fa-user-plus"></i> Guardar Paciente
                         </button>
                         <button type="button" onclick="window.print()" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold shadow transition flex items-center justify-center gap-2">
-                            <i class="fa-solid fa-print"></i> Imprimir Etiquetas
+                            <i class="fa-solid fa-print"></i> Imprimir Etiqueta
                         </button>
                     </div>
                 </div>
@@ -351,11 +383,11 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 <div class="mb-4 flex gap-4 bg-purple-50 p-3 rounded-xl border border-purple-200">
                     <label class="flex items-center gap-2 font-bold text-xs text-purple-900 cursor-pointer">
                         <input type="radio" name="format_type" value="horizontal1" checked onchange="toggleLabelFormat()" class="text-purple-600">
-                        <span>🏷️ Formato 1: Etiqueta Horizontal (Con Paciente + Logo Hospital Obregón)</span>
+                        <span>🏷️ Formato 1: Etiqueta Con Paciente</span>
                     </label>
                     <label class="flex items-center gap-2 font-bold text-xs text-purple-900 cursor-pointer">
                         <input type="radio" name="format_type" value="horizontal2" onchange="toggleLabelFormat()" class="text-purple-600">
-                        <span>🏷️ Formato 2: Etiqueta Horizontal Unidosis (Sin Paciente + Todos los Insumos + Logo)</span>
+                        <span>🏷️ Formato 2: Etiqueta Unidosis (Sin Paciente)</span>
                     </label>
                 </div>
 
@@ -371,7 +403,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                 <input type="text" id="lbl_fnac" placeholder="Ej. 14/07/1967" oninput="updateLabelPreview()" class="w-full p-2 border rounded-lg text-xs bg-slate-50 outline-none">
                             </div>
                             <div>
-                                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Habitación / UCI / Cama</label>
+                                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Habitación / UCI</label>
                                 <input type="text" id="lbl_habitacion" placeholder="Ej. UCI-5" oninput="updateLabelPreview()" class="w-full p-2 border rounded-lg text-xs bg-slate-50 outline-none">
                             </div>
                         </div>
@@ -389,7 +421,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                             </div>
                             <div>
                                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Dosis / Cantidad</label>
-                                <input type="text" id="lbl_dosis_cant" placeholder="Ej. 2 TAB / 500 mg" oninput="updateLabelPreview()" class="w-full p-2 border rounded-lg text-xs bg-slate-50 outline-none font-bold">
+                                <input type="text" id="lbl_dosis_cant" placeholder="Ej. 1 pza" oninput="updateLabelPreview()" class="w-full p-2 border rounded-lg text-xs bg-slate-50 outline-none font-bold">
                             </div>
                         </div>
                         <div class="grid grid-cols-3 gap-2">
@@ -402,7 +434,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                 <input type="text" id="lbl_folio" placeholder="Ej. 71" oninput="updateLabelPreview()" class="w-full p-2 border rounded-lg text-xs bg-slate-50 text-center outline-none">
                             </div>
                             <div>
-                                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Caducidad / Vigencia</label>
+                                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Caducidad</label>
                                 <input type="text" id="lbl_cad" placeholder="Ej. 10/01/2027" oninput="updateLabelPreview()" class="w-full p-2 border rounded-lg text-xs bg-slate-50 text-center outline-none">
                             </div>
                         </div>
@@ -415,82 +447,72 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             </form>
 
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center space-y-4">
-                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 no-print">Previsualización de la Etiqueta Seleccionada</h3>
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 no-print">Previsualización Térmica (51 mm × 25 mm)</h3>
                 
-                <div id="previewHoriz1" class="printable-label w-[450px] mx-auto bg-white border-2 border-slate-900 rounded-lg p-3.5 text-left shadow-md space-y-2 font-mono text-slate-900">
-                    <div class="border-b border-slate-900 pb-2 flex justify-between items-center">
-                        <div>
-                            <div class="font-extrabold text-xs uppercase leading-tight" id="v1_patient">VENTURA CARLOS PETRONILO</div>
-                            <div class="text-[10px] text-slate-600 mt-0.5">Fecha de nacimiento: <span id="v1_fnac" class="font-bold">14/07/1967</span> | Habitación: <span id="v1_habitacion" class="font-bold">UCI-5</span></div>
+                <!-- FORMATO 1: 51x25 mm -->
+                <div id="previewHoriz1" class="printable-label w-[385px] h-[188px] mx-auto bg-white border border-slate-400 rounded p-1 text-left shadow-md flex flex-col justify-between font-mono text-slate-900 overflow-hidden" style="box-sizing: border-box;">
+                    <div class="flex justify-between items-center border-b border-black pb-0.5">
+                        <div class="overflow-hidden pr-1">
+                            <div class="font-black text-[9px] uppercase leading-none truncate" id="v1_patient">VENTURA CARLOS PETRONILO</div>
+                            <div class="text-[7.5px] text-slate-700 leading-tight">F.N: <span id="v1_fnac" class="font-bold">14/07/1967</span> | Hab: <span id="v1_habitacion" class="font-bold">UCI-5</span></div>
                         </div>
-                        <div class="text-right flex items-center gap-1.5 border border-slate-800 px-2 py-1 rounded bg-slate-50">
-                            <span class="font-extrabold text-sm tracking-tighter text-blue-900">HD</span>
-                            <div class="text-[8px] leading-tight font-bold uppercase text-slate-800">
-                                Hospital<br>Obregón
+                        <div class="text-right flex items-center gap-1 border border-black px-1 py-0.5 bg-slate-50 shrink-0">
+                            <span class="font-extrabold text-[10px] tracking-tighter text-blue-900 leading-none">HD</span>
+                            <div class="text-[6px] leading-none font-bold uppercase text-slate-800">
+                                Hosp.<br>Obregón
                             </div>
                         </div>
                     </div>
 
-                    <div class="py-1 text-center bg-slate-100 rounded border border-slate-300">
-                        <div class="font-extrabold text-xs tracking-wide text-blue-900 uppercase" id="v1_item">ACETATO DE METILPREDNISOLONA 40 MG (LOTE: C25A204)</div>
+                    <div class="text-center bg-slate-100 border border-slate-300 py-0.5 px-0.5">
+                        <div class="font-black text-[8.5px] tracking-tight text-blue-900 uppercase truncate" id="v1_item">ACETATO DE METILPREDNISOLONA 40 MG</div>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-1 text-[11px]">
-                        <div>Vía: <strong id="v1_via" class="uppercase">ORAL</strong></div>
-                        <div>F. prep: <span id="v1_fprep">--/--/----</span></div>
+                    <div class="grid grid-cols-2 text-[7.5px] font-bold border-t border-b border-black py-0.5 px-0.5">
+                        <div class="truncate">Vía: <span id="v1_via" class="uppercase">ORAL</span></div>
+                        <div class="text-right">Dosis: <span id="v1_dosis_cant">1 pza</span></div>
                     </div>
 
-                    <div class="flex justify-between items-center border border-slate-900 p-1 text-xs font-bold bg-white">
-                        <div>Hora: <span id="v1_hora">--:--</span></div>
-                        <div class="bg-slate-200 px-2 py-0.5 rounded" id="v1_dosis_cant">1 pza(s)</div>
-                    </div>
-
-                    <div class="flex justify-between text-[10px] pt-1 text-slate-600 border-t border-dashed">
+                    <div class="flex justify-between text-[7px] text-slate-800 pt-0.5">
                         <span>Folio: <strong id="v1_folio">--</strong></span>
                         <span>Prep: <span id="v1_user" class="uppercase">--</span></span>
+                        <span>Hora: <span id="v1_hora">--:--</span></span>
                     </div>
                 </div>
 
-                <div id="previewHoriz2" class="printable-label hidden w-[450px] mx-auto bg-white border-2 border-slate-900 rounded-lg p-3.5 text-left shadow-md space-y-2 font-mono text-slate-900">
-                    <div class="border-b border-slate-900 pb-2 flex justify-between items-center">
-                        <div>
-                            <span class="font-extrabold text-[10px] uppercase block">Denominación genérica o distintiva</span>
-                            <span class="text-[9px] text-slate-500" id="h2_fprep">Fecha y hora de preparación: --/--/----</span>
-                        </div>
-                        <div class="text-right flex items-center gap-1.5 border border-slate-800 px-2 py-1 rounded bg-slate-50">
-                            <span class="font-extrabold text-sm tracking-tighter text-blue-900">HD</span>
-                            <div class="text-[8px] leading-tight font-bold uppercase text-slate-800">
-                                Hospital<br>Obregón
+                <!-- FORMATO 2: 51x25 mm Unidosis -->
+                <div id="previewHoriz2" class="printable-label hidden w-[385px] h-[188px] mx-auto bg-white border border-slate-400 rounded p-1 text-left shadow-md flex flex-col justify-between font-mono text-slate-900 overflow-hidden" style="box-sizing: border-box;">
+                    <div class="flex justify-between items-center border-b border-black pb-0.5">
+                        <span class="font-bold text-[7.5px] uppercase text-slate-700">UNIDOSIS HOSPITALARIA</span>
+                        <div class="text-right flex items-center gap-1 border border-black px-1 py-0.5 bg-slate-50 shrink-0">
+                            <span class="font-extrabold text-[10px] tracking-tighter text-blue-900 leading-none">HD</span>
+                            <div class="text-[6px] leading-none font-bold uppercase text-slate-800">
+                                Hosp.<br>Obregón
                             </div>
                         </div>
                     </div>
 
                     <div>
-                        <div class="font-extrabold text-sm uppercase text-blue-900" id="h2_item">PARACETAMOL</div>
+                        <div class="font-black text-[9px] uppercase text-blue-900 truncate" id="h2_item">PARACETAMOL</div>
                     </div>
 
-                    <div class="grid grid-cols-4 gap-1 text-[10px] border-t border-b border-slate-300 py-1.5 bg-slate-50 px-1 rounded">
-                        <div>Dosis:<br><strong id="h2_dosis_cant">500 mg</strong></div>
-                        <div>Forma farma.:<br><strong id="h2_forma">Tableta</strong></div>
-                        <div>Lote:<br><strong id="h2_lote">SJ2544</strong></div>
-                        <div>Fabricante:<br><strong>BIOMEP</strong></div>
+                    <div class="grid grid-cols-4 gap-0.5 text-[7px] border-t border-b border-slate-400 py-0.5 bg-slate-50 px-0.5 text-center">
+                        <div>Dosis:<br><strong id="h2_dosis_cant" class="text-[7.5px]">500 mg</strong></div>
+                        <div>Forma:<br><strong id="h2_forma" class="text-[7.5px]">Tab</strong></div>
+                        <div>Lote:<br><strong id="h2_lote" class="text-[7.5px]">SJ2544</strong></div>
+                        <div>Vig:<br><strong id="h2_cad" class="text-[7.5px]">10/01/27</strong></div>
                     </div>
 
-                    <div class="grid grid-cols-3 gap-1 text-[10px] px-1">
-                        <div>Vía adminis.:<br><strong id="h2_via" class="uppercase">Oral</strong></div>
-                        <div>Folio:<br><strong id="h2_folio">71</strong></div>
-                        <div>Vigencia:<br><strong id="h2_cad">10/01/2027</strong></div>
-                    </div>
-
-                    <div class="border-t border-dashed pt-1.5 flex justify-between text-[10px] text-slate-600">
-                        <span>Se preparó: <strong id="h2_user" class="uppercase">--</strong></span>
-                        <span class="font-bold text-blue-900">UNIDOSIS HOSPITALARIA</span>
+                    <div class="flex justify-between text-[7px] text-slate-800 pt-0.5">
+                        <span>Vía: <strong id="h2_via" class="uppercase">Oral</strong></span>
+                        <span>Folio: <strong id="h2_folio">--</strong></span>
+                        <span>Prep: <strong id="h2_user" class="uppercase">--</strong></span>
                     </div>
                 </div>
 
                 <div class="no-print pt-2">
                     <button onclick="window.print()" class="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-xs shadow-md transition">
-                        <i class="fa-solid fa-print"></i> Imprimir Etiqueta Ahora
+                        <i class="fa-solid fa-print"></i> Imprimir Etiqueta Térmica
                     </button>
                 </div>
             </div>
@@ -1484,22 +1506,20 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             document.getElementById('v1_patient').innerText = pName || 'VENTURA CARLOS PETRONILO';
             document.getElementById('v1_fnac').innerText = pFnac || '14/07/1967';
             document.getElementById('v1_habitacion').innerText = pHab || 'UCI-5';
-            document.getElementById('v1_item').innerText = pItem || 'ACETATO DE METILPREDNISOLONA 40 MG (LOTE: C25A204)';
+            document.getElementById('v1_item').innerText = pItem || 'ACETATO DE METILPREDNISOLONA 40 MG';
             document.getElementById('v1_via').innerText = pVia || 'ORAL';
-            document.getElementById('v1_fprep').innerText = today;
             document.getElementById('v1_hora').innerText = timeNow;
-            document.getElementById('v1_dosis_cant').innerText = pDosisCant || '1 pza(s)';
+            document.getElementById('v1_dosis_cant').innerText = pDosisCant || '1 pza';
             document.getElementById('v1_folio').innerText = pFolio || '--';
             document.getElementById('v1_user').innerText = pUser || '--';
 
-            document.getElementById('h2_fprep').innerText = 'Fecha y hora de preparación: ' + today + ' ' + timeNow;
             document.getElementById('h2_item').innerText = pItem || 'PARACETAMOL';
             document.getElementById('h2_dosis_cant').innerText = pDosisCant || '500 mg';
-            document.getElementById('h2_forma').innerText = pVia || 'Tableta';
+            document.getElementById('h2_forma').innerText = pVia || 'Tab';
             document.getElementById('h2_lote').innerText = pLote || 'SJ2544';
             document.getElementById('h2_via').innerText = pVia || 'Oral';
-            document.getElementById('h2_folio').innerText = pFolio || '71';
-            document.getElementById('h2_cad').innerText = pCad || '10/01/2027';
+            document.getElementById('h2_folio').innerText = pFolio || '--';
+            document.getElementById('h2_cad').innerText = pCad || '10/01/27';
             document.getElementById('h2_user').innerText = pUser || '--';
         }
 
@@ -1510,7 +1530,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 if(urlParams.get('fnac')) document.getElementById('lbl_fnac').value = urlParams.get('fnac');
                 if(urlParams.get('item')) document.getElementById('lbl_item').value = urlParams.get('item');
                 if(urlParams.get('via')) document.getElementById('lbl_via').value = urlParams.get('via');
-                if(urlParams.get('qty')) document.getElementById('lbl_dosis_cant').value = urlParams.get('qty') + ' pza(s)';
+                if(urlParams.get('qty')) document.getElementById('lbl_dosis_cant').value = urlParams.get('qty') + ' pza';
                 if(urlParams.get('user')) document.getElementById('lbl_user').value = urlParams.get('user');
                 if(urlParams.get('habitacion')) document.getElementById('lbl_habitacion').value = urlParams.get('habitacion');
                 updateLabelPreview();
