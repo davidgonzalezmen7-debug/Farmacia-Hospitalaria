@@ -112,10 +112,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             }
             body, html {
                 width: 51mm !important;
-                height: 25mm !important;
                 margin: 0 !important;
                 padding: 0 !important;
-                overflow: hidden !important;
                 background-color: white !important;
             }
             header, nav, .no-print, button, form { 
@@ -124,7 +122,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             main.print-container {
                 display: block !important;
                 width: 51mm !important;
-                height: 25mm !important;
                 margin: 0 !important;
                 padding: 0 !important;
             }
@@ -136,6 +133,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 padding: 1mm !important;
                 border: none !important;
                 box-shadow: none !important;
+                page-break-after: always;
+                page-break-inside: avoid;
                 background: white !important;
             }
         }
@@ -727,6 +726,67 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         Eliminar Insumo Definitivamente
                     </button>
                 </form>
+            </div>
+        </div>
+
+        {% elif view == 'lote_etiquetas' %}
+        <div class="space-y-6 max-w-4xl mx-auto">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 no-print flex flex-col md:flex-row justify-between items-center gap-4">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                        <i class="fa-solid fa-tags text-purple-600"></i> Lote de Etiquetas Generadas ({{ batch_labels|length }} ítems)
+                    </h2>
+                    <p class="text-xs text-slate-500">Paciente: <strong class="text-slate-800">{{ patient_name }}</strong> | Habitación: <strong class="text-slate-800">{{ habitacion }}</strong></p>
+                </div>
+                <div class="flex gap-2">
+                    <a href="/imprimir_lote_pdf?patient={{ patient_name }}&fnac={{ fnac }}&habitacion={{ habitacion }}&user={{ user_name }}&items={{ items_json }}" target="_blank" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow transition flex items-center gap-2">
+                        <i class="fa-solid fa-file-pdf"></i> Descargar PDF Masivo (51x25 mm)
+                    </a>
+                    <button onclick="window.print()" class="px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold shadow transition flex items-center gap-2">
+                        <i class="fa-solid fa-print"></i> Imprimir Todas
+                    </button>
+                    <a href="/terminal" class="px-4 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-bold transition">
+                        Volver a Terminal
+                    </a>
+                </div>
+            </div>
+
+            <div class="space-y-6 text-center">
+                <p class="text-xs font-bold text-slate-400 uppercase tracking-widest no-print">Previsualización Continua (Cada recuadro es una etiqueta independiente de 51 x 25 mm)</p>
+                
+                <div class="space-y-4">
+                    {% for lbl in batch_labels %}
+                    <div class="printable-label w-[385px] h-[188px] mx-auto bg-white border border-slate-400 rounded p-1 text-left shadow-md flex flex-col justify-between font-mono text-slate-900 overflow-hidden" style="box-sizing: border-box;">
+                        <div class="flex justify-between items-center border-b border-black pb-0.5">
+                            <div class="overflow-hidden pr-1">
+                                <div class="font-black text-[9px] uppercase leading-none truncate">{{ patient_name }}</div>
+                                <div class="text-[7.5px] text-slate-700 leading-tight">F.N: <span class="font-bold">{{ fnac }}</span> | Hab: <span class="font-bold">{{ habitacion }}</span></div>
+                            </div>
+                            <div class="text-right flex items-center gap-1 border border-black px-1 py-0.5 bg-slate-50 shrink-0">
+                                <span class="font-extrabold text-[10px] tracking-tighter text-blue-900 leading-none">HD</span>
+                                <div class="text-[6px] leading-none font-bold uppercase text-slate-800">
+                                    Hosp.<br>Obregón
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="text-center bg-slate-100 border border-slate-300 py-0.5 px-0.5">
+                            <div class="font-black text-[8.5px] tracking-tight text-blue-900 uppercase truncate">{{ lbl.name }}</div>
+                        </div>
+
+                        <div class="grid grid-cols-2 text-[7.5px] font-bold border-t border-b border-black py-0.5 px-0.5">
+                            <div class="truncate">Vía: <span class="uppercase">{{ lbl.via }}</span></div>
+                            <div class="text-right">Dosis: <span>{{ lbl.quantity }} pza(s)</span></div>
+                        </div>
+
+                        <div class="flex justify-between text-[7px] text-slate-800 pt-0.5">
+                            <span>Folio: <strong>--</strong></span>
+                            <span>Prep: <span class="uppercase">{{ user_name }}</span></span>
+                            <span>Hora: <span>{{ current_time }}</span></span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
             </div>
         </div>
 
@@ -1637,32 +1697,34 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 """
 
 # -----------------------------------------------------------------------------
-# RUTA GENERADORA DE PDF EXACTO (51mm x 25mm)
+# RUTAS DE PDF MASIVO Y ETIQUETAS
 # -----------------------------------------------------------------------------
 
-@app.route("/imprimir_etiqueta_pdf")
-def imprimir_etiqueta_pdf():
-    format_type = request.args.get("format_type", "horizontal1")
-    patient = request.args.get("patient", "VENTURA CARLOS PETRONILO").strip().upper()
-    fnac = request.args.get("fnac", "14/07/1967").strip()
-    habitacion = request.args.get("habitacion", "UCI-5").strip()
-    item = request.args.get("item", "ACETATO DE METILPREDNISOLONA 40 MG").strip().upper()
-    via = request.args.get("via", "ORAL").strip().upper()
-    dosis_cant = request.args.get("dosis_cant", "1 pza").strip()
-    lote = request.args.get("lote", "SJ2544").strip()
-    folio = request.args.get("folio", "--").strip()
-    cad = request.args.get("cad", "10/01/2027").strip()
-    user = request.args.get("user", "--").strip().upper()
-    hora = datetime.now(LOCAL_TZ).strftime("%H:%M")
+@app.route("/imprimir_lote_pdf")
+def imprimir_lote_pdf():
+    patient = request.args.get("patient", "PACIENTE").strip().upper()
+    fnac = request.args.get("fnac", "").strip()
+    habitacion = request.args.get("habitacion", "").strip()
+    user_name = request.args.get("user", "").strip().upper()
+    items_json = request.args.get("items", "[]")
 
-    # Medidas físicas exactas en puntos reportlab (1 mm = 2.83465 pt)
+    try:
+        items_list = json.loads(items_json)
+    except Exception:
+        items_list = []
+
     width = 51 * mm
     height = 25 * mm
 
     buffer = io.BytesIO()
     c = canvas.Canvas(buffer, pagesize=(width, height))
+    hora = datetime.now(LOCAL_TZ).strftime("%H:%M")
 
-    if format_type == "horizontal1":
+    for idx, lbl in enumerate(items_list):
+        item_name = lbl.get("name", "").upper()
+        via = lbl.get("via", "ORAL").upper()
+        qty = lbl.get("quantity", 1)
+
         # Borde exterior delgado
         c.setLineWidth(0.5)
         c.rect(1*mm, 1*mm, 49*mm, 23*mm)
@@ -1690,71 +1752,34 @@ def imprimir_etiqueta_pdf():
         c.rect(1.5*mm, 11.5*mm, 48*mm, 5*mm, fill=1, stroke=0)
         c.setFillColor(HexColor("#000000"))
         c.setFont("Helvetica-Bold", 6.5)
-        c.drawCentredString(25.5*mm, 13*mm, item[:35])
+        c.drawCentredString(25.5*mm, 13*mm, item_name[:35])
 
         # Vía y Dosis
         c.line(1*mm, 11*mm, 50*mm, 11*mm)
         c.setFont("Helvetica-Bold", 6)
         c.drawString(2*mm, 8*mm, f"Vía: {via}")
-        c.drawRightString(49*mm, 8*mm, f"Dosis: {dosis_cant}")
+        c.drawRightString(49*mm, 8*mm, f"Dosis: {qty} pza(s)")
         c.line(1*mm, 6.5*mm, 50*mm, 6.5*mm)
 
         # Pie con Folio, Prep y Hora
         c.setFont("Helvetica", 5.5)
-        c.drawString(2*mm, 3*mm, f"Folio: {folio}")
-        c.drawCentredString(25.5*mm, 3*mm, f"Prep: {user[:12]}")
+        c.drawString(2*mm, 3*mm, "Folio: --")
+        c.drawCentredString(25.5*mm, 3*mm, f"Prep: {user_name[:12]}")
         c.drawRightString(49*mm, 3*mm, f"Hora: {hora}")
 
-    else:
-        # Formato 2: Unidosis
-        c.setLineWidth(0.5)
-        c.rect(1*mm, 1*mm, 49*mm, 23*mm)
+        c.showPage()
 
-        c.setFont("Helvetica-Bold", 6)
-        c.drawString(2*mm, 21*mm, "UNIDOSIS HOSPITALARIA")
-
-        # Logo HD Obregón
-        c.rect(38*mm, 18*mm, 11*mm, 5*mm)
-        c.setFont("Helvetica-Bold", 8)
-        c.drawString(38.5*mm, 19.5*mm, "HD")
-        c.setFont("Helvetica", 4)
-        c.drawString(43.5*mm, 21*mm, "Hosp.")
-        c.drawString(43.5*mm, 19*mm, "Obregón")
-
-        c.line(1*mm, 17.5*mm, 50*mm, 17.5*mm)
-
-        # Medicamento
-        c.setFont("Helvetica-Bold", 8)
-        c.drawString(2*mm, 13.5*mm, item[:28])
-
-        # Tabla Unidosis (Dosis, Forma, Lote, Caducidad)
-        c.line(1*mm, 12*mm, 50*mm, 12*mm)
-        c.setFont("Helvetica", 5)
-        c.drawString(2*mm, 9.5*mm, f"Dosis: {dosis_cant}")
-        c.drawString(15*mm, 9.5*mm, f"Forma: {via}")
-        c.drawString(28*mm, 9.5*mm, f"Lote: {lote}")
-        c.drawString(40*mm, 9.5*mm, f"Vig: {cad}")
-        c.line(1*mm, 7*mm, 50*mm, 7*mm)
-
-        # Pie
-        c.setFont("Helvetica", 5.5)
-        c.drawString(2*mm, 3*mm, f"Vía: {via}")
-        c.drawCentredString(25.5*mm, 3*mm, f"Folio: {folio}")
-        c.drawRightString(49*mm, 3*mm, f"Prep: {user[:12]}")
-
-    c.showPage()
     c.save()
-
     buffer.seek(0)
     return send_file(
         buffer,
         as_attachment=False,
         mimetype="application/pdf",
-        download_name=f"etiqueta_{format_type}_51x25.pdf"
+        download_name="lote_etiquetas_51x25.pdf"
     )
 
 # -----------------------------------------------------------------------------
-# RUTAS RESTANTES DE LA APLICACIÓN
+# RESTO DE RUTAS DE LA APLICACIÓN
 # -----------------------------------------------------------------------------
 
 @app.route("/")
@@ -1792,9 +1817,9 @@ def save_patient_from_label():
 def register_batch():
     user_id = request.form.get("user_id")
     pin = request.form.get("pin")
-    patient_name = request.form.get("patient_name", "").strip()
-    patient_fnac = request.form.get("patient_fnac", "").strip()
-    patient_id = request.form.get("patient_id", "").strip()
+    patient_name = request.form.get("patient_name", "").strip() or "PACIENTE GENERAL"
+    patient_fnac = request.form.get("patient_fnac", "").strip() or "S/F"
+    patient_id = request.form.get("patient_id", "").strip() or "S/H"
     service = request.form.get("service", "").strip()
     notes = request.form.get("notes", "").strip()
     cart_json = request.form.get("cart_data", "[]")
@@ -1814,16 +1839,14 @@ def register_batch():
         flash("Debe agregar al menos un medicamento a la receta.", "error")
         return redirect(url_for("terminal"))
 
-    if patient_name:
+    if patient_name and patient_name != "PACIENTE GENERAL":
         existing_patient = Patient.query.filter_by(name=patient_name).first()
         if not existing_patient:
             new_p = Patient(name=patient_name)
             db.session.add(new_p)
 
+    batch_labels = []
     processed_count = 0
-    first_item_name = ""
-    first_via = "ORAL"
-    first_qty = 1
 
     for cart_item in cart_items:
         raw_search = cart_item.get("item_search", "").strip()
@@ -1834,13 +1857,7 @@ def register_batch():
         warehouse = cart_item.get("warehouse")
         quantity = int(cart_item.get("quantity", 1))
 
-        if processed_count == 0:
-            first_item_name = raw_search
-            first_via = via_admin
-            first_qty = quantity
-
         item = Item.query.filter(Item.name.ilike(f"%{item_search}%")).first()
-
         if not item:
             continue
 
@@ -1886,12 +1903,36 @@ def register_batch():
             notes=notes
         )
         db.session.add(mov)
+        
+        batch_labels.append({
+            "name": item.name,
+            "via": via_admin,
+            "quantity": quantity
+        })
         processed_count += 1
 
     db.session.commit()
-    flash(f"Surtido de {processed_count} medicamento(s) registrado y guardado exitosamente en bitácora.", "success")
     
-    return redirect(url_for("etiquetas", patient=patient_name, fnac=patient_fnac, item=first_item_name, via=first_via, qty=first_qty, user=user.name, habitacion=patient_id or service))
+    # Renderizamos la nueva vista de lote de etiquetas con todos los ítems surtidos
+    items = Item.query.order_by(Item.name, Item.lote).all()
+    patients = Patient.query.order_by(Patient.name).all()
+    users = User.query.order_by(User.name).all()
+    current_time = datetime.now(LOCAL_TZ).strftime("%H:%M")
+
+    return render_template_string(
+        HTML_TEMPLATE,
+        view="lote_etiquetas",
+        batch_labels=batch_labels,
+        patient_name=patient_name,
+        fnac=patient_fnac,
+        habitacion=patient_id,
+        user_name=user.name,
+        current_time=current_time,
+        items_json=json.dumps(batch_labels),
+        items=items,
+        patients=patients,
+        users=users
+    )
 
 @app.route("/inventario")
 def inventario():
