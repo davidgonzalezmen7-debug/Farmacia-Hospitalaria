@@ -1,6 +1,3 @@
-Aquí tienes el código completo con la actualización en los estilos de impresión para asegurar que se ajuste perfectamente a tu etiqueta térmica de **51 mm x 25 mm** (con orientación horizontal y márgenes optimizados):
-
-```python
 import os
 from datetime import datetime, date, timedelta, timezone
 import json
@@ -853,7 +850,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
                         <div class="border-t border-slate-200 pt-3 text-xs space-y-1 text-slate-600">
                             <div class="flex justify-between items-center text-[11px]">
-                                <span class="font-bold text-slate-700">Próxima Semana (Semana {{ current_week + 1 }}):</span>
+                                <span class="font-bold text-slate-700">Próxima Semana (Semana {{ current_week + 1 }})</span>
                             </div>
                             <p class="text-[11px] font-semibold text-teal-800 bg-teal-50 px-2 py-1 rounded border border-teal-100">
                                 🔄 {{ item.task_next_week }}
@@ -2185,5 +2182,3 @@ seed_database()
 
 if __name__ == "__main__":
     app.run(debug=True)
-
-```
