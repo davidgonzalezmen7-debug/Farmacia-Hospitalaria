@@ -2021,22 +2021,18 @@ def controlados():
     controlled_reconciliation = []
     if is_admin_controlled:
         for item in controlled_items:
-            # Stock actual total (General + Quirófano) que se va descontando del inventario
             current_stock = (item.stock_general or 0) + (item.stock_quirofano or 0)
 
-            # Salidas surtidas HOY en la terminal
             dispensed_today = sum(
                 mov.quantity for mov in Movement.query.filter(Movement.type == 'Salida').all()
                 if item.name.lower() in mov.item_name.lower() and mov.timestamp.date() == today_date
             )
 
-            # Registros de salida HOY en la bitácora de controlados
             logged_today = sum(
                 log.quantity for log in controlled_logs
                 if item.name.lower() in log.item_name.lower() and log.timestamp.date() == today_date
             )
 
-            # Criterio de cotejo diario
             status = "Conciliado" if dispensed_today == logged_today else "Discrepancia"
 
             controlled_reconciliation.append({
@@ -2125,8 +2121,9 @@ def delete_controlled():
     admin_pin = request.form.get("admin_pin", "").strip()
 
     admin_user = User.query.filter_by(role="Administrador").first()
-    if admin_pin not in ["5678", "1234"] and (not admin_user or admin_user.pin == admin_pin):
-        pass
+    if admin_pin not in ["5678", "1234"] and (not admin_user or admin_user.pin != admin_pin):
+        flash("PIN de Administrador incorrecto. Eliminación no autorizada.", "error")
+        return redirect(url_for("controlados"))
 
     log_item = ControlledLog.query.get(log_id)
     if log_item:
