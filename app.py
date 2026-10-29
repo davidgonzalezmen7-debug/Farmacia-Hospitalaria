@@ -1,8 +1,14 @@
 import os
 from datetime import datetime, date, timedelta, timezone
 import json
-from flask import Flask, render_template_string, request, redirect, url_for, flash
+import io
+from flask import Flask, render_template_string, request, redirect, url_for, flash, send_file
 from flask_sqlalchemy import SQLAlchemy
+
+# Dependencias para generación de PDF exacto de 51mm x 25mm
+from reportlab.lib.units import mm
+from reportlab.pdfgen import canvas
+from reportlab.lib.colors import HexColor
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "farmacia_secret_key_123")
@@ -87,7 +93,7 @@ class CleaningLog(db.Model):
     notes = db.Column(db.String(250), nullable=True)
 
 # -----------------------------------------------------------------------------
-# PLANTILLA HTML INTEGRADA (CON ESTILOS TÉRMICOS 51x25 mm ACTUALIZADOS)
+# PLANTILLA HTML INTEGRADA
 # -----------------------------------------------------------------------------
 
 HTML_TEMPLATE = """<!DOCTYPE html>
@@ -101,14 +107,15 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <style>
         @media print {
             @page {
-                size: 51mm 25mm landscape;
-                margin: 0mm;
+                size: 51mm 25mm;
+                margin: 0 !important;
             }
             body, html {
-                width: 51mm;
-                height: 25mm;
+                width: 51mm !important;
+                height: 25mm !important;
                 margin: 0 !important;
                 padding: 0 !important;
+                overflow: hidden !important;
                 background-color: white !important;
             }
             header, nav, .no-print, button, form { 
@@ -120,21 +127,16 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 height: 25mm !important;
                 margin: 0 !important;
                 padding: 0 !important;
-                overflow: hidden !important;
             }
             .printable-label {
                 display: block !important;
-                width: 49mm !important;
-                height: 23mm !important;
-                margin: 0 auto !important;
-                padding: 0.5mm !important;
+                width: 51mm !important;
+                height: 25mm !important;
+                margin: 0 !important;
+                padding: 1mm !important;
                 border: none !important;
                 box-shadow: none !important;
-                page-break-inside: avoid;
                 background: white !important;
-            }
-            .hidden-print-section {
-                display: none !important;
             }
         }
     </style>
@@ -374,8 +376,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         <button type="submit" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow transition flex items-center justify-center gap-1.5">
                             <i class="fa-solid fa-user-plus"></i> Guardar Paciente
                         </button>
-                        <button type="button" onclick="window.print()" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold shadow transition flex items-center justify-center gap-2">
-                            <i class="fa-solid fa-print"></i> Imprimir Etiqueta
+                        <button type="button" onclick="downloadPdfLabel()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow transition flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-file-pdf"></i> Descargar PDF Exacto (51x25 mm)
                         </button>
                     </div>
                 </div>
@@ -510,9 +512,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     </div>
                 </div>
 
-                <div class="no-print pt-2">
-                    <button onclick="window.print()" class="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-xs shadow-md transition">
-                        <i class="fa-solid fa-print"></i> Imprimir Etiqueta Térmica
+                <div class="no-print pt-2 flex justify-center gap-3">
+                    <button onclick="downloadPdfLabel()" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs shadow-md transition flex items-center gap-2">
+                        <i class="fa-solid fa-file-pdf"></i> Descargar PDF Exacto de 51 x 25 mm
+                    </button>
+                    <button onclick="window.print()" class="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-xs shadow-md transition flex items-center gap-2">
+                        <i class="fa-solid fa-print"></i> Imprimir Vía Navegador
                     </button>
                 </div>
             </div>
@@ -850,7 +855,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
                         <div class="border-t border-slate-200 pt-3 text-xs space-y-1 text-slate-600">
                             <div class="flex justify-between items-center text-[11px]">
-                                <span class="font-bold text-slate-700">Próxima Semana (Semana {{ current_week + 1 }})</span>
+                                <span class="font-bold text-slate-700">Próxima Semana (Semana {{ current_week + 1 }}):</span>
                             </div>
                             <p class="text-[11px] font-semibold text-teal-800 bg-teal-50 px-2 py-1 rounded border border-teal-100">
                                 🔄 {{ item.task_next_week }}
@@ -1066,7 +1071,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
         {% elif view == 'controlados' %}
         <div class="space-y-6">
-            <!-- ACCESO EXCLUSIVO DE ADMIN PARA MÓDULO DE ARQUEO DIARIO -->
             {% if is_admin_controlled %}
             <div class="bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 p-6 rounded-2xl shadow-md text-white space-y-4">
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b border-purple-800 pb-3">
@@ -1100,7 +1104,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                             {% endif %}
                         </div>
 
-                        <!-- CONTADOR DESCONTANDO DEL INVENTARIO -->
                         <div class="grid grid-cols-3 gap-1.5 text-xs bg-black/20 p-2.5 rounded-lg border border-purple-900/40 text-center">
                             <div>
                                 <span class="text-[9px] text-purple-300 block">Stock Actual:</span>
@@ -1129,7 +1132,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 </div>
             </div>
             {% else %}
-            <!-- BOTÓN / ACCESO PARA DESBLOQUEAR EL ARQUEO (SOLO ADMIN) -->
             <div class="bg-purple-900/10 border border-purple-200 p-4 rounded-2xl flex flex-col sm:flex-row justify-between items-center gap-3 no-print">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
@@ -1500,7 +1502,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             const pCad = document.getElementById('lbl_cad').value.trim();
             const pUser = document.getElementById('lbl_user').value.trim();
 
-            const today = new Date().toLocaleDateString('es-MX');
             const timeNow = new Date().toLocaleTimeString('es-MX', {hour: '2-digit', minute:'2-digit'});
 
             document.getElementById('v1_patient').innerText = pName || 'VENTURA CARLOS PETRONILO';
@@ -1521,6 +1522,23 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             document.getElementById('h2_folio').innerText = pFolio || '--';
             document.getElementById('h2_cad').innerText = pCad || '10/01/27';
             document.getElementById('h2_user').innerText = pUser || '--';
+        }
+
+        function downloadPdfLabel() {
+            const formatType = document.querySelector('input[name="format_type"]:checked').value;
+            const patient = encodeURIComponent(document.getElementById('lbl_patient').value.trim());
+            const fnac = encodeURIComponent(document.getElementById('lbl_fnac').value.trim());
+            const habitacion = encodeURIComponent(document.getElementById('lbl_habitacion').value.trim());
+            const item = encodeURIComponent(document.getElementById('lbl_item').value.trim());
+            const via = encodeURIComponent(document.getElementById('lbl_via').value.trim());
+            const dosis_cant = encodeURIComponent(document.getElementById('lbl_dosis_cant').value.trim());
+            const lote = encodeURIComponent(document.getElementById('lbl_lote').value.trim());
+            const folio = encodeURIComponent(document.getElementById('lbl_folio').value.trim());
+            const cad = encodeURIComponent(document.getElementById('lbl_cad').value.trim());
+            const user = encodeURIComponent(document.getElementById('lbl_user').value.trim());
+
+            const url = `/imprimir_etiqueta_pdf?format_type=${formatType}&patient=${patient}&fnac=${fnac}&habitacion=${habitacion}&item=${item}&via=${via}&dosis_cant=${dosis_cant}&lote=${lote}&folio=${folio}&cad=${cad}&user=${user}`;
+            window.open(url, '_blank');
         }
 
         function loadParamsFromURL() {
@@ -1619,7 +1637,124 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 """
 
 # -----------------------------------------------------------------------------
-# RUTAS DE LA APLICACIÓN
+# RUTA GENERADORA DE PDF EXACTO (51mm x 25mm)
+# -----------------------------------------------------------------------------
+
+@app.route("/imprimir_etiqueta_pdf")
+def imprimir_etiqueta_pdf():
+    format_type = request.args.get("format_type", "horizontal1")
+    patient = request.args.get("patient", "VENTURA CARLOS PETRONILO").strip().upper()
+    fnac = request.args.get("fnac", "14/07/1967").strip()
+    habitacion = request.args.get("habitacion", "UCI-5").strip()
+    item = request.args.get("item", "ACETATO DE METILPREDNISOLONA 40 MG").strip().upper()
+    via = request.args.get("via", "ORAL").strip().upper()
+    dosis_cant = request.args.get("dosis_cant", "1 pza").strip()
+    lote = request.args.get("lote", "SJ2544").strip()
+    folio = request.args.get("folio", "--").strip()
+    cad = request.args.get("cad", "10/01/2027").strip()
+    user = request.args.get("user", "--").strip().upper()
+    hora = datetime.now(LOCAL_TZ).strftime("%H:%M")
+
+    # Medidas físicas exactas en puntos reportlab (1 mm = 2.83465 pt)
+    width = 51 * mm
+    height = 25 * mm
+
+    buffer = io.BytesIO()
+    c = canvas.Canvas(buffer, pagesize=(width, height))
+
+    if format_type == "horizontal1":
+        # Borde exterior delgado
+        c.setLineWidth(0.5)
+        c.rect(1*mm, 1*mm, 49*mm, 23*mm)
+
+        # Encabezado Paciente
+        c.setFont("Helvetica-Bold", 7)
+        c.drawString(2*mm, 21.5*mm, patient[:26])
+        
+        c.setFont("Helvetica", 6)
+        c.drawString(2*mm, 18.5*mm, f"F.N: {fnac} | Hab: {habitacion}")
+
+        # Insignia HD Hospital Obregón
+        c.rect(38*mm, 18*mm, 11*mm, 5*mm)
+        c.setFont("Helvetica-Bold", 8)
+        c.drawString(38.5*mm, 19.5*mm, "HD")
+        c.setFont("Helvetica", 4)
+        c.drawString(43.5*mm, 21*mm, "Hosp.")
+        c.drawString(43.5*mm, 19*mm, "Obregón")
+
+        # Línea divisoria superior
+        c.line(1*mm, 17.5*mm, 50*mm, 17.5*mm)
+
+        # Cuadro Medicamento
+        c.setFillColor(HexColor("#F1F5F9"))
+        c.rect(1.5*mm, 11.5*mm, 48*mm, 5*mm, fill=1, stroke=0)
+        c.setFillColor(HexColor("#000000"))
+        c.setFont("Helvetica-Bold", 6.5)
+        c.drawCentredString(25.5*mm, 13*mm, item[:35])
+
+        # Vía y Dosis
+        c.line(1*mm, 11*mm, 50*mm, 11*mm)
+        c.setFont("Helvetica-Bold", 6)
+        c.drawString(2*mm, 8*mm, f"Vía: {via}")
+        c.drawRightString(49*mm, 8*mm, f"Dosis: {dosis_cant}")
+        c.line(1*mm, 6.5*mm, 50*mm, 6.5*mm)
+
+        # Pie con Folio, Prep y Hora
+        c.setFont("Helvetica", 5.5)
+        c.drawString(2*mm, 3*mm, f"Folio: {folio}")
+        c.drawCentredString(25.5*mm, 3*mm, f"Prep: {user[:12]}")
+        c.drawRightString(49*mm, 3*mm, f"Hora: {hora}")
+
+    else:
+        # Formato 2: Unidosis
+        c.setLineWidth(0.5)
+        c.rect(1*mm, 1*mm, 49*mm, 23*mm)
+
+        c.setFont("Helvetica-Bold", 6)
+        c.drawString(2*mm, 21*mm, "UNIDOSIS HOSPITALARIA")
+
+        # Logo HD Obregón
+        c.rect(38*mm, 18*mm, 11*mm, 5*mm)
+        c.setFont("Helvetica-Bold", 8)
+        c.drawString(38.5*mm, 19.5*mm, "HD")
+        c.setFont("Helvetica", 4)
+        c.drawString(43.5*mm, 21*mm, "Hosp.")
+        c.drawString(43.5*mm, 19*mm, "Obregón")
+
+        c.line(1*mm, 17.5*mm, 50*mm, 17.5*mm)
+
+        # Medicamento
+        c.setFont("Helvetica-Bold", 8)
+        c.drawString(2*mm, 13.5*mm, item[:28])
+
+        # Tabla Unidosis (Dosis, Forma, Lote, Caducidad)
+        c.line(1*mm, 12*mm, 50*mm, 12*mm)
+        c.setFont("Helvetica", 5)
+        c.drawString(2*mm, 9.5*mm, f"Dosis: {dosis_cant}")
+        c.drawString(15*mm, 9.5*mm, f"Forma: {via}")
+        c.drawString(28*mm, 9.5*mm, f"Lote: {lote}")
+        c.drawString(40*mm, 9.5*mm, f"Vig: {cad}")
+        c.line(1*mm, 7*mm, 50*mm, 7*mm)
+
+        # Pie
+        c.setFont("Helvetica", 5.5)
+        c.drawString(2*mm, 3*mm, f"Vía: {via}")
+        c.drawCentredString(25.5*mm, 3*mm, f"Folio: {folio}")
+        c.drawRightString(49*mm, 3*mm, f"Prep: {user[:12]}")
+
+    c.showPage()
+    c.save()
+
+    buffer.seek(0)
+    return send_file(
+        buffer,
+        as_attachment=False,
+        mimetype="application/pdf",
+        download_name=f"etiqueta_{format_type}_51x25.pdf"
+    )
+
+# -----------------------------------------------------------------------------
+# RUTAS RESTANTES DE LA APLICACIÓN
 # -----------------------------------------------------------------------------
 
 @app.route("/")
