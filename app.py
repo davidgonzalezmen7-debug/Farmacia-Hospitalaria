@@ -62,7 +62,7 @@ class Item(db.Model):
 class Movement(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     timestamp = db.Column(db.DateTime, default=get_local_now)
-    item_code = db.Column(db.String(50), nullable=False)
+    item_code = db.Column(db.String(50), nullable=True)
     item_name = db.Column(db.String(150), nullable=False)
     type = db.Column(db.String(50), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
@@ -70,6 +70,9 @@ class Movement(db.Model):
     service = db.Column(db.String(100), nullable=True)
     patient_name = db.Column(db.String(150), nullable=True)
     patient_id = db.Column(db.String(50), nullable=True)
+    room = db.Column(db.String(50), nullable=True)
+    shift = db.Column(db.String(50), nullable=True) # Matutino, Vespertino, Nocturno A, Nocturno B
+    is_cost_cargo = db.Column(db.Boolean, default=False)
     user_name = db.Column(db.String(100), nullable=False)
     notes = db.Column(db.String(200), nullable=True)
 
@@ -153,28 +156,31 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 </div>
             </div>
             <nav class="flex flex-wrap gap-1 text-xs font-bold">
-                <a href="/terminal" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'terminal' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
+                <a href="/terminal?view=terminal" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'terminal' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
                     <i class="fa-solid fa-prescription-bottle-medical"></i> Surtido Múltiple
                 </a>
-                <a href="/etiquetas" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'etiquetas' %}bg-purple-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-purple-100{% endif %}">
+                <a href="/terminal?view=costos" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'costos' %}bg-emerald-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-emerald-100{% endif %}">
+                    <i class="fa-solid fa-file-invoice-dollar"></i> Cargo Costos
+                </a>
+                <a href="/terminal?view=etiquetas" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'etiquetas' %}bg-purple-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-purple-100{% endif %}">
                     <i class="fa-solid fa-tags"></i> Generar Etiquetas
                 </a>
-                <a href="/alta_insumos" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'alta_insumos' %}bg-emerald-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-emerald-100{% endif %}">
+                <a href="/terminal?view=alta_insumos" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'alta_insumos' %}bg-emerald-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-emerald-100{% endif %}">
                     <i class="fa-solid fa-plus-circle"></i> Alta Insumos
                 </a>
-                <a href="/inventario" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'inventario' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
+                <a href="/terminal?view=inventario" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'inventario' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
                     <i class="fa-solid fa-boxes-stacked"></i> Inventario
                 </a>
-                <a href="/controlados" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'controlados' %}bg-rose-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-rose-100{% endif %}">
+                <a href="/terminal?view=controlados" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'controlados' %}bg-rose-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-rose-100{% endif %}">
                     <i class="fa-solid fa-capsules"></i> Controlados
                 </a>
-                <a href="/limpieza" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'limpieza' %}bg-teal-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-teal-100{% endif %}">
+                <a href="/terminal?view=limpieza" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'limpieza' %}bg-teal-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-teal-100{% endif %}">
                     <i class="fa-solid fa-broom"></i> Limpieza
                 </a>
-                <a href="/bitacora" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'bitacora' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
+                <a href="/terminal?view=bitacora" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'bitacora' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
                     <i class="fa-solid fa-clock-rotate-left"></i> Bitácora
                 </a>
-                <a href="/usuarios" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'usuarios' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
+                <a href="/terminal?view=usuarios" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'usuarios' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
                     <i class="fa-solid fa-lock"></i> Usuarios
                 </a>
             </nav>
@@ -205,7 +211,234 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             {% endfor %}
         </datalist>
 
-        {% if view == 'terminal' %}
+        {% if view == 'costos' %}
+        <!-- ==================== PESTAÑA: CARGO DE MATERIAL PARA COSTOS ==================== -->
+        <div class="space-y-6">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <div class="border-b pb-4 mb-4 flex justify-between items-center">
+                    <div>
+                        <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-file-invoice-dollar text-emerald-600"></i> Cargo de Material para Costos
+                        </h2>
+                        <p class="text-xs text-slate-500">Carga de insumos y materiales utilizados por paciente segregados por turno de atención.</p>
+                    </div>
+                </div>
+
+                <form action="/add_cost_cargo" method="POST" class="space-y-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nombre del Paciente</label>
+                            <input type="text" list="patients_datalist" name="patient_name" required placeholder="Ej. Ana Gómez" class="w-full p-2 border rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 outline-none bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Habitación / Cama</label>
+                            <input type="text" name="room" required placeholder="Ej. Hab. 302 / Cama A" class="w-full p-2 border rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 outline-none bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">No. de Expediente</label>
+                            <input type="text" name="patient_id" required placeholder="Ej. EXP-1092" class="w-full p-2 border rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 outline-none bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Turno de Atención</label>
+                            <select name="shift" required class="w-full p-2 border rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 outline-none bg-white font-bold text-slate-700">
+                                <option value="Matutino">☀️ Turno Matutino</option>
+                                <option value="Vespertino">⛅ Turno Vespertino</option>
+                                <option value="Nocturno A">🌙 Turno Nocturno A</option>
+                                <option value="Nocturno B">🌌 Turno Nocturno B</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-emerald-50/50 p-4 rounded-xl border border-emerald-100">
+                        <div class="sm:col-span-2">
+                            <label class="block text-xs font-bold text-emerald-900 uppercase mb-1">Seleccionar Insumo / Material Ocupado</label>
+                            <select name="item_id" required class="w-full p-2 border rounded-xl text-xs bg-white focus:ring-2 focus:ring-emerald-500 outline-none font-medium">
+                                <option value="">-- Seleccionar Material del Inventario --</option>
+                                {% for item in items %}
+                                    <option value="{{ item.id }}">
+                                        {{ item.name }} (Lote: {{ item.lote or 'S/L' }}) | Stock Gen: {{ item.stock_general }} | Quirófano: {{ item.stock_quirofano }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-emerald-900 uppercase mb-1">Cantidad Ocupada</label>
+                            <input type="number" min="1" name="quantity" value="1" required class="w-full p-2 border rounded-xl text-xs font-bold text-center bg-white">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Almacén de Origen</label>
+                            <select name="warehouse" required class="w-full p-2 border rounded-xl text-xs bg-white">
+                                <option value="Almacén General">Almacén General</option>
+                                <option value="Quirófano">Quirófano</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Usuario Responsable</label>
+                            <select name="user_id" required class="w-full p-2 border rounded-xl text-xs bg-white">
+                                <option value="">Seleccionar Usuario...</option>
+                                {% for u in users %}
+                                    <option value="{{ u.id }}">{{ u.name }} ({{ u.role }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">PIN de Validación</label>
+                            <input type="password" name="pin" required placeholder="PIN" class="w-full p-2 border rounded-xl text-xs bg-white">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl transition shadow flex items-center justify-center gap-2 text-xs">
+                        <i class="fa-solid fa-plus-circle"></i> Registrar Cargo de Material
+                    </button>
+                </form>
+            </div>
+
+            <!-- Ventanas / Tablas de Movimientos por Turno -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                <!-- Turno Matutino -->
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-amber-200">
+                    <h3 class="text-sm font-bold text-amber-800 flex items-center justify-between border-b pb-3 mb-3">
+                        <span><i class="fa-solid fa-sun text-amber-500 mr-2"></i> Movimientos - Turno Matutino</span>
+                        <span class="bg-amber-100 text-amber-800 text-[10px] px-2.5 py-0.5 rounded-full font-bold">{{ matutino_cargos|length }} registros</span>
+                    </h3>
+                    <div class="overflow-x-auto max-h-72">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-amber-50 text-amber-900 sticky top-0">
+                                <tr>
+                                    <th class="p-2">Paciente / Exp.</th>
+                                    <th class="p-2">Habitación</th>
+                                    <th class="p-2">Insumo</th>
+                                    <th class="p-2 text-center">Cant.</th>
+                                    <th class="p-2">Hora</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                {% for c in matutino_cargos %}
+                                <tr class="hover:bg-slate-50">
+                                    <td class="p-2 font-medium">{{ c.patient_name }}<br><span class="text-[10px] text-slate-400">Exp: {{ c.patient_id }}</span></td>
+                                    <td class="p-2">{{ c.room }}</td>
+                                    <td class="p-2">{{ c.item_name }}</td>
+                                    <td class="p-2 text-center font-bold text-emerald-600">{{ c.quantity }}</td>
+                                    <td class="p-2 text-[10px] text-slate-400">{{ c.timestamp.strftime('%H:%M') }}</td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="5" class="p-4 text-center text-slate-400 text-xs">Sin cargos en turno matutino.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Turno Vespertino -->
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-orange-200">
+                    <h3 class="text-sm font-bold text-orange-800 flex items-center justify-between border-b pb-3 mb-3">
+                        <span><i class="fa-solid fa-cloud-sun text-orange-500 mr-2"></i> Movimientos - Turno Vespertino</span>
+                        <span class="bg-orange-100 text-orange-800 text-[10px] px-2.5 py-0.5 rounded-full font-bold">{{ vespertino_cargos|length }} registros</span>
+                    </h3>
+                    <div class="overflow-x-auto max-h-72">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-orange-50 text-orange-900 sticky top-0">
+                                <tr>
+                                    <th class="p-2">Paciente / Exp.</th>
+                                    <th class="p-2">Habitación</th>
+                                    <th class="p-2">Insumo</th>
+                                    <th class="p-2 text-center">Cant.</th>
+                                    <th class="p-2">Hora</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                {% for c in vespertino_cargos %}
+                                <tr class="hover:bg-slate-50">
+                                    <td class="p-2 font-medium">{{ c.patient_name }}<br><span class="text-[10px] text-slate-400">Exp: {{ c.patient_id }}</span></td>
+                                    <td class="p-2">{{ c.room }}</td>
+                                    <td class="p-2">{{ c.item_name }}</td>
+                                    <td class="p-2 text-center font-bold text-emerald-600">{{ c.quantity }}</td>
+                                    <td class="p-2 text-[10px] text-slate-400">{{ c.timestamp.strftime('%H:%M') }}</td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="5" class="p-4 text-center text-slate-400 text-xs">Sin cargos en turno vespertino.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Turno Nocturno A -->
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-indigo-200">
+                    <h3 class="text-sm font-bold text-indigo-800 flex items-center justify-between border-b pb-3 mb-3">
+                        <span><i class="fa-solid fa-moon text-indigo-500 mr-2"></i> Movimientos - Turno Nocturno A</span>
+                        <span class="bg-indigo-100 text-indigo-800 text-[10px] px-2.5 py-0.5 rounded-full font-bold">{{ nocturno_a_cargos|length }} registros</span>
+                    </h3>
+                    <div class="overflow-x-auto max-h-72">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-indigo-50 text-indigo-900 sticky top-0">
+                                <tr>
+                                    <th class="p-2">Paciente / Exp.</th>
+                                    <th class="p-2">Habitación</th>
+                                    <th class="p-2">Insumo</th>
+                                    <th class="p-2 text-center">Cant.</th>
+                                    <th class="p-2">Hora</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                {% for c in nocturno_a_cargos %}
+                                <tr class="hover:bg-slate-50">
+                                    <td class="p-2 font-medium">{{ c.patient_name }}<br><span class="text-[10px] text-slate-400">Exp: {{ c.patient_id }}</span></td>
+                                    <td class="p-2">{{ c.room }}</td>
+                                    <td class="p-2">{{ c.item_name }}</td>
+                                    <td class="p-2 text-center font-bold text-emerald-600">{{ c.quantity }}</td>
+                                    <td class="p-2 text-[10px] text-slate-400">{{ c.timestamp.strftime('%H:%M') }}</td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="5" class="p-4 text-center text-slate-400 text-xs">Sin cargos en turno nocturno A.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Turno Nocturno B -->
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-purple-200">
+                    <h3 class="text-sm font-bold text-purple-800 flex items-center justify-between border-b pb-3 mb-3">
+                        <span><i class="fa-solid fa-star text-purple-500 mr-2"></i> Movimientos - Turno Nocturno B</span>
+                        <span class="bg-purple-100 text-purple-800 text-[10px] px-2.5 py-0.5 rounded-full font-bold">{{ nocturno_b_cargos|length }} registros</span>
+                    </h3>
+                    <div class="overflow-x-auto max-h-72">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-purple-50 text-purple-900 sticky top-0">
+                                <tr>
+                                    <th class="p-2">Paciente / Exp.</th>
+                                    <th class="p-2">Habitación</th>
+                                    <th class="p-2">Insumo</th>
+                                    <th class="p-2 text-center">Cant.</th>
+                                    <th class="p-2">Hora</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                {% for c in nocturno_b_cargos %}
+                                <tr class="hover:bg-slate-50">
+                                    <td class="p-2 font-medium">{{ c.patient_name }}<br><span class="text-[10px] text-slate-400">Exp: {{ c.patient_id }}</span></td>
+                                    <td class="p-2">{{ c.room }}</td>
+                                    <td class="p-2">{{ c.item_name }}</td>
+                                    <td class="p-2 text-center font-bold text-emerald-600">{{ c.quantity }}</td>
+                                    <td class="p-2 text-[10px] text-slate-400">{{ c.timestamp.strftime('%H:%M') }}</td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="5" class="p-4 text-center text-slate-400 text-xs">Sin cargos en turno nocturno B.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        {% elif view == 'terminal' %}
         <div class="space-y-6 max-w-5xl mx-auto">
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                 <div class="mb-4">
@@ -745,7 +978,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     <button onclick="window.print()" class="px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold shadow transition flex items-center gap-2">
                         <i class="fa-solid fa-print"></i> Imprimir Todas
                     </button>
-                    <a href="/terminal" class="px-4 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-bold transition">
+                    <a href="/terminal?view=terminal" class="px-4 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-bold transition">
                         Volver a Terminal
                     </a>
                 </div>
@@ -1144,7 +1377,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         <span class="bg-purple-600 px-3 py-1.5 rounded-xl text-xs font-mono font-bold shadow">
                             {{ controlled_reconciliation | length }} Fármacos Monitoreados
                         </span>
-                        <a href="/controlados" class="bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition">Cerrar Arqueo</a>
+                        <a href="/terminal?view=controlados" class="bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition">Cerrar Arqueo</a>
                     </div>
                 </div>
 
@@ -1725,18 +1958,15 @@ def imprimir_lote_pdf():
         via = lbl.get("via", "ORAL").upper()
         qty = lbl.get("quantity", 1)
 
-        # Borde exterior delgado
         c.setLineWidth(0.5)
         c.rect(1*mm, 1*mm, 49*mm, 23*mm)
 
-        # Encabezado Paciente
         c.setFont("Helvetica-Bold", 7)
         c.drawString(2*mm, 21.5*mm, patient[:26])
         
         c.setFont("Helvetica", 6)
         c.drawString(2*mm, 18.5*mm, f"F.N: {fnac} | Hab: {habitacion}")
 
-        # Insignia HD Hospital Obregón
         c.rect(38*mm, 18*mm, 11*mm, 5*mm)
         c.setFont("Helvetica-Bold", 8)
         c.drawString(38.5*mm, 19.5*mm, "HD")
@@ -1744,24 +1974,20 @@ def imprimir_lote_pdf():
         c.drawString(43.5*mm, 21*mm, "Hosp.")
         c.drawString(43.5*mm, 19*mm, "Obregón")
 
-        # Línea divisoria superior
         c.line(1*mm, 17.5*mm, 50*mm, 17.5*mm)
 
-        # Cuadro Medicamento
         c.setFillColor(HexColor("#F1F5F9"))
         c.rect(1.5*mm, 11.5*mm, 48*mm, 5*mm, fill=1, stroke=0)
         c.setFillColor(HexColor("#000000"))
         c.setFont("Helvetica-Bold", 6.5)
         c.drawCentredString(25.5*mm, 13*mm, item_name[:35])
 
-        # Vía y Dosis
         c.line(1*mm, 11*mm, 50*mm, 11*mm)
         c.setFont("Helvetica-Bold", 6)
         c.drawString(2*mm, 8*mm, f"Vía: {via}")
         c.drawRightString(49*mm, 8*mm, f"Dosis: {qty} pza(s)")
         c.line(1*mm, 6.5*mm, 50*mm, 6.5*mm)
 
-        # Pie con Folio, Prep y Hora
         c.setFont("Helvetica", 5.5)
         c.drawString(2*mm, 3*mm, "Folio: --")
         c.drawCentredString(25.5*mm, 3*mm, f"Prep: {user_name[:12]}")
@@ -1783,216 +2009,33 @@ def imprimir_lote_pdf():
 # -----------------------------------------------------------------------------
 
 @app.route("/")
+def index():
+    return redirect(url_for("terminal", view="costos"))
+
 @app.route("/terminal")
 def terminal():
+    view = request.args.get("view", "costos")
     items = Item.query.order_by(Item.name, Item.lote).all()
     users = User.query.order_by(User.name).all()
     patients = Patient.query.order_by(Patient.name).all()
-    return render_template_string(HTML_TEMPLATE, view="terminal", items=items, users=users, patients=patients)
 
-@app.route("/etiquetas")
-def etiquetas():
-    items = Item.query.order_by(Item.name, Item.lote).all()
-    patients = Patient.query.order_by(Patient.name).all()
-    users = User.query.order_by(User.name).all()
-    return render_template_string(HTML_TEMPLATE, view="etiquetas", items=items, patients=patients, users=users)
+    # Filtros de cargos por turno (cargo de material para costos)
+    matutino_cargos = Movement.query.filter_by(is_cost_cargo=True, shift="Matutino").order_by(Movement.timestamp.desc()).all()
+    vespertino_cargos = Movement.query.filter_by(is_cost_cargo=True, shift="Vespertino").order_by(Movement.timestamp.desc()).all()
+    nocturno_a_cargos = Movement.query.filter_by(is_cost_cargo=True, shift="Nocturno A").order_by(Movement.timestamp.desc()).all()
+    nocturno_b_cargos = Movement.query.filter_by(is_cost_cargo=True, shift="Nocturno B").order_by(Movement.timestamp.desc()).all()
 
-@app.route("/save_patient_from_label", methods=["POST"])
-def save_patient_from_label():
-    patient_name = request.form.get("patient_name", "").strip()
-    if patient_name:
-        existing = Patient.query.filter_by(name=patient_name).first()
-        if not existing:
-            new_p = Patient(name=patient_name)
-            db.session.add(new_p)
-            db.session.commit()
-            flash(f"Paciente '{patient_name}' guardado exitosamente en el catálogo.", "success")
-        else:
-            flash(f"El paciente '{patient_name}' ya se encontraba registrado.", "success")
-    else:
-        flash("Por favor ingrese un nombre de paciente válido.", "error")
-    return redirect(url_for("etiquetas"))
-
-@app.route("/register_batch", methods=["POST"])
-def register_batch():
-    user_id = request.form.get("user_id")
-    pin = request.form.get("pin")
-    patient_name = request.form.get("patient_name", "").strip() or "PACIENTE GENERAL"
-    patient_fnac = request.form.get("patient_fnac", "").strip() or "S/F"
-    patient_id = request.form.get("patient_id", "").strip() or "S/H"
-    service = request.form.get("service", "").strip()
-    notes = request.form.get("notes", "").strip()
-    cart_json = request.form.get("cart_data", "[]")
-
-    user = User.query.get(user_id)
-    if not user or user.pin != pin:
-        flash("PIN o contraseña de usuario incorrecta.", "error")
-        return redirect(url_for("terminal"))
-
-    try:
-        cart_items = json.loads(cart_json)
-    except Exception:
-        flash("Error al procesar la lista de medicamentos.", "error")
-        return redirect(url_for("terminal"))
-
-    if not cart_items or len(cart_items) == 0:
-        flash("Debe agregar al menos un medicamento a la receta.", "error")
-        return redirect(url_for("terminal"))
-
-    if patient_name and patient_name != "PACIENTE GENERAL":
-        existing_patient = Patient.query.filter_by(name=patient_name).first()
-        if not existing_patient:
-            new_p = Patient(name=patient_name)
-            db.session.add(new_p)
-
-    batch_labels = []
-    processed_count = 0
-
-    for cart_item in cart_items:
-        raw_search = cart_item.get("item_search", "").strip()
-        item_search = raw_search.split(" (Lote:")[0].strip() if " (Lote:" in raw_search else raw_search
-        
-        via_admin = cart_item.get("via", "ORAL")
-        mov_type = cart_item.get("type")
-        warehouse = cart_item.get("warehouse")
-        quantity = int(cart_item.get("quantity", 1))
-
-        item = Item.query.filter(Item.name.ilike(f"%{item_search}%")).first()
-        if not item:
-            continue
-
-        if mov_type == "Entrada":
-            if warehouse == "Almacén General":
-                item.stock_general += quantity
-            else:
-                item.stock_quirofano += quantity
-
-        elif mov_type == "Salida":
-            if warehouse == "Almacén General":
-                if item.stock_general < quantity:
-                    flash(f"Stock insuficiente para '{item.name}' en Almacén General ({item.stock_general} disponibles).", "error")
-                    db.session.rollback()
-                    return redirect(url_for("terminal"))
-                item.stock_general -= quantity
-            else:
-                if item.stock_quirofano < quantity:
-                    flash(f"Stock insuficiente para '{item.name}' en Quirófano ({item.stock_quirofano} disponibles).", "error")
-                    db.session.rollback()
-                    return redirect(url_for("terminal"))
-                item.stock_quirofano -= quantity
-
-        elif mov_type == "Traspaso Qx":
-            if item.stock_general < quantity:
-                flash(f"Stock insuficiente para traspaso de '{item.name}'.", "error")
-                db.session.rollback()
-                return redirect(url_for("terminal"))
-            item.stock_general -= quantity
-            item.stock_quirofano += quantity
-
-        mov = Movement(
-            timestamp=get_local_now(),
-            item_code=item.code,
-            item_name=f"{item.name} (Lote: {item.lote or 'S/L'}) [Vía: {via_admin}]",
-            type=mov_type,
-            quantity=quantity,
-            warehouse=warehouse,
-            service=service,
-            patient_name=patient_name,
-            patient_id=patient_id,
-            user_name=user.name,
-            notes=notes
-        )
-        db.session.add(mov)
-        
-        batch_labels.append({
-            "name": item.name,
-            "via": via_admin,
-            "quantity": quantity
-        })
-        processed_count += 1
-
-    db.session.commit()
-    
-    # Renderizamos la nueva vista de lote de etiquetas con todos los ítems surtidos
-    items = Item.query.order_by(Item.name, Item.lote).all()
-    patients = Patient.query.order_by(Patient.name).all()
-    users = User.query.order_by(User.name).all()
-    current_time = datetime.now(LOCAL_TZ).strftime("%H:%M")
-
-    return render_template_string(
-        HTML_TEMPLATE,
-        view="lote_etiquetas",
-        batch_labels=batch_labels,
-        patient_name=patient_name,
-        fnac=patient_fnac,
-        habitacion=patient_id,
-        user_name=user.name,
-        current_time=current_time,
-        items_json=json.dumps(batch_labels),
-        items=items,
-        patients=patients,
-        users=users
-    )
-
-@app.route("/inventario")
-def inventario():
-    items = Item.query.order_by(Item.name, Item.lote).all()
-    patients = Patient.query.order_by(Patient.name).all()
-    today_str = datetime.now(LOCAL_TZ).date().isoformat()
-    warning_str = (datetime.now(LOCAL_TZ).date() + timedelta(days=30)).isoformat()
-    return render_template_string(HTML_TEMPLATE, view="inventario", items=items, today_str=today_str, warning_str=warning_str, patients=patients)
-
-@app.route("/update_item", methods=["POST"])
-def update_item():
-    admin_pin = request.form.get("admin_pin", "").strip()
-    admin_user = User.query.filter_by(role="Administrador").first()
-
-    if admin_pin not in ["5678", "1234"] and (not admin_user or admin_user.pin != admin_pin):
-        flash("PIN de Administrador incorrecto. Modificación no autorizada.", "error")
-        return redirect(url_for("inventario"))
-
-    item_id = request.form.get("item_id")
-    item = Item.query.get(item_id)
-    if item:
-        item.code = request.form.get("code", item.code).strip().upper()
-        item.name = request.form.get("name", item.name).strip()
-        item.category = request.form.get("category", item.category)
-        item.via_administracion = request.form.get("via_administracion", item.via_administracion)
-        item.presentacion = request.form.get("presentacion", item.presentacion)
-        item.etiqueta = request.form.get("etiqueta", item.etiqueta)
-        item.lote = request.form.get("lote", item.lote).strip()
-        item.caducidad = request.form.get("caducidad", item.caducidad).strip()
-        item.stock_general = int(request.form.get("stock_general", item.stock_general))
-        item.stock_quirofano = int(request.form.get("stock_quirofano", item.stock_quirofano))
-        
-        db.session.commit()
-        flash(f"Parámetros e inventario de '{item.name}' actualizados con éxito por el Administrador.", "success")
-    
-    return redirect(url_for("inventario"))
-
-@app.route("/delete_item", methods=["POST"])
-def delete_item():
-    admin_pin = request.form.get("admin_pin", "").strip()
-    admin_user = User.query.filter_by(role="Administrador").first()
-
-    if admin_pin not in ["5678", "1234"] and (not admin_user or admin_user.pin != admin_pin):
-        flash("PIN de Administrador incorrecto. Eliminación no autorizada.", "error")
-        return redirect(url_for("inventario"))
-
-    item_id = request.form.get("item_id")
-    item = Item.query.get(item_id)
-    if item:
-        db.session.delete(item)
-        db.session.commit()
-        flash("Insumo eliminado exitosamente del inventario.", "success")
-    return redirect(url_for("inventario"))
-
-@app.route("/limpieza")
-def limpieza():
+    controlled_items = Item.query.filter_by(etiqueta="Controlado").order_by(Item.name).all()
+    controlled_logs = ControlledLog.query.order_by(ControlledLog.timestamp.desc()).all()
     cleaning_logs = CleaningLog.query.order_by(CleaningLog.timestamp.desc()).all()
-    users = User.query.order_by(User.id).all()
-    operational_users = User.query.filter(User.role != "Administrador").order_by(User.id).all()
 
+    is_admin_controlled = request.args.get("admin_arqueo") == "true"
+    today_date = datetime.now(LOCAL_TZ).date()
+    today_str = today_date.strftime('%d/%m/%Y')
+    warning_str = (datetime.now(LOCAL_TZ).date() + timedelta(days=30)).isoformat()
+    today_iso = today_date.isoformat()
+
+    operational_users = User.query.filter(User.role != "Administrador").order_by(User.id).all()
     now = get_local_now()
     current_year, current_week, _ = now.isocalendar()
 
@@ -2024,18 +2067,296 @@ def limpieza():
             })
 
     week_dates_current = get_week_range(current_year, current_week)
-    patients = Patient.query.order_by(Patient.name).all()
+
+    controlled_reconciliation = []
+    if is_admin_controlled:
+        for item in controlled_items:
+            current_stock = (item.stock_general or 0) + (item.stock_quirofano or 0)
+            dispensed_today = sum(
+                mov.quantity for mov in Movement.query.filter(Movement.type == 'Salida').all()
+                if item.name.lower() in mov.item_name.lower() and mov.timestamp.date() == today_date
+            )
+            logged_today = sum(
+                log.quantity for log in controlled_logs
+                if item.name.lower() in log.item_name.lower() and log.timestamp.date() == today_date
+            )
+            status = "Conciliado" if dispensed_today == logged_today else "Discrepancia"
+            controlled_reconciliation.append({
+                'item': item,
+                'current_stock': current_stock,
+                'dispensed_today': dispensed_today,
+                'logged_today': logged_today,
+                'status': status
+            })
+
+    movements = Movement.query.order_by(Movement.timestamp.desc()).all()
+    is_admin = request.args.get("admin") == "true"
+
     return render_template_string(
         HTML_TEMPLATE,
-        view="limpieza",
-        cleaning_logs=cleaning_logs,
+        view=view,
+        items=items,
         users=users,
         patients=patients,
+        matutino_cargos=matutino_cargos,
+        vespertino_cargos=vespertino_cargos,
+        nocturno_a_cargos=nocturno_a_cargos,
+        nocturno_b_cargos=nocturno_b_cargos,
+        controlled_items=controlled_items,
+        controlled_logs=controlled_logs,
+        cleaning_logs=cleaning_logs,
+        is_admin_controlled=is_admin_controlled,
+        today_str=today_str,
+        today_str_inv=today_iso,
+        warning_str=warning_str,
         current_week=current_week,
         current_year=current_year,
         week_dates_current=week_dates_current,
-        user_roles_detail=user_roles_detail
+        user_roles_detail=user_roles_detail,
+        controlled_reconciliation=controlled_reconciliation,
+        movements=movements,
+        is_admin=is_admin
     )
+
+@app.route("/add_cost_cargo", methods=["POST"])
+def add_cost_cargo():
+    user_id = request.form.get("user_id")
+    pin = request.form.get("pin")
+    user = User.query.get(user_id)
+
+    if not user or user.pin != pin:
+        flash("PIN o usuario incorrecto.", "error")
+        return redirect(url_for("terminal", view="costos"))
+
+    patient_name = request.form.get("patient_name", "").strip()
+    room = request.form.get("room", "").strip()
+    patient_id = request.form.get("patient_id", "").strip()
+    shift = request.form.get("shift")
+    item_id = request.form.get("item_id")
+    quantity = int(request.form.get("quantity", 1))
+    warehouse = request.form.get("warehouse", "Almacén General")
+
+    if patient_name and not Patient.query.filter_by(name=patient_name).first():
+        db.session.add(Patient(name=patient_name))
+
+    item = Item.query.get(item_id)
+    if not item:
+        flash("El insumo seleccionado no existe.", "error")
+        return redirect(url_for("terminal", view="costos"))
+
+    if warehouse == "Quirófano":
+        if item.stock_quirofano < quantity:
+            flash(f"Stock insuficiente en Quirófano (Disponible: {item.stock_quirofano}).", "error")
+            return redirect(url_for("terminal", view="costos"))
+        item.stock_quirofano -= quantity
+    else:
+        if item.stock_general < quantity:
+            flash(f"Stock insuficiente en Almacén General (Disponible: {item.stock_general}).", "error")
+            return redirect(url_for("terminal", view="costos"))
+        item.stock_general -= quantity
+
+    mov = Movement(
+        timestamp=get_local_now(),
+        item_code=item.code,
+        item_name=f"{item.name} (Lote: {item.lote or 'S/L'})",
+        type="Salida (Costos)",
+        quantity=quantity,
+        warehouse=warehouse,
+        user_name=user.name,
+        patient_name=patient_name,
+        patient_id=patient_id,
+        room=room,
+        shift=shift,
+        is_cost_cargo=True
+    )
+
+    db.session.add(mov)
+    db.session.commit()
+    flash(f"Cargo registrado correctamente para {patient_name} en Turno {shift}.", "success")
+    return redirect(url_for("terminal", view="costos"))
+
+@app.route("/etiquetas")
+def etiquetas():
+    return redirect(url_for("terminal", view="etiquetas"))
+
+@app.route("/save_patient_from_label", methods=["POST"])
+def save_patient_from_label():
+    patient_name = request.form.get("patient_name", "").strip()
+    if patient_name:
+        existing = Patient.query.filter_by(name=patient_name).first()
+        if not existing:
+            new_p = Patient(name=patient_name)
+            db.session.add(new_p)
+            db.session.commit()
+            flash(f"Paciente '{patient_name}' guardado exitosamente en el catálogo.", "success")
+        else:
+            flash(f"El paciente '{patient_name}' ya se encontraba registrado.", "success")
+    else:
+        flash("Por favor ingrese un nombre de paciente válido.", "error")
+    return redirect(url_for("terminal", view="etiquetas"))
+
+@app.route("/register_batch", methods=["POST"])
+def register_batch():
+    user_id = request.form.get("user_id")
+    pin = request.form.get("pin")
+    patient_name = request.form.get("patient_name", "").strip() or "PACIENTE GENERAL"
+    patient_fnac = request.form.get("patient_fnac", "").strip() or "S/F"
+    patient_id = request.form.get("patient_id", "").strip() or "S/H"
+    service = request.form.get("service", "").strip()
+    notes = request.form.get("notes", "").strip()
+    cart_json = request.form.get("cart_data", "[]")
+
+    user = User.query.get(user_id)
+    if not user or user.pin != pin:
+        flash("PIN o contraseña de usuario incorrecta.", "error")
+        return redirect(url_for("terminal", view="terminal"))
+
+    try:
+        cart_items = json.loads(cart_json)
+    except Exception:
+        flash("Error al procesar la lista de medicamentos.", "error")
+        return redirect(url_for("terminal", view="terminal"))
+
+    if not cart_items or len(cart_items) == 0:
+        flash("Debe agregar al menos un medicamento a la receta.", "error")
+        return redirect(url_for("terminal", view="terminal"))
+
+    if patient_name and patient_name != "PACIENTE GENERAL":
+        existing_patient = Patient.query.filter_by(name=patient_name).first()
+        if not existing_patient:
+            new_p = Patient(name=patient_name)
+            db.session.add(new_p)
+
+    batch_labels = []
+
+    for cart_item in cart_items:
+        raw_search = cart_item.get("item_search", "").strip()
+        item_search = raw_search.split(" (Lote:")[0].strip() if " (Lote:" in raw_search else raw_search
+        
+        via_admin = cart_item.get("via", "ORAL")
+        mov_type = cart_item.get("type")
+        warehouse = cart_item.get("warehouse")
+        quantity = int(cart_item.get("quantity", 1))
+
+        item = Item.query.filter(Item.name.ilike(f"%{item_search}%")).first()
+        if not item:
+            continue
+
+        if mov_type == "Entrada":
+            if warehouse == "Almacén General":
+                item.stock_general += quantity
+            else:
+                item.stock_quirofano += quantity
+
+        elif mov_type == "Salida":
+            if warehouse == "Almacén General":
+                if item.stock_general < quantity:
+                    flash(f"Stock insuficiente para '{item.name}' en Almacén General ({item.stock_general} disponibles).", "error")
+                    db.session.rollback()
+                    return redirect(url_for("terminal", view="terminal"))
+                item.stock_general -= quantity
+            else:
+                if item.stock_quirofano < quantity:
+                    flash(f"Stock insuficiente para '{item.name}' en Quirófano ({item.stock_quirofano} disponibles).", "error")
+                    db.session.rollback()
+                    return redirect(url_for("terminal"))
+                item.stock_quirofano -= quantity
+
+        elif mov_type == "Traspaso Qx":
+            if item.stock_general < quantity:
+                flash(f"Stock insuficiente para traspaso de '{item.name}'.", "error")
+                db.session.rollback()
+                return redirect(url_for("terminal", view="terminal"))
+            item.stock_general -= quantity
+            item.stock_quirofano += quantity
+
+        mov = Movement(
+            timestamp=get_local_now(),
+            item_code=item.code,
+            item_name=f"{item.name} (Lote: {item.lote or 'S/L'}) [Vía: {via_admin}]",
+            type=mov_type,
+            quantity=quantity,
+            warehouse=warehouse,
+            service=service,
+            patient_name=patient_name,
+            patient_id=patient_id,
+            user_name=user.name,
+            notes=notes
+        )
+        db.session.add(mov)
+        
+        batch_labels.append({
+            "name": item.name,
+            "via": via_admin,
+            "quantity": quantity
+        })
+
+    db.session.commit()
+    
+    items = Item.query.order_by(Item.name, Item.lote).all()
+    patients = Patient.query.order_by(Patient.name).all()
+    users = User.query.order_by(User.name).all()
+    current_time = datetime.now(LOCAL_TZ).strftime("%H:%M")
+
+    return render_template_string(
+        HTML_TEMPLATE,
+        view="lote_etiquetas",
+        batch_labels=batch_labels,
+        patient_name=patient_name,
+        fnac=patient_fnac,
+        habitacion=patient_id,
+        user_name=user.name,
+        current_time=current_time,
+        items_json=json.dumps(batch_labels),
+        items=items,
+        patients=patients,
+        users=users
+    )
+
+@app.route("/update_item", methods=["POST"])
+def update_item():
+    admin_pin = request.form.get("admin_pin", "").strip()
+    admin_user = User.query.filter_by(role="Administrador").first()
+
+    if admin_pin not in ["5678", "1234"] and (not admin_user or admin_user.pin != admin_pin):
+        flash("PIN de Administrador incorrecto. Modificación no autorizada.", "error")
+        return redirect(url_for("terminal", view="inventario"))
+
+    item_id = request.form.get("item_id")
+    item = Item.query.get(item_id)
+    if item:
+        item.code = request.form.get("code", item.code).strip().upper()
+        item.name = request.form.get("name", item.name).strip()
+        item.category = request.form.get("category", item.category)
+        item.via_administracion = request.form.get("via_administracion", item.via_administracion)
+        item.presentacion = request.form.get("presentacion", item.presentacion)
+        item.etiqueta = request.form.get("etiqueta", item.etiqueta)
+        item.lote = request.form.get("lote", item.lote).strip()
+        item.caducidad = request.form.get("caducidad", item.caducidad).strip()
+        item.stock_general = int(request.form.get("stock_general", item.stock_general))
+        item.stock_quirofano = int(request.form.get("stock_quirofano", item.stock_quirofano))
+        
+        db.session.commit()
+        flash(f"Parámetros e inventario de '{item.name}' actualizados con éxito por el Administrador.", "success")
+    
+    return redirect(url_for("terminal", view="inventario"))
+
+@app.route("/delete_item", methods=["POST"])
+def delete_item():
+    admin_pin = request.form.get("admin_pin", "").strip()
+    admin_user = User.query.filter_by(role="Administrador").first()
+
+    if admin_pin not in ["5678", "1234"] and (not admin_user or admin_user.pin != admin_pin):
+        flash("PIN de Administrador incorrecto. Eliminación no autorizada.", "error")
+        return redirect(url_for("terminal", view="inventario"))
+
+    item_id = request.form.get("item_id")
+    item = Item.query.get(item_id)
+    if item:
+        db.session.delete(item)
+        db.session.commit()
+        flash("Insumo eliminado exitosamente del inventario.", "success")
+    return redirect(url_for("terminal", view="inventario"))
 
 @app.route("/add_cleaning", methods=["POST"])
 def add_cleaning():
@@ -2049,7 +2370,7 @@ def add_cleaning():
     user = User.query.get(user_id)
     if not user or user.pin != pin:
         flash("PIN o usuario incorrecto.", "error")
-        return redirect(url_for("limpieza"))
+        return redirect(url_for("terminal", view="limpieza"))
 
     log = CleaningLog(
         timestamp=get_local_now(),
@@ -2062,13 +2383,7 @@ def add_cleaning():
     db.session.add(log)
     db.session.commit()
     flash("Bitácora de limpieza guardada correctamente.", "success")
-    return redirect(url_for("limpieza"))
-
-@app.route("/bitacora")
-def bitacora():
-    movements = Movement.query.order_by(Movement.timestamp.desc()).all()
-    patients = Patient.query.order_by(Patient.name).all()
-    return render_template_string(HTML_TEMPLATE, view="bitacora", movements=movements, patients=patients)
+    return redirect(url_for("terminal", view="limpieza"))
 
 @app.route("/revert_movement", methods=["POST"])
 def revert_movement():
@@ -2078,7 +2393,7 @@ def revert_movement():
     admin_user = User.query.filter_by(role="Administrador").first()
     if admin_pin not in ["5678", "1234"] and (not admin_user or admin_user.pin != admin_pin):
         flash("PIN de Administrador incorrecto. Se requiere autorización.", "error")
-        return redirect(url_for("bitacora"))
+        return redirect(url_for("terminal", view="bitacora"))
 
     mov = Movement.query.get(mov_id)
     if mov:
@@ -2101,7 +2416,7 @@ def revert_movement():
         db.session.commit()
         flash("Surtido revertido exitosamente y existencias devueltas.", "success")
 
-    return redirect(url_for("bitacora"))
+    return redirect(url_for("terminal", view="bitacora"))
 
 @app.route("/delete_movement", methods=["POST"])
 def delete_movement():
@@ -2111,21 +2426,14 @@ def delete_movement():
     admin_user = User.query.filter_by(role="Administrador").first()
     if admin_pin not in ["5678", "1234"] and (not admin_user or admin_user.pin != admin_pin):
         flash("PIN de Administrador incorrecto. Eliminación no autorizada.", "error")
-        return redirect(url_for("bitacora"))
+        return redirect(url_for("terminal", view="bitacora"))
 
     mov = Movement.query.get(mov_id)
     if mov:
         db.session.delete(mov)
         db.session.commit()
         flash("Registro de bitácora eliminado correctamente.", "success")
-    return redirect(url_for("bitacora"))
-
-@app.route("/usuarios")
-def usuarios():
-    users = User.query.order_by(User.name).all()
-    patients = Patient.query.order_by(Patient.name).all()
-    is_admin = request.args.get("admin") == "true"
-    return render_template_string(HTML_TEMPLATE, view="usuarios", users=users, patients=patients, is_admin=is_admin)
+    return redirect(url_for("terminal", view="bitacora"))
 
 @app.route("/auth_admin_users", methods=["POST"])
 def auth_admin_users():
@@ -2134,10 +2442,10 @@ def auth_admin_users():
 
     if admin_pin in ["5678", "1234"] or (admin_user and admin_user.pin == admin_pin):
         flash("Acceso concedido a la gestión de usuarios.", "success")
-        return redirect(url_for("usuarios", admin="true"))
+        return redirect(url_for("terminal", view="usuarios", admin="true"))
     else:
         flash("PIN de Administrador incorrecto.", "error")
-        return redirect(url_for("usuarios"))
+        return redirect(url_for("terminal", view="usuarios"))
 
 @app.route("/save_user", methods=["POST"])
 def save_user():
@@ -2159,13 +2467,7 @@ def save_user():
         flash(f"Nuevo usuario '{name}' creado exitosamente.", "success")
 
     db.session.commit()
-    return redirect(url_for("usuarios", admin="true"))
-
-@app.route("/alta_insumos")
-def alta_insumos():
-    users = User.query.order_by(User.name).all()
-    patients = Patient.query.order_by(Patient.name).all()
-    return render_template_string(HTML_TEMPLATE, view="alta_insumos", users=users, patients=patients)
+    return redirect(url_for("terminal", view="usuarios", admin="true"))
 
 @app.route("/add_item", methods=["POST"])
 def add_item():
@@ -2201,55 +2503,7 @@ def add_item():
         db.session.rollback()
         flash(f"Error al registrar: {str(e)}", "error")
 
-    return redirect(url_for("alta_insumos"))
-
-@app.route("/controlados")
-def controlados():
-    controlled_items = Item.query.filter_by(etiqueta="Controlado").order_by(Item.name).all()
-    controlled_logs = ControlledLog.query.order_by(ControlledLog.timestamp.desc()).all()
-    users = User.query.order_by(User.name).all()
-    patients = Patient.query.order_by(Patient.name).all()
-
-    is_admin_controlled = request.args.get("admin_arqueo") == "true"
-    today_date = datetime.now(LOCAL_TZ).date()
-    today_str = today_date.strftime('%d/%m/%Y')
-
-    controlled_reconciliation = []
-    if is_admin_controlled:
-        for item in controlled_items:
-            current_stock = (item.stock_general or 0) + (item.stock_quirofano or 0)
-
-            dispensed_today = sum(
-                mov.quantity for mov in Movement.query.filter(Movement.type == 'Salida').all()
-                if item.name.lower() in mov.item_name.lower() and mov.timestamp.date() == today_date
-            )
-
-            logged_today = sum(
-                log.quantity for log in controlled_logs
-                if item.name.lower() in log.item_name.lower() and log.timestamp.date() == today_date
-            )
-
-            status = "Conciliado" if dispensed_today == logged_today else "Discrepancia"
-
-            controlled_reconciliation.append({
-                'item': item,
-                'current_stock': current_stock,
-                'dispensed_today': dispensed_today,
-                'logged_today': logged_today,
-                'status': status
-            })
-
-    return render_template_string(
-        HTML_TEMPLATE,
-        view="controlados",
-        controlled_items=controlled_items,
-        controlled_logs=controlled_logs,
-        users=users,
-        patients=patients,
-        is_admin_controlled=is_admin_controlled,
-        today_str=today_str,
-        controlled_reconciliation=controlled_reconciliation
-    )
+    return redirect(url_for("terminal", view="alta_insumos"))
 
 @app.route("/auth_admin_controlled", methods=["POST"])
 def auth_admin_controlled():
@@ -2258,10 +2512,10 @@ def auth_admin_controlled():
 
     if admin_pin in ["5678", "1234"] or (admin_user and admin_user.pin == admin_pin):
         flash("Acceso concedido al módulo de arqueo y conciliación diaria.", "success")
-        return redirect(url_for("controlados", admin_arqueo="true"))
+        return redirect(url_for("terminal", view="controlados", admin_arqueo="true"))
     else:
         flash("PIN de Administrador incorrecto.", "error")
-        return redirect(url_for("controlados"))
+        return redirect(url_for("terminal", view="controlados"))
 
 @app.route("/add_controlled", methods=["POST"])
 def add_controlled():
@@ -2278,7 +2532,7 @@ def add_controlled():
     user = User.query.get(user_id)
     if not user or user.pin != pin:
         flash("PIN de seguridad incorrecto.", "error")
-        return redirect(url_for("controlados"))
+        return redirect(url_for("terminal", view="controlados"))
 
     item = Item.query.filter(Item.name.ilike(f"%{item_name}%"), Item.etiqueta == "Controlado").first()
     if item:
@@ -2288,7 +2542,7 @@ def add_controlled():
             item.stock_quirofano -= quantity
         else:
             flash(f"Stock insuficiente para el medicamento controlado '{item.name}'.", "error")
-            return redirect(url_for("controlados"))
+            return redirect(url_for("terminal", view="controlados"))
 
     if patient_name:
         existing_patient = Patient.query.filter_by(name=patient_name).first()
@@ -2309,7 +2563,7 @@ def add_controlled():
     db.session.commit()
 
     flash(f"Salida controlada de '{raw_item_name}' registrada, inventario descontado y bitácora actualizada.", "success")
-    return redirect(url_for("controlados"))
+    return redirect(url_for("terminal", view="controlados"))
 
 @app.route("/delete_controlled", methods=["POST"])
 def delete_controlled():
@@ -2319,14 +2573,14 @@ def delete_controlled():
     admin_user = User.query.filter_by(role="Administrador").first()
     if admin_pin not in ["5678", "1234"] and (not admin_user or admin_user.pin != admin_pin):
         flash("PIN de Administrador incorrecto. Eliminación no autorizada.", "error")
-        return redirect(url_for("controlados"))
+        return redirect(url_for("terminal", view="controlados"))
 
     log_item = ControlledLog.query.get(log_id)
     if log_item:
         db.session.delete(log_item)
         db.session.commit()
         flash("Registro controlado eliminado correctamente de la bitácora.", "success")
-    return redirect(url_for("controlados"))
+    return redirect(url_for("terminal", view="controlados"))
 
 # -----------------------------------------------------------------------------
 # INICIALIZACIÓN DE BASE DE DATOS
