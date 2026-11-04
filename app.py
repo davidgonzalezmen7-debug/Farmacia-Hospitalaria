@@ -5,7 +5,8 @@ import io
 from flask import Flask, render_template_string, request, redirect, url_for, flash, send_file
 from flask_sqlalchemy import SQLAlchemy
 
-# Dependencias para generación de PDF exacto de 51mm x 25mm
+# Dependencias para generación de PDF y Reportes
+from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
 from reportlab.lib.colors import HexColor
@@ -90,10 +91,15 @@ class CleaningLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     timestamp = db.Column(db.DateTime, default=get_local_now)
     user_name = db.Column(db.String(100), nullable=False)
+    dia_semana = db.Column(db.String(20), nullable=True) # Lunes, Martes, etc.
+    turno = db.Column(db.String(20), nullable=True) # Matutino, Vespertino, Nocturno
     anaqueles = db.Column(db.Boolean, default=False)
-    cajones_unidosis = db.Column(db.Boolean, default=False)
-    acomodo_bodega = db.Column(db.Boolean, default=False)
-    notes = db.Column(db.String(250), nullable=True)
+    pasillos = db.Column(db.Boolean, default=False)
+    desecho_carton = db.Column(db.Boolean, default=False)
+    refrigerador = db.Column(db.Boolean, default=False)
+    cajas_traslado = db.Column(db.Boolean, default=False)
+    acomodo_medicamento = db.Column(db.Boolean, default=False)
+    notes = db.Column(db.String(350), nullable=True)
 
 # -----------------------------------------------------------------------------
 # PLANTILLA HTML INTEGRADA
@@ -110,35 +116,21 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <style>
         @media print {
             @page {
-                size: 51mm 25mm;
-                margin: 0 !important;
+                size: portrait;
+                margin: 10mm;
             }
             body, html {
-                width: 51mm !important;
-                margin: 0 !important;
-                padding: 0 !important;
+                width: 100% !important;
                 background-color: white !important;
             }
             header, nav, .no-print, button, form { 
                 display: none !important; 
             }
-            main.print-container {
+            .print-container {
                 display: block !important;
-                width: 51mm !important;
+                width: 100% !important;
                 margin: 0 !important;
                 padding: 0 !important;
-            }
-            .printable-label {
-                display: block !important;
-                width: 51mm !important;
-                height: 25mm !important;
-                margin: 0 !important;
-                padding: 1mm !important;
-                border: none !important;
-                box-shadow: none !important;
-                page-break-after: always;
-                page-break-inside: avoid;
-                background: white !important;
             }
         }
     </style>
@@ -175,7 +167,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     <i class="fa-solid fa-capsules"></i> Controlados
                 </a>
                 <a href="/terminal?view=limpieza" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'limpieza' %}bg-teal-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-teal-100{% endif %}">
-                    <i class="fa-solid fa-broom"></i> Limpieza
+                    <i class="fa-solid fa-broom"></i> Limpieza (Check-list)
                 </a>
                 <a href="/terminal?view=bitacora" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'bitacora' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
                     <i class="fa-solid fa-clock-rotate-left"></i> Bitácora
@@ -212,31 +204,33 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         </datalist>
 
         {% if view == 'costos' %}
-        <!-- ==================== PESTAÑA: CARGO DE MATERIAL PARA COSTOS ==================== -->
+        <!-- ==================== PESTAÑA: CARGO DE MATERIAL PARA COSTOS (MÚLTIPLE CON BUSCADOR) ==================== -->
         <div class="space-y-6">
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                 <div class="border-b pb-4 mb-4 flex justify-between items-center">
                     <div>
                         <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
-                            <i class="fa-solid fa-file-invoice-dollar text-emerald-600"></i> Cargo de Material para Costos
+                            <i class="fa-solid fa-file-invoice-dollar text-emerald-600"></i> Cargo Múltiple de Material para Costos
                         </h2>
-                        <p class="text-xs text-slate-500">Carga de insumos y materiales utilizados por paciente segregados por turno de atención.</p>
+                        <p class="text-xs text-slate-500">Agregue varios insumos a la lista de cargo para un paciente y regístrelos en un solo movimiento por turno.</p>
                     </div>
                 </div>
 
-                <form action="/add_cost_cargo" method="POST" class="space-y-4">
+                <form action="/add_cost_cargo_batch" method="POST" onsubmit="return validateCostosBatch()" class="space-y-4">
+                    <input type="hidden" name="cart_costos_data" id="cart_costos_data_input">
+
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
                         <div>
                             <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nombre del Paciente</label>
-                            <input type="text" list="patients_datalist" name="patient_name" required placeholder="Ej. Ana Gómez" class="w-full p-2 border rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 outline-none bg-white">
+                            <input type="text" list="patients_datalist" name="patient_name" id="costos_patient_name" required placeholder="Ej. Ana Gómez" class="w-full p-2 border rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 outline-none bg-white">
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Habitación / Cama</label>
-                            <input type="text" name="room" required placeholder="Ej. Hab. 302 / Cama A" class="w-full p-2 border rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 outline-none bg-white">
+                            <input type="text" name="room" id="costos_room" required placeholder="Ej. Hab. 302" class="w-full p-2 border rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 outline-none bg-white">
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-700 uppercase mb-1">No. de Expediente</label>
-                            <input type="text" name="patient_id" required placeholder="Ej. EXP-1092" class="w-full p-2 border rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 outline-none bg-white">
+                            <input type="text" name="patient_id" id="costos_patient_id" required placeholder="Ej. EXP-1092" class="w-full p-2 border rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 outline-none bg-white">
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Turno de Atención</label>
@@ -249,35 +243,66 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-emerald-50/50 p-4 rounded-xl border border-emerald-100">
-                        <div class="sm:col-span-2">
-                            <label class="block text-xs font-bold text-emerald-900 uppercase mb-1">Seleccionar Insumo / Material Ocupado</label>
-                            <select name="item_id" required class="w-full p-2 border rounded-xl text-xs bg-white focus:ring-2 focus:ring-emerald-500 outline-none font-medium">
-                                <option value="">-- Seleccionar Material del Inventario --</option>
-                                {% for item in items %}
-                                    <option value="{{ item.id }}">
-                                        {{ item.name }} (Lote: {{ item.lote or 'S/L' }}) | Stock Gen: {{ item.stock_general }} | Quirófano: {{ item.stock_quirofano }}
-                                    </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-emerald-900 uppercase mb-1">Cantidad Ocupada</label>
-                            <input type="number" min="1" name="quantity" value="1" required class="w-full p-2 border rounded-xl text-xs font-bold text-center bg-white">
+                    <!-- Buscador y selección de insumos para cargo -->
+                    <div class="p-4 bg-emerald-50/60 rounded-xl border border-emerald-200 space-y-3">
+                        <h3 class="text-xs font-bold text-emerald-900 uppercase flex items-center gap-1.5">
+                            <i class="fa-solid fa-magnifying-glass"></i> Buscador y Selección de Insumos / Materiales
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                            <div class="md:col-span-5">
+                                <label class="block text-[11px] font-semibold text-slate-700 mb-1">Buscar Insumo / Medicamento</label>
+                                <input list="items_list" id="costos_temp_item" placeholder="Escriba para filtrar en el inventario..." class="w-full p-2 border rounded-lg text-xs bg-white outline-none font-medium">
+                            </div>
+                            <div class="md:col-span-3">
+                                <label class="block text-[11px] font-semibold text-slate-700 mb-1">Almacén de Origen</label>
+                                <select id="costos_temp_warehouse" class="w-full p-2 border rounded-lg text-xs bg-white outline-none">
+                                    <option value="Almacén General">Almacén General</option>
+                                    <option value="Quirófano">Quirófano</option>
+                                </select>
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-[11px] font-semibold text-slate-700 mb-1">Cantidad</label>
+                                <input type="number" min="1" id="costos_temp_qty" value="1" class="w-full p-2 border rounded-lg text-xs bg-white text-center font-bold outline-none">
+                            </div>
+                            <div class="md:col-span-2">
+                                <button type="button" onclick="addCostosCartItem()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-2 rounded-lg text-xs transition flex items-center justify-center gap-1 shadow-sm">
+                                    <i class="fa-solid fa-plus"></i> Agregar
+                                </button>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Almacén de Origen</label>
-                            <select name="warehouse" required class="w-full p-2 border rounded-xl text-xs bg-white">
-                                <option value="Almacén General">Almacén General</option>
-                                <option value="Quirófano">Quirófano</option>
-                            </select>
+                    <!-- Tabla de ítems en el carrito de costos -->
+                    <div>
+                        <h3 class="text-xs font-bold text-slate-700 uppercase mb-2 flex items-center justify-between">
+                            <span><i class="fa-solid fa-list-check text-emerald-600"></i> Insumos Seleccionados para Cargo</span>
+                            <span id="costosCartCountBadge" class="text-[11px] font-semibold bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full">0 ítems</span>
+                        </h3>
+                        <div class="overflow-x-auto border rounded-xl bg-white">
+                            <table class="w-full text-xs text-left text-slate-600">
+                                <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b">
+                                    <tr>
+                                        <th class="p-2.5">Insumo / Lote</th>
+                                        <th class="p-2.5">Almacén</th>
+                                        <th class="p-2.5 text-center">Cantidad</th>
+                                        <th class="p-2.5 text-center">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="costosCartTableBody" class="divide-y divide-slate-100">
+                                    <tr>
+                                        <td colspan="4" class="p-6 text-center text-slate-400 italic">
+                                            No hay insumos agregados al cargo. Utilice el buscador superior para agregar materiales.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                         <div>
                             <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Usuario Responsable</label>
-                            <select name="user_id" required class="w-full p-2 border rounded-xl text-xs bg-white">
+                            <select name="user_id" required class="w-full p-2.5 border rounded-xl text-xs bg-white">
                                 <option value="">Seleccionar Usuario...</option>
                                 {% for u in users %}
                                     <option value="{{ u.id }}">{{ u.name }} ({{ u.role }})</option>
@@ -286,24 +311,29 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-700 uppercase mb-1">PIN de Validación</label>
-                            <input type="password" name="pin" required placeholder="PIN" class="w-full p-2 border rounded-xl text-xs bg-white">
+                            <input type="password" name="pin" required placeholder="PIN" class="w-full p-2.5 border rounded-xl text-xs bg-white">
                         </div>
                     </div>
 
-                    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl transition shadow flex items-center justify-center gap-2 text-xs">
-                        <i class="fa-solid fa-plus-circle"></i> Registrar Cargo de Material
+                    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl transition shadow flex items-center justify-center gap-2 text-xs">
+                        <i class="fa-solid fa-check-circle"></i> Registrar Cargo Múltiple de Material
                     </button>
                 </form>
             </div>
 
-            <!-- Ventanas / Tablas de Movimientos por Turno -->
+            <!-- Ventanas / Tablas de Movimientos por Turno (Con opción de imprimir por turno) -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 
                 <!-- Turno Matutino -->
                 <div class="bg-white p-5 rounded-2xl shadow-sm border border-amber-200">
                     <h3 class="text-sm font-bold text-amber-800 flex items-center justify-between border-b pb-3 mb-3">
                         <span><i class="fa-solid fa-sun text-amber-500 mr-2"></i> Movimientos - Turno Matutino</span>
-                        <span class="bg-amber-100 text-amber-800 text-[10px] px-2.5 py-0.5 rounded-full font-bold">{{ matutino_cargos|length }} registros</span>
+                        <div class="flex items-center gap-2">
+                            <span class="bg-amber-100 text-amber-800 text-[10px] px-2.5 py-0.5 rounded-full font-bold">{{ matutino_cargos|length }} registros</span>
+                            <a href="/imprimir_turno_pdf?shift=Matutino" target="_blank" class="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[11px] font-bold shadow transition flex items-center gap-1">
+                                <i class="fa-solid fa-print"></i> Imprimir Turno
+                            </a>
+                        </div>
                     </h3>
                     <div class="overflow-x-auto max-h-72">
                         <table class="w-full text-left text-xs">
@@ -337,7 +367,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 <div class="bg-white p-5 rounded-2xl shadow-sm border border-orange-200">
                     <h3 class="text-sm font-bold text-orange-800 flex items-center justify-between border-b pb-3 mb-3">
                         <span><i class="fa-solid fa-cloud-sun text-orange-500 mr-2"></i> Movimientos - Turno Vespertino</span>
-                        <span class="bg-orange-100 text-orange-800 text-[10px] px-2.5 py-0.5 rounded-full font-bold">{{ vespertino_cargos|length }} registros</span>
+                        <div class="flex items-center gap-2">
+                            <span class="bg-orange-100 text-orange-800 text-[10px] px-2.5 py-0.5 rounded-full font-bold">{{ vespertino_cargos|length }} registros</span>
+                            <a href="/imprimir_turno_pdf?shift=Vespertino" target="_blank" class="px-2.5 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-[11px] font-bold shadow transition flex items-center gap-1">
+                                <i class="fa-solid fa-print"></i> Imprimir Turno
+                            </a>
+                        </div>
                     </h3>
                     <div class="overflow-x-auto max-h-72">
                         <table class="w-full text-left text-xs">
@@ -371,7 +406,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 <div class="bg-white p-5 rounded-2xl shadow-sm border border-indigo-200">
                     <h3 class="text-sm font-bold text-indigo-800 flex items-center justify-between border-b pb-3 mb-3">
                         <span><i class="fa-solid fa-moon text-indigo-500 mr-2"></i> Movimientos - Turno Nocturno A</span>
-                        <span class="bg-indigo-100 text-indigo-800 text-[10px] px-2.5 py-0.5 rounded-full font-bold">{{ nocturno_a_cargos|length }} registros</span>
+                        <div class="flex items-center gap-2">
+                            <span class="bg-indigo-100 text-indigo-800 text-[10px] px-2.5 py-0.5 rounded-full font-bold">{{ nocturno_a_cargos|length }} registros</span>
+                            <a href="/imprimir_turno_pdf?shift=Nocturno A" target="_blank" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-bold shadow transition flex items-center gap-1">
+                                <i class="fa-solid fa-print"></i> Imprimir Turno
+                            </a>
+                        </div>
                     </h3>
                     <div class="overflow-x-auto max-h-72">
                         <table class="w-full text-left text-xs">
@@ -405,7 +445,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 <div class="bg-white p-5 rounded-2xl shadow-sm border border-purple-200">
                     <h3 class="text-sm font-bold text-purple-800 flex items-center justify-between border-b pb-3 mb-3">
                         <span><i class="fa-solid fa-star text-purple-500 mr-2"></i> Movimientos - Turno Nocturno B</span>
-                        <span class="bg-purple-100 text-purple-800 text-[10px] px-2.5 py-0.5 rounded-full font-bold">{{ nocturno_b_cargos|length }} registros</span>
+                        <div class="flex items-center gap-2">
+                            <span class="bg-purple-100 text-purple-800 text-[10px] px-2.5 py-0.5 rounded-full font-bold">{{ nocturno_b_cargos|length }} registros</span>
+                            <a href="/imprimir_turno_pdf?shift=Nocturno B" target="_blank" class="px-2.5 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-[11px] font-bold shadow transition flex items-center gap-1">
+                                <i class="fa-solid fa-print"></i> Imprimir Turno
+                            </a>
+                        </div>
                     </h3>
                     <div class="overflow-x-auto max-h-72">
                         <table class="w-full text-left text-xs">
@@ -1099,80 +1144,57 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         </div>
 
         {% elif view == 'limpieza' %}
+        <!-- ==================== PESTAÑA: CHECK-LIST LIMPIEZA / FORMATO FAR-FTO-19-01 ==================== -->
         <div class="space-y-6">
             <div class="bg-gradient-to-r from-teal-900 to-slate-900 text-white p-6 rounded-2xl shadow-md border border-teal-800">
-                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-2">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="bg-white/20 text-white text-[10px] font-mono px-2 py-0.5 rounded font-bold">FAR-FTO-19-01</span>
+                            <span class="text-xs text-teal-300 font-bold">HOSPITAL OBREGÓN</span>
+                        </div>
                         <h2 class="text-base font-bold flex items-center gap-2">
-                            <i class="fa-solid fa-calendar-check text-teal-400"></i> Rol Semanal de Actividades Diarias (Excluye Administrador)
+                            <i class="fa-solid fa-clipboard-check text-teal-400"></i> Check List Limpieza Farmacia / Almacén
                         </h2>
-                        <p class="text-xs text-teal-200">Cada usuario operativo realiza una tarea asignada diariamente durante la semana. La tarea se modifica y alterna cada semana.</p>
+                        <p class="text-xs text-teal-200">Objetivo: Asegurar la limpieza de la Farmacia para brindar un conservación óptima de los medicamentos. Marque con una "✓" como área limpia.</p>
                     </div>
-                    <span class="bg-teal-600/80 text-white text-xs font-mono px-3 py-1.5 rounded-full font-bold">
-                        Semana {{ current_week }} / {{ current_year }} ({{ week_dates_current }})
-                    </span>
                 </div>
             </div>
 
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                <h3 class="text-base font-bold text-slate-900 mb-4 border-b pb-3 flex items-center gap-2">
-                    <i class="fa-solid fa-user-check text-teal-600"></i> Asignación Individual de Actividad Diaria por Usuario
-                </h3>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {% for item in user_roles_detail %}
-                    <div class="rounded-2xl border bg-slate-50/80 border-slate-200 p-5 flex flex-col justify-between space-y-4 hover:border-teal-400 transition shadow-sm">
-                        <div class="space-y-2">
-                            <div class="flex justify-between items-start">
-                                <div>
-                                    <h4 class="font-bold text-slate-900 text-sm flex items-center gap-1.5">
-                                        <i class="fa-solid fa-user text-teal-600 text-xs"></i>
-                                        {{ item.user.name }}
-                                    </h4>
-                                    <span class="text-[11px] text-slate-500 font-medium">{{ item.user.role }}</span>
-                                </div>
-                                <span class="bg-teal-100 text-teal-800 text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full border border-teal-200">
-                                    Activo Diario
-                                </span>
-                            </div>
-
-                            <div class="bg-gradient-to-r from-teal-500 to-emerald-600 text-white p-3.5 rounded-xl shadow-sm space-y-1">
-                                <span class="text-[10px] uppercase font-bold text-teal-100 block tracking-wider">
-                                    <i class="fa-solid fa-clipboard-list"></i> Actividad Asignada Esta Semana:
-                                </span>
-                                <p class="font-extrabold text-xs text-white">
-                                    {{ item.task_this_week }}
-                                </p>
-                            </div>
-                        </div>
-
-                        <div class="border-t border-slate-200 pt-3 text-xs space-y-1 text-slate-600">
-                            <div class="flex justify-between items-center text-[11px]">
-                                <span class="font-bold text-slate-700">Próxima Semana (Semana {{ current_week + 1 }}):</span>
-                            </div>
-                            <p class="text-[11px] font-semibold text-teal-800 bg-teal-50 px-2 py-1 rounded border border-teal-100">
-                                🔄 {{ item.task_next_week }}
-                            </p>
-                        </div>
-                    </div>
-                    {% else %}
-                    <div class="col-span-full text-center text-slate-400 p-6 italic">
-                        No hay usuarios operativos registrados para asignar actividades.
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-
+            <!-- Formulario de Registro Diario Check-list -->
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1">
-                    <h2 class="text-base font-bold text-slate-900 mb-4 border-b pb-2 flex items-center gap-2">
-                        <i class="fa-solid fa-broom text-teal-600"></i> Registrar Cumplimiento Diario
-                    </h2>
+                    <h3 class="text-base font-bold text-slate-900 mb-4 border-b pb-2 flex items-center gap-2">
+                        <i class="fa-solid fa-broom text-teal-600"></i> Registrar Verificación Diaria
+                    </h3>
 
-                    <form action="/add_cleaning" method="POST" class="space-y-4">
+                    <form action="/add_cleaning" method="POST" class="space-y-3">
                         <div class="grid grid-cols-2 gap-2">
                             <div>
-                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Personal</label>
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Día</label>
+                                <select name="dia_semana" required class="w-full p-2.5 border rounded-xl text-xs bg-slate-50 outline-none font-bold">
+                                    <option value="Lunes">Lunes</option>
+                                    <option value="Martes">Martes</option>
+                                    <option value="Miércoles">Miércoles</option>
+                                    <option value="Jueves">Jueves</option>
+                                    <option value="Viernes">Viernes</option>
+                                    <option value="Sábado">Sábado</option>
+                                    <option value="Domingo">Domingo</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Turno</label>
+                                <select name="turno" required class="w-full p-2.5 border rounded-xl text-xs bg-slate-50 outline-none font-bold">
+                                    <option value="Matutino">Matutino (M)</option>
+                                    <option value="Vespertino">Vespertino (V)</option>
+                                    <option value="Nocturno">Nocturno (N)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Responsable</label>
                                 <select name="user_id" required class="w-full p-2.5 border rounded-xl text-xs bg-slate-50 outline-none">
                                     <option value="">Seleccione...</option>
                                     {% for u in users %}
@@ -1186,73 +1208,99 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                             </div>
                         </div>
 
-                        <div class="bg-teal-50/60 p-4 rounded-xl border border-teal-100 space-y-3">
-                            <h3 class="text-xs font-bold text-teal-900 uppercase border-b border-teal-200 pb-1">
-                                Verificación de Actividades
-                            </h3>
+                        <div class="bg-teal-50/60 p-4 rounded-xl border border-teal-100 space-y-2.5">
+                            <h4 class="text-xs font-bold text-teal-900 uppercase border-b border-teal-200 pb-1">
+                                Áreas de Limpieza (Formato Oficial)
+                            </h4>
 
                             <label class="flex items-center gap-2.5 text-xs font-medium text-slate-700 cursor-pointer">
                                 <input type="checkbox" name="anaqueles" class="w-4 h-4 text-teal-600 rounded">
-                                <span>🗄️ Sanitización de Anaqueles y Estantes</span>
+                                <span>Anaqueles</span>
                             </label>
-
                             <label class="flex items-center gap-2.5 text-xs font-medium text-slate-700 cursor-pointer">
-                                <input type="checkbox" name="cajones_unidosis" class="w-4 h-4 text-teal-600 rounded">
-                                <span>💊 Limpieza de Cajones Unidosis</span>
+                                <input type="checkbox" name="pasillos" class="w-4 h-4 text-teal-600 rounded">
+                                <span>Pasillos</span>
                             </label>
-
                             <label class="flex items-center gap-2.5 text-xs font-medium text-slate-700 cursor-pointer">
-                                <input type="checkbox" name="acomodo_bodega" class="w-4 h-4 text-teal-600 rounded">
-                                <span>📦 Acomodo, Cartón y Desinfección de Bodega</span>
+                                <input type="checkbox" name="desecho_carton" class="w-4 h-4 text-teal-600 rounded">
+                                <span>Desecho de cartón</span>
+                            </label>
+                            <label class="flex items-center gap-2.5 text-xs font-medium text-slate-700 cursor-pointer">
+                                <input type="checkbox" name="refrigerador" class="w-4 h-4 text-teal-600 rounded">
+                                <span>Refrigerador</span>
+                            </label>
+                            <label class="flex items-center gap-2.5 text-xs font-medium text-slate-700 cursor-pointer">
+                                <input type="checkbox" name="cajas_traslado" class="w-4 h-4 text-teal-600 rounded">
+                                <span>Cajas de traslado</span>
+                            </label>
+                            <label class="flex items-center gap-2.5 text-xs font-medium text-slate-700 cursor-pointer">
+                                <input type="checkbox" name="acomodo_medicamento" class="w-4 h-4 text-teal-600 rounded">
+                                <span>Acomodo de medicamento</span>
                             </label>
                         </div>
 
                         <div>
-                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Notas u Observaciones</label>
-                            <input type="text" name="notes" placeholder="Ej. Se utilizó alcohol al 70%..." class="w-full p-2.5 border rounded-xl text-xs outline-none">
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Observaciones / Incidencias</label>
+                            <textarea name="notes" rows="2" placeholder="Indique incidencias en el servicio y cómo lo solucionó..." class="w-full p-2 border rounded-xl text-xs outline-none bg-slate-50"></textarea>
                         </div>
 
                         <button type="submit" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 rounded-xl shadow-md transition flex items-center justify-center gap-2">
-                            <i class="fa-solid fa-clipboard-check"></i> Guardar Registro Diario
+                            <i class="fa-solid fa-clipboard-check"></i> Registrar en Formato Oficial
                         </button>
                     </form>
                 </div>
 
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-2">
-                    <div class="flex justify-between items-center mb-4 border-b pb-3">
-                        <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
-                            <i class="fa-solid fa-list-check text-teal-600"></i> Bitácora de Sanitización Diaria
-                        </h2>
+                <!-- Tabla de Bitácora Estilo Check-list Institucional -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-2 space-y-4">
+                    <div class="flex justify-between items-center border-b pb-3">
+                        <div>
+                            <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                                <i class="fa-solid fa-table text-teal-600"></i> Bitácora Institucional de Limpieza
+                            </h3>
+                            <p class="text-[11px] text-slate-500">Registro histórico basado en formato FAR-FTO-19-01</p>
+                        </div>
                         <button onclick="window.print()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold no-print">
-                            <i class="fa-solid fa-print"></i> Imprimir Reporte
+                            <i class="fa-solid fa-print"></i> Imprimir Formato
                         </button>
                     </div>
 
                     <div class="overflow-x-auto">
-                        <table class="w-full text-xs text-left text-slate-600">
-                            <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b">
+                        <table class="w-full text-xs text-left text-slate-700 border border-slate-300">
+                            <thead class="bg-teal-50 text-teal-900 uppercase text-[10px] border-b border-slate-300">
                                 <tr>
-                                    <th class="p-2.5">Fecha/Hora</th>
-                                    <th class="p-2.5">Responsable</th>
-                                    <th class="p-2.5 text-center">Anaqueles</th>
-                                    <th class="p-2.5 text-center">Cajones DU</th>
-                                    <th class="p-2.5 text-center">Bodega</th>
+                                    <th class="p-2 border-r border-slate-300">Día / Turno</th>
+                                    <th class="p-2 text-center border-r border-slate-300">Anaqueles</th>
+                                    <th class="p-2 text-center border-r border-slate-300">Pasillos</th>
+                                    <th class="p-2 text-center border-r border-slate-300">Cartón</th>
+                                    <th class="p-2 text-center border-r border-slate-300">Refrigerador</th>
+                                    <th class="p-2 text-center border-r border-slate-300">Cajas</th>
+                                    <th class="p-2 text-center border-r border-slate-300">Acomodo</th>
+                                    <th class="p-2 border-r border-slate-300">Responsable</th>
+                                    <th class="p-2">Observaciones</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-slate-100">
+                            <tbody class="divide-y divide-slate-200">
                                 {% for log in cleaning_logs %}
                                 <tr class="hover:bg-slate-50">
-                                    <td class="p-2.5 font-mono text-slate-500">{{ log.timestamp.strftime('%d/%m/%Y %H:%M') if log.timestamp else '-' }}</td>
-                                    <td class="p-2.5 font-bold text-slate-900">
-                                        {{ log.user_name }}
-                                        {% if log.notes %}<span class="block text-[10px] text-slate-400 font-normal">{{ log.notes }}</span>{% endif %}
+                                    <td class="p-2 border-r border-slate-200 font-bold">
+                                        {{ log.dia_semana or 'Día' }} <span class="bg-teal-100 text-teal-800 px-1.5 py-0.5 rounded text-[10px]">{{ log.turno or 'M' }}</span>
+                                        <span class="block text-[9px] text-slate-400 font-mono">{{ log.timestamp.strftime('%d/%m/%Y') if log.timestamp else '' }}</span>
                                     </td>
-                                    <td class="p-2.5 text-center">{% if log.anaqueles %}<span class="text-emerald-600 font-bold">✓</span>{% else %}-{% endif %}</td>
-                                    <td class="p-2.5 text-center">{% if log.cajones_unidosis %}<span class="text-emerald-600 font-bold">✓</span>{% else %}-{% endif %}</td>
-                                    <td class="p-2.5 text-center">{% if log.acomodo_bodega %}<span class="text-emerald-600 font-bold">✓</span>{% else %}-{% endif %}</td>
+                                    <td class="p-2 text-center border-r border-slate-200">{% if log.anaqueles %}<span class="text-emerald-600 font-extrabold text-sm">✓</span>{% else %}<span class="text-slate-300">-</span>{% endif %}</td>
+                                    <td class="p-2 text-center border-r border-slate-200">{% if log.pasillos %}<span class="text-emerald-600 font-extrabold text-sm">✓</span>{% else %}<span class="text-slate-300">-</span>{% endif %}</td>
+                                    <td class="p-2 text-center border-r border-slate-200">{% if log.desecho_carton %}<span class="text-emerald-600 font-extrabold text-sm">✓</span>{% else %}<span class="text-slate-300">-</span>{% endif %}</td>
+                                    <td class="p-2 text-center border-r border-slate-200">{% if log.refrigerador %}<span class="text-emerald-600 font-extrabold text-sm">✓</span>{% else %}<span class="text-slate-300">-</span>{% endif %}</td>
+                                    <td class="p-2 text-center border-r border-slate-200">{% if log.cajas_traslado %}<span class="text-emerald-600 font-extrabold text-sm">✓</span>{% else %}<span class="text-slate-300">-</span>{% endif %}</td>
+                                    <td class="p-2 text-center border-r border-slate-200">{% if log.acomodo_medicamento %}<span class="text-emerald-600 font-extrabold text-sm">✓</span>{% else %}<span class="text-slate-300">-</span>{% endif %}</td>
+                                    <td class="p-2 border-r border-slate-200 font-bold text-slate-800">{{ log.user_name }}</td>
+                                    <td class="p-2 text-[11px] text-slate-600">{{ log.notes or '-' }}</td>
                                 </tr>
                                 {% else %}
-                                <tr><td colspan="5" class="p-6 text-center text-slate-400 italic">No hay actividades de limpieza registradas.</td></tr>
+                                <tr>
+                                    <td colspan="9" class="p-6 text-center text-slate-400 italic">
+                                        No hay registros de limpieza en el formato institucional.
+                                    </td>
+                                </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
@@ -1666,6 +1714,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
     <script>
         let cart = [];
+        let costosCart = [];
 
         function selectUser(id, name) {
             var elem = document.getElementById('userSelect');
@@ -1715,7 +1764,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         function renderCart() {
             const tbody = document.getElementById('cartTableBody');
             const badge = document.getElementById('cartCountBadge');
-            
             badge.innerText = cart.length + ' ítems';
 
             if (cart.length === 0) {
@@ -1746,7 +1794,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     </tr>
                 `;
             });
-
             tbody.innerHTML = html;
         }
 
@@ -1756,6 +1803,77 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 return false;
             }
             document.getElementById('cart_data_input').value = JSON.stringify(cart);
+            return true;
+        }
+
+        // Funciones para el Carrito de Cargo Costos Múltiple
+        function addCostosCartItem() {
+            const itemInput = document.getElementById('costos_temp_item');
+            const itemVal = itemInput.value.trim();
+            const warehouse = document.getElementById('costos_temp_warehouse').value;
+            const quantity = parseInt(document.getElementById('costos_temp_qty').value) || 1;
+
+            if (!itemVal) {
+                alert('Por favor seleccione o escriba un insumo.');
+                return;
+            }
+
+            costosCart.push({
+                item_search: itemVal,
+                warehouse: warehouse,
+                quantity: quantity
+            });
+
+            itemInput.value = '';
+            document.getElementById('costos_temp_qty').value = 1;
+            renderCostosCart();
+        }
+
+        function removeCostosCartItem(index) {
+            costosCart.splice(index, 1);
+            renderCostosCart();
+        }
+
+        function renderCostosCart() {
+            const tbody = document.getElementById('costosCartTableBody');
+            const badge = document.getElementById('costosCartCountBadge');
+            badge.innerText = costosCart.length + ' ítems';
+
+            if (costosCart.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="p-6 text-center text-slate-400 italic">
+                            No hay insumos agregados al cargo. Utilice el buscador superior para agregar materiales.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            let html = '';
+            costosCart.forEach((item, index) => {
+                html += `
+                    <tr class="hover:bg-slate-50">
+                        <td class="p-2.5 font-bold text-slate-800">${item.item_search}</td>
+                        <td class="p-2.5 text-xs text-slate-600">${item.warehouse}</td>
+                        <td class="p-2.5 text-center font-bold text-sm text-emerald-700">${item.quantity}</td>
+                        <td class="p-2.5 text-center">
+                            <button type="button" onclick="removeCostosCartItem(${index})" class="px-2 py-1 bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold rounded text-xs transition">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        }
+
+        function validateCostosBatch() {
+            if (costosCart.length === 0) {
+                alert('Debe agregar al menos un insumo al cargo de costos.');
+                return false;
+            }
+            document.getElementById('cart_costos_data_input').value = JSON.stringify(costosCart);
             return true;
         }
 
@@ -1930,8 +2048,71 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 """
 
 # -----------------------------------------------------------------------------
-# RUTAS DE PDF MASIVO Y ETIQUETAS
+# RUTAS DE PDF MASIVO, ETIQUETAS Y REPORTES DE TURNO
 # -----------------------------------------------------------------------------
+
+@app.route("/imprimir_turno_pdf")
+def imprimir_turno_pdf():
+    shift = request.args.get("shift", "Matutino").strip()
+    cargos = Movement.query.filter_by(is_cost_cargo=True, shift=shift).order_by(Movement.timestamp.desc()).all()
+    
+    buffer = io.BytesIO()
+    c = canvas.Canvas(buffer, pagesize=letter)
+    width, height = letter
+
+    # Encabezado del Reporte Institucional
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(20 * mm, height - 20 * mm, "HOSPITAL OBREGÓN - FARMACIA HOSPITALARIA")
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(20 * mm, height - 26 * mm, f"REPORTE DE CARGOS A COSTOS - TURNO: {shift.upper()}")
+    
+    fecha_actual = datetime.now(LOCAL_TZ).strftime("%d/%m/%Y %H:%M")
+    c.setFont("Helvetica", 9)
+    c.drawString(20 * mm, height - 32 * mm, f"Fecha de emisión: {fecha_actual}")
+    
+    c.setLineWidth(1)
+    c.line(20 * mm, height - 35 * mm, width - 20 * mm, height - 35 * mm)
+
+    # Tabla de Contenido
+    y = height - 45 * mm
+    c.setFont("Helvetica-Bold", 9)
+    c.drawString(20 * mm, y, "Paciente / Expediente")
+    c.drawString(70 * mm, y, "Habitación")
+    c.drawString(95 * mm, y, "Insumo / Material")
+    c.drawString(160 * mm, y, "Cant.")
+    c.drawString(178 * mm, y, "Hora")
+    
+    y -= 6 * mm
+    c.setLineWidth(0.5)
+    c.line(20 * mm, y + 4 * mm, width - 20 * mm, y + 4 * mm)
+
+    c.setFont("Helvetica", 9)
+    for cgo in cargos:
+        if y < 25 * mm:  # Salto de página automático si se llena
+            c.showPage()
+            y = height - 25 * mm
+        
+        patient_info = f"{cgo.patient_name} (Exp: {cgo.patient_id})"
+        c.drawString(20 * mm, y, patient_info[:32])
+        c.drawString(70 * mm, y, str(cgo.room or "-")[:15])
+        c.drawString(95 * mm, y, str(cgo.item_name)[:35])
+        c.drawRightString(168 * mm, y, str(cgo.quantity))
+        c.drawString(178 * mm, y, cgo.timestamp.strftime('%H:%M') if cgo.timestamp else "--:--")
+        
+        y -= 7 * mm
+
+    if not cargos:
+        c.setFont("Helvetica-Oblique", 10)
+        c.drawString(20 * mm, y, "No hay registros de cargos para este turno.")
+
+    c.save()
+    buffer.seek(0)
+    return send_file(
+        buffer,
+        as_attachment=False,
+        mimetype="application/pdf",
+        download_name=f"reporte_cargos_{shift.lower().replace(' ', '_')}.pdf"
+    )
 
 @app.route("/imprimir_lote_pdf")
 def imprimir_lote_pdf():
@@ -2035,39 +2216,6 @@ def terminal():
     warning_str = (datetime.now(LOCAL_TZ).date() + timedelta(days=30)).isoformat()
     today_iso = today_date.isoformat()
 
-    operational_users = User.query.filter(User.role != "Administrador").order_by(User.id).all()
-    now = get_local_now()
-    current_year, current_week, _ = now.isocalendar()
-
-    def get_week_range(year, week):
-        try:
-            first_day = datetime.strptime(f'{year}-W{int(week):02d}-1', "%Y-W%W-%w")
-        except Exception:
-            first_day = now
-        last_day = first_day + timedelta(days=6)
-        return f"{first_day.strftime('%d/%m')} al {last_day.strftime('%d/%m')}"
-
-    cleaning_tasks = [
-        "🗄️ Sanitización Diaria de Anaqueles y Estantes",
-        "💊 Limpieza Diaria de Cajones Unidosis",
-        "📦 Acomodo, Cartón y Desinfección Diaria de Bodega"
-    ]
-
-    user_roles_detail = []
-    if operational_users:
-        num_users = len(operational_users)
-        num_tasks = len(cleaning_tasks)
-        for idx, u in enumerate(operational_users):
-            task_index_this_week = (current_week + idx) % num_tasks
-            task_index_next_week = (current_week + 1 + idx) % num_tasks
-            user_roles_detail.append({
-                'user': u,
-                'task_this_week': cleaning_tasks[task_index_this_week],
-                'task_next_week': cleaning_tasks[task_index_next_week]
-            })
-
-    week_dates_current = get_week_range(current_year, current_week)
-
     controlled_reconciliation = []
     if is_admin_controlled:
         for item in controlled_items:
@@ -2109,17 +2257,13 @@ def terminal():
         today_str=today_str,
         today_str_inv=today_iso,
         warning_str=warning_str,
-        current_week=current_week,
-        current_year=current_year,
-        week_dates_current=week_dates_current,
-        user_roles_detail=user_roles_detail,
         controlled_reconciliation=controlled_reconciliation,
         movements=movements,
         is_admin=is_admin
     )
 
-@app.route("/add_cost_cargo", methods=["POST"])
-def add_cost_cargo():
+@app.route("/add_cost_cargo_batch", methods=["POST"])
+def add_cost_cargo_batch():
     user_id = request.form.get("user_id")
     pin = request.form.get("pin")
     user = User.query.get(user_id)
@@ -2132,47 +2276,61 @@ def add_cost_cargo():
     room = request.form.get("room", "").strip()
     patient_id = request.form.get("patient_id", "").strip()
     shift = request.form.get("shift")
-    item_id = request.form.get("item_id")
-    quantity = int(request.form.get("quantity", 1))
-    warehouse = request.form.get("warehouse", "Almacén General")
+    cart_json = request.form.get("cart_costos_data", "[]")
+
+    try:
+        cart_items = json.loads(cart_json)
+    except Exception:
+        cart_items = []
+
+    if not cart_items:
+        flash("Debe agregar al menos un insumo al cargo.", "error")
+        return redirect(url_for("terminal", view="costos"))
 
     if patient_name and not Patient.query.filter_by(name=patient_name).first():
         db.session.add(Patient(name=patient_name))
 
-    item = Item.query.get(item_id)
-    if not item:
-        flash("El insumo seleccionado no existe.", "error")
-        return redirect(url_for("terminal", view="costos"))
+    for cart_item in cart_items:
+        raw_search = cart_item.get("item_search", "").strip()
+        item_search = raw_search.split(" (Lote:")[0].strip() if " (Lote:" in raw_search else raw_search
+        warehouse = cart_item.get("warehouse", "Almacén General")
+        quantity = int(cart_item.get("quantity", 1))
 
-    if warehouse == "Quirófano":
-        if item.stock_quirofano < quantity:
-            flash(f"Stock insuficiente en Quirófano (Disponible: {item.stock_quirofano}).", "error")
-            return redirect(url_for("terminal", view="costos"))
-        item.stock_quirofano -= quantity
-    else:
-        if item.stock_general < quantity:
-            flash(f"Stock insuficiente en Almacén General (Disponible: {item.stock_general}).", "error")
-            return redirect(url_for("terminal", view="costos"))
-        item.stock_general -= quantity
+        item = Item.query.filter(Item.name.ilike(f"%{item_search}%")).first()
+        if not item:
+            continue
 
-    mov = Movement(
-        timestamp=get_local_now(),
-        item_code=item.code,
-        item_name=f"{item.name} (Lote: {item.lote or 'S/L'})",
-        type="Salida (Costos)",
-        quantity=quantity,
-        warehouse=warehouse,
-        user_name=user.name,
-        patient_name=patient_name,
-        patient_id=patient_id,
-        room=room,
-        shift=shift,
-        is_cost_cargo=True
-    )
+        if warehouse == "Quirófano":
+            if item.stock_quirofano < quantity:
+                flash(f"Stock insuficiente en Quirófano para '{item.name}' (Disponible: {item.stock_quirofano}).", "error")
+                db.session.rollback()
+                return redirect(url_for("terminal", view="costos"))
+            item.stock_quirofano -= quantity
+        else:
+            if item.stock_general < quantity:
+                flash(f"Stock insuficiente en Almacén General para '{item.name}' (Disponible: {item.stock_general}).", "error")
+                db.session.rollback()
+                return redirect(url_for("terminal", view="costos"))
+            item.stock_general -= quantity
 
-    db.session.add(mov)
+        mov = Movement(
+            timestamp=get_local_now(),
+            item_code=item.code,
+            item_name=f"{item.name} (Lote: {item.lote or 'S/L'})",
+            type="Salida (Costos)",
+            quantity=quantity,
+            warehouse=warehouse,
+            user_name=user.name,
+            patient_name=patient_name,
+            patient_id=patient_id,
+            room=room,
+            shift=shift,
+            is_cost_cargo=True
+        )
+        db.session.add(mov)
+
     db.session.commit()
-    flash(f"Cargo registrado correctamente para {patient_name} en Turno {shift}.", "success")
+    flash(f"Cargo múltiple registrado correctamente para {patient_name} en Turno {shift}.", "success")
     return redirect(url_for("terminal", view="costos"))
 
 @app.route("/etiquetas")
@@ -2362,9 +2520,14 @@ def delete_item():
 def add_cleaning():
     user_id = request.form.get("user_id")
     pin = request.form.get("pin")
+    dia_semana = request.form.get("dia_semana", "Lunes")
+    turno = request.form.get("turno", "Matutino")
     anaqueles = 'anaqueles' in request.form
-    cajones_unidosis = 'cajones_unidosis' in request.form
-    acomodo_bodega = 'acomodo_bodega' in request.form
+    pasillos = 'pasillos' in request.form
+    desecho_carton = 'desecho_carton' in request.form
+    refrigerador = 'refrigerador' in request.form
+    cajas_traslado = 'cajas_traslado' in request.form
+    acomodo_medicamento = 'acomodo_medicamento' in request.form
     notes = request.form.get("notes")
 
     user = User.query.get(user_id)
@@ -2375,14 +2538,19 @@ def add_cleaning():
     log = CleaningLog(
         timestamp=get_local_now(),
         user_name=user.name,
+        dia_semana=dia_semana,
+        turno=turno,
         anaqueles=anaqueles,
-        cajones_unidosis=cajones_unidosis,
-        acomodo_bodega=acomodo_bodega,
+        pasillos=pasillos,
+        desecho_carton=desecho_carton,
+        refrigerador=refrigerador,
+        cajas_traslado=cajas_traslado,
+        acomodo_medicamento=acomodo_medicamento,
         notes=notes
     )
     db.session.add(log)
     db.session.commit()
-    flash("Bitácora de limpieza guardada correctamente.", "success")
+    flash("Verificación de limpieza guardada correctamente en el formato institucional.", "success")
     return redirect(url_for("terminal", view="limpieza"))
 
 @app.route("/revert_movement", methods=["POST"])
@@ -2401,7 +2569,7 @@ def revert_movement():
         item = Item.query.filter((Item.code == mov.item_code) | (Item.name == clean_name)).first()
 
         if item:
-            if mov.type == "Salida":
+            if mov.type == "Salida" or mov.type == "Salida (Costos)":
                 if mov.warehouse == "Almacén General":
                     item.stock_general += mov.quantity
                 else:
@@ -2596,6 +2764,14 @@ def seed_database():
             db.session.execute(db.text("ALTER TABLE movement ADD COLUMN IF NOT EXISTS shift VARCHAR(50);"))
             db.session.execute(db.text("ALTER TABLE movement ADD COLUMN IF NOT EXISTS is_cost_cargo BOOLEAN DEFAULT FALSE;"))
             db.session.execute(db.text("ALTER TABLE movement ADD COLUMN IF NOT EXISTS item_code VARCHAR(50);"))
+            
+            db.session.execute(db.text("ALTER TABLE cleaning_log ADD COLUMN IF NOT EXISTS dia_semana VARCHAR(20);"))
+            db.session.execute(db.text("ALTER TABLE cleaning_log ADD COLUMN IF NOT EXISTS turno VARCHAR(20);"))
+            db.session.execute(db.text("ALTER TABLE cleaning_log ADD COLUMN IF NOT EXISTS pasillos BOOLEAN DEFAULT FALSE;"))
+            db.session.execute(db.text("ALTER TABLE cleaning_log ADD COLUMN IF NOT EXISTS desecho_carton BOOLEAN DEFAULT FALSE;"))
+            db.session.execute(db.text("ALTER TABLE cleaning_log ADD COLUMN IF NOT EXISTS refrigerador BOOLEAN DEFAULT FALSE;"))
+            db.session.execute(db.text("ALTER TABLE cleaning_log ADD COLUMN IF NOT EXISTS cajas_traslado BOOLEAN DEFAULT FALSE;"))
+            db.session.execute(db.text("ALTER TABLE cleaning_log ADD COLUMN IF NOT EXISTS acomodo_medicamento BOOLEAN DEFAULT FALSE;"))
             db.session.commit()
         except Exception as e:
             db.session.rollback()
