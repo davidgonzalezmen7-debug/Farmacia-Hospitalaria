@@ -821,7 +821,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                     <span class="font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded">Lote: {{ item.lote or 'S/L' }}</span>
                                     <span class="block text-[10px] mt-0.5">
                                         {% if item.caducidad %}
-                                            {% if item.caducidad < today_str %}
+                                            {% if item.caducidad < today_str_inv %}
                                                 <span class="text-rose-700 font-extrabold bg-rose-100 px-1 rounded">⚠️ Caducado ({{ item.caducidad }})</span>
                                             {% elif item.caducidad <= warning_str %}
                                                 <span class="text-amber-700 font-extrabold bg-amber-100 px-1 rounded">⏰ Por Caducar ({{ item.caducidad }})</span>
@@ -2583,12 +2583,24 @@ def delete_controlled():
     return redirect(url_for("terminal", view="controlados"))
 
 # -----------------------------------------------------------------------------
-# INICIALIZACIÓN DE BASE DE DATOS
+# INICIALIZACIÓN DE BASE DE DATOS Y AUTO-MIGRACIÓN
 # -----------------------------------------------------------------------------
 
 def seed_database():
     with app.app_context():
         db.create_all()
+        
+        # Bloque automático de seguridad para añadir columnas faltantes en PostgreSQL / SQLite
+        try:
+            db.session.execute(db.text("ALTER TABLE movement ADD COLUMN IF NOT EXISTS room VARCHAR(50);"))
+            db.session.execute(db.text("ALTER TABLE movement ADD COLUMN IF NOT EXISTS shift VARCHAR(50);"))
+            db.session.execute(db.text("ALTER TABLE movement ADD COLUMN IF NOT EXISTS is_cost_cargo BOOLEAN DEFAULT FALSE;"))
+            db.session.execute(db.text("ALTER TABLE movement ADD COLUMN IF NOT EXISTS item_code VARCHAR(50);"))
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            print("Nota de actualización de esquema:", e)
+
         if User.query.count() == 0:
             users_list = [
                 User(name="David Gonzalez Mendoza", role="Administrador", pin="5678"),
