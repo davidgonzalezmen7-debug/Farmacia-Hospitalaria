@@ -391,15 +391,15 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             </div>
         </div>
 
-        <!-- ==================== VISTA: ROL SEMANAL AUTOMÁTICO Y ALEATORIO ==================== -->
+        <!-- ==================== VISTA: ROL SEMANAL POR USUARIOS (SIN ADMINISTRADOR) ==================== -->
         {% elif view == 'rol_semanal' %}
         <div class="space-y-6">
             <div class="bg-gradient-to-r from-indigo-900 to-slate-900 text-white p-6 rounded-2xl shadow-md border border-indigo-800 flex flex-col md:flex-row justify-between items-center gap-4">
                 <div>
                     <h2 class="text-base font-bold flex items-center gap-2">
-                        <i class="fa-solid fa-calendar-days text-indigo-400"></i> Rol Semanal de Actividades (Automático y Aleatorio)
+                        <i class="fa-solid fa-calendar-days text-indigo-400"></i> Rol Semanal de Actividades por Usuario (Sin Administrador)
                     </h2>
-                    <p class="text-xs text-indigo-200">Asignación automática de tareas excluyendo al Administrador. Cambia cada semana o mediante el botón de regeneración.</p>
+                    <p class="text-xs text-indigo-200">Ventana individual por cada integrante del personal con el detalle de actividades asignadas y su estado.</p>
                 </div>
                 <div class="flex gap-2">
                     <a href="/generate_random_rol" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow">
@@ -411,79 +411,119 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 </div>
             </div>
 
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
-                <h3 class="text-base font-bold text-slate-900 mb-2 border-b pb-2 flex items-center gap-2">
-                    <i class="fa-solid fa-table text-indigo-600"></i> Matriz Semanal de Actividades Generadas
-                </h3>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-xs text-left text-slate-700 border">
-                        <thead class="bg-indigo-50 text-indigo-900 uppercase text-[10px] border-b">
-                            <tr>
-                                <th class="p-3">Día</th>
-                                <th class="p-3">Personal Asignado (Sin Administrador)</th>
-                                <th class="p-3">Actividad Asignada</th>
-                                <th class="p-3 text-center">Estado</th>
-                                <th class="p-3 text-center">Cambiar Estado</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100">
-                            {% for task in weekly_tasks %}
-                            <tr class="hover:bg-slate-50">
-                                <td class="p-3 font-bold text-slate-900 text-sm">{{ task.dia_semana }}</td>
-                                <td class="p-3 font-bold text-indigo-900 text-sm">{{ task.user_name }}</td>
-                                <td class="p-3 font-semibold text-slate-800">{{ task.actividad }}</td>
-                                <td class="p-3 text-center">
-                                    {% if task.estado == 'Completado' %}
-                                        <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full font-bold text-[11px]">Completado</span>
+            <!-- Ventanas / Tarjetas por cada usuario -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {% for usr in staff_users %}
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-indigo-100 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between border-b pb-3 mb-3">
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-9 h-9 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-sm">
+                                    <i class="fa-solid fa-user-gear"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-slate-900 text-sm">{{ usr.name }}</h3>
+                                    <span class="text-[10px] text-slate-500 font-medium">{{ usr.role }}</span>
+                                </div>
+                            </div>
+                            <span class="bg-indigo-50 text-indigo-700 text-[10px] px-2.5 py-1 rounded-full font-bold border border-indigo-100">
+                                Personal Operativo
+                            </span>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs text-left">
+                                <thead class="bg-slate-50 text-slate-500 uppercase text-[10px]">
+                                    <tr>
+                                        <th class="p-2">Día</th>
+                                        <th class="p-2">Actividad Asignada</th>
+                                        <th class="p-2 text-center">Estado</th>
+                                        <th class="p-2 text-center">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100">
+                                    {% set user_tasks = weekly_tasks_by_user.get(usr.name, []) %}
+                                    {% for task in user_tasks %}
+                                    <tr class="hover:bg-slate-50">
+                                        <td class="p-2 font-bold text-slate-800">{{ task.dia_semana }}</td>
+                                        <td class="p-2 text-slate-700 font-medium">{{ task.actividad }}</td>
+                                        <td class="p-2 text-center">
+                                            {% if task.estado == 'Completado' %}
+                                                <span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold text-[10px]">Realizado</span>
+                                            {% else %}
+                                                <span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold text-[10px]">Pendiente</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="p-2 text-center">
+                                            <a href="/toggle_weekly_task?id={{ task.id }}" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded text-[10px] transition inline-flex items-center gap-1">
+                                                <i class="fa-solid fa-rotate"></i> Cambiar
+                                            </a>
+                                        </td>
+                                    </tr>
                                     {% else %}
-                                        <span class="bg-amber-100 text-amber-800 px-3 py-1 rounded-full font-bold text-[11px]">Pendiente</span>
-                                    {% endif %}
-                                </td>
-                                <td class="p-3 text-center">
-                                    <a href="/toggle_weekly_task?id={{ task.id }}" class="px-3 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold rounded-lg text-xs transition inline-flex items-center gap-1">
-                                        <i class="fa-solid fa-rotate"></i> Cambiar
-                                    </a>
-                                </td>
-                            </tr>
-                            {% else %}
-                            <tr><td colspan="5" class="p-8 text-center text-slate-400 italic">No hay tareas generadas. Haga clic en "Regenerar Rol Aleatorio".</td></tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                                    <tr><td colspan="4" class="p-4 text-center text-slate-400 italic">Sin tareas asignadas a este usuario.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
+                {% else %}
+                <div class="col-span-full bg-white p-8 rounded-2xl text-center text-slate-400 italic border">
+                    No hay usuarios operativos registrados (excluyendo al Administrador).
+                </div>
+                {% endfor %}
             </div>
         </div>
 
-        <!-- ==================== VISTA: CARGO COSTOS CON VENTANAS POR TURNO Y FILTRO ==================== -->
+        <!-- ==================== VISTA: CARGO COSTOS CON FILTRO REAL POR FECHA/DÍA ==================== -->
         {% elif view == 'costos' %}
         <div class="space-y-6">
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                <div class="border-b pb-4 mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div class="border-b pb-4 mb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
                         <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
                             <i class="fa-solid fa-file-invoice-dollar text-emerald-600"></i> Cargo Múltiple de Material para Costos
                         </h2>
                         <p class="text-xs text-slate-500">Agregue varios insumos a la lista de cargo para un paciente y regístrelos por turno.</p>
                     </div>
-                    <!-- Filtro por Día -->
-                    <form action="/terminal" method="GET" class="flex items-center gap-2 no-print">
+
+                    <!-- BARRA DE FILTRO REAL POR FECHA O DÍA -->
+                    <form action="/terminal" method="GET" class="flex flex-wrap items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200 no-print">
                         <input type="hidden" name="view" value="costos">
-                        <select name="filtro_dia" class="p-2 border rounded-xl text-xs bg-slate-50 font-bold text-slate-700 outline-none">
-                            <option value="">-- Todos los Días --</option>
-                            <option value="Lunes" {% if request.args.get('filtro_dia') == 'Lunes' %}selected{% endif %}>Lunes</option>
-                            <option value="Martes" {% if request.args.get('filtro_dia') == 'Martes' %}selected{% endif %}>Martes</option>
-                            <option value="Miércoles" {% if request.args.get('filtro_dia') == 'Miércoles' %}selected{% endif %}>Miércoles</option>
-                            <option value="Jueves" {% if request.args.get('filtro_dia') == 'Jueves' %}selected{% endif %}>Jueves</option>
-                            <option value="Viernes" {% if request.args.get('filtro_dia') == 'Viernes' %}selected{% endif %}>Viernes</option>
-                            <option value="Sábado" {% if request.args.get('filtro_dia') == 'Sábado' %}selected{% endif %}>Sábado</option>
-                            <option value="Domingo" {% if request.args.get('filtro_dia') == 'Domingo' %}selected{% endif %}>Domingo</option>
-                        </select>
-                        <button type="submit" class="px-3 py-2 bg-slate-800 text-white rounded-xl text-xs font-bold transition hover:bg-slate-900">
-                            <i class="fa-solid fa-filter"></i> Filtrar
-                        </button>
-                        <a href="/imprimir_costos_pdf?filtro_dia={{ request.args.get('filtro_dia', '') }}" target="_blank" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1">
-                            <i class="fa-solid fa-print"></i> Imprimir Día
-                        </a>
+                        
+                        <div>
+                            <label class="block text-[9px] font-bold text-slate-500 uppercase mb-0.5">Fecha Exacta</label>
+                            <input type="date" name="filtro_fecha" value="{{ request.args.get('filtro_fecha', '') }}" class="p-1.5 border rounded-lg text-xs bg-white font-bold text-slate-700 outline-none">
+                        </div>
+
+                        <div>
+                            <label class="block text-[9px] font-bold text-slate-500 uppercase mb-0.5">O por Día de la Semana</label>
+                            <select name="filtro_dia" class="p-1.5 border rounded-lg text-xs bg-white font-bold text-slate-700 outline-none">
+                                <option value="">-- Todos los Días --</option>
+                                <option value="Lunes" {% if request.args.get('filtro_dia') == 'Lunes' %}selected{% endif %}>Lunes</option>
+                                <option value="Martes" {% if request.args.get('filtro_dia') == 'Martes' %}selected{% endif %}>Martes</option>
+                                <option value="Miércoles" {% if request.args.get('filtro_dia') == 'Miércoles' %}selected{% endif %}>Miércoles</option>
+                                <option value="Jueves" {% if request.args.get('filtro_dia') == 'Jueves' %}selected{% endif %}>Jueves</option>
+                                <option value="Viernes" {% if request.args.get('filtro_dia') == 'Viernes' %}selected{% endif %}>Viernes</option>
+                                <option value="Sábado" {% if request.args.get('filtro_dia') == 'Sábado' %}selected{% endif %}>Sábado</option>
+                                <option value="Domingo" {% if request.args.get('filtro_dia') == 'Domingo' %}selected{% endif %}>Domingo</option>
+                            </select>
+                        </div>
+
+                        <div class="flex items-end gap-1.5 pt-3 sm:pt-0">
+                            <button type="submit" class="px-3 py-2 bg-slate-800 text-white rounded-lg text-xs font-bold transition hover:bg-slate-900 flex items-center gap-1">
+                                <i class="fa-solid fa-filter"></i> Filtrar Real
+                            </button>
+                            {% if request.args.get('filtro_fecha') or request.args.get('filtro_dia') %}
+                                <a href="/terminal?view=costos" class="px-2.5 py-2 bg-slate-200 text-slate-700 rounded-lg text-xs font-bold hover:bg-slate-300" title="Limpiar Filtro">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </a>
+                            {% endif %}
+                            <a href="/imprimir_costos_pdf?filtro_fecha={{ request.args.get('filtro_fecha', '') }}&filtro_dia={{ request.args.get('filtro_dia', '') }}" target="_blank" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1 shadow">
+                                <i class="fa-solid fa-print"></i> Imprimir Filtrado
+                            </a>
+                        </div>
                     </form>
                 </div>
 
@@ -590,7 +630,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 </form>
             </div>
 
-            <!-- Ventanas / Tarjetas Independientes por Turno con Opción de Imprimir -->
+            <!-- Ventanas / Tarjetas Independientes por Turno (Impresión Únicamente de lo Filtrado) -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 
                 <!-- Turno Matutino -->
@@ -599,7 +639,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         <span><i class="fa-solid fa-sun text-amber-500 mr-2"></i> Ventana - Turno Matutino</span>
                         <div class="flex items-center gap-2">
                             <span class="bg-amber-100 text-amber-800 text-[10px] px-2.5 py-0.5 rounded-full font-bold">{{ matutino_cargos|length }} registros</span>
-                            <a href="/imprimir_turno_pdf?shift=Matutino" target="_blank" class="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[11px] font-bold shadow transition flex items-center gap-1">
+                            <a href="/imprimir_turno_pdf?shift=Matutino&filtro_fecha={{ request.args.get('filtro_fecha', '') }}&filtro_dia={{ request.args.get('filtro_dia', '') }}" target="_blank" class="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[11px] font-bold shadow transition flex items-center gap-1">
                                 <i class="fa-solid fa-print"></i> Imprimir Turno
                             </a>
                         </div>
@@ -608,24 +648,24 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         <table class="w-full text-left text-xs">
                             <thead class="bg-amber-50 text-amber-900 sticky top-0">
                                 <tr>
+                                    <th class="p-2">Fecha / Hora</th>
                                     <th class="p-2">Paciente / Exp.</th>
-                                    <th class="p-2">Habitación</th>
+                                    <th class="p-2">Hab.</th>
                                     <th class="p-2">Insumo</th>
                                     <th class="p-2 text-center">Cant.</th>
-                                    <th class="p-2">Hora</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100">
                                 {% for c in matutino_cargos %}
                                 <tr class="hover:bg-slate-50">
+                                    <td class="p-2 text-[10px] text-slate-500 font-mono">{{ c.timestamp.strftime('%d/%m/%Y %H:%M') }}</td>
                                     <td class="p-2 font-medium">{{ c.patient_name }}<br><span class="text-[10px] text-slate-400">Exp: {{ c.patient_id }}</span></td>
                                     <td class="p-2">{{ c.room }}</td>
                                     <td class="p-2">{{ c.item_name }}</td>
                                     <td class="p-2 text-center font-bold text-emerald-600">{{ c.quantity }}</td>
-                                    <td class="p-2 text-[10px] text-slate-400">{{ c.timestamp.strftime('%H:%M') }}</td>
                                 </tr>
                                 {% else %}
-                                <tr><td colspan="5" class="p-4 text-center text-slate-400 text-xs">Sin cargos en turno matutino.</td></tr>
+                                <tr><td colspan="5" class="p-4 text-center text-slate-400 text-xs">Sin cargos registrados para este turno / filtro.</td></tr>
                                 {% endfor %}
                             </tbody>
                         </table>
@@ -638,7 +678,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         <span><i class="fa-solid fa-cloud-sun text-orange-500 mr-2"></i> Ventana - Turno Vespertino</span>
                         <div class="flex items-center gap-2">
                             <span class="bg-orange-100 text-orange-800 text-[10px] px-2.5 py-0.5 rounded-full font-bold">{{ vespertino_cargos|length }} registros</span>
-                            <a href="/imprimir_turno_pdf?shift=Vespertino" target="_blank" class="px-2.5 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-[11px] font-bold shadow transition flex items-center gap-1">
+                            <a href="/imprimir_turno_pdf?shift=Vespertino&filtro_fecha={{ request.args.get('filtro_fecha', '') }}&filtro_dia={{ request.args.get('filtro_dia', '') }}" target="_blank" class="px-2.5 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-[11px] font-bold shadow transition flex items-center gap-1">
                                 <i class="fa-solid fa-print"></i> Imprimir Turno
                             </a>
                         </div>
@@ -647,24 +687,24 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         <table class="w-full text-left text-xs">
                             <thead class="bg-orange-50 text-orange-900 sticky top-0">
                                 <tr>
+                                    <th class="p-2">Fecha / Hora</th>
                                     <th class="p-2">Paciente / Exp.</th>
-                                    <th class="p-2">Habitación</th>
+                                    <th class="p-2">Hab.</th>
                                     <th class="p-2">Insumo</th>
                                     <th class="p-2 text-center">Cant.</th>
-                                    <th class="p-2">Hora</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100">
                                 {% for c in vespertino_cargos %}
                                 <tr class="hover:bg-slate-50">
+                                    <td class="p-2 text-[10px] text-slate-500 font-mono">{{ c.timestamp.strftime('%d/%m/%Y %H:%M') }}</td>
                                     <td class="p-2 font-medium">{{ c.patient_name }}<br><span class="text-[10px] text-slate-400">Exp: {{ c.patient_id }}</span></td>
                                     <td class="p-2">{{ c.room }}</td>
                                     <td class="p-2">{{ c.item_name }}</td>
                                     <td class="p-2 text-center font-bold text-emerald-600">{{ c.quantity }}</td>
-                                    <td class="p-2 text-[10px] text-slate-400">{{ c.timestamp.strftime('%H:%M') }}</td>
                                 </tr>
                                 {% else %}
-                                <tr><td colspan="5" class="p-4 text-center text-slate-400 text-xs">Sin cargos en turno vespertino.</td></tr>
+                                <tr><td colspan="5" class="p-4 text-center text-slate-400 text-xs">Sin cargos registrados para este turno / filtro.</td></tr>
                                 {% endfor %}
                             </tbody>
                         </table>
@@ -677,7 +717,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         <span><i class="fa-solid fa-moon text-indigo-500 mr-2"></i> Ventana - Turno Nocturno A</span>
                         <div class="flex items-center gap-2">
                             <span class="bg-indigo-100 text-indigo-800 text-[10px] px-2.5 py-0.5 rounded-full font-bold">{{ nocturno_a_cargos|length }} registros</span>
-                            <a href="/imprimir_turno_pdf?shift=Nocturno A" target="_blank" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-bold shadow transition flex items-center gap-1">
+                            <a href="/imprimir_turno_pdf?shift=Nocturno A&filtro_fecha={{ request.args.get('filtro_fecha', '') }}&filtro_dia={{ request.args.get('filtro_dia', '') }}" target="_blank" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-bold shadow transition flex items-center gap-1">
                                 <i class="fa-solid fa-print"></i> Imprimir Turno
                             </a>
                         </div>
@@ -686,24 +726,24 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         <table class="w-full text-left text-xs">
                             <thead class="bg-indigo-50 text-indigo-900 sticky top-0">
                                 <tr>
+                                    <th class="p-2">Fecha / Hora</th>
                                     <th class="p-2">Paciente / Exp.</th>
-                                    <th class="p-2">Habitación</th>
+                                    <th class="p-2">Hab.</th>
                                     <th class="p-2">Insumo</th>
                                     <th class="p-2 text-center">Cant.</th>
-                                    <th class="p-2">Hora</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100">
                                 {% for c in nocturno_a_cargos %}
                                 <tr class="hover:bg-slate-50">
+                                    <td class="p-2 text-[10px] text-slate-500 font-mono">{{ c.timestamp.strftime('%d/%m/%Y %H:%M') }}</td>
                                     <td class="p-2 font-medium">{{ c.patient_name }}<br><span class="text-[10px] text-slate-400">Exp: {{ c.patient_id }}</span></td>
                                     <td class="p-2">{{ c.room }}</td>
                                     <td class="p-2">{{ c.item_name }}</td>
                                     <td class="p-2 text-center font-bold text-emerald-600">{{ c.quantity }}</td>
-                                    <td class="p-2 text-[10px] text-slate-400">{{ c.timestamp.strftime('%H:%M') }}</td>
                                 </tr>
                                 {% else %}
-                                <tr><td colspan="5" class="p-4 text-center text-slate-400 text-xs">Sin cargos en turno nocturno A.</td></tr>
+                                <tr><td colspan="5" class="p-4 text-center text-slate-400 text-xs">Sin cargos registrados para este turno / filtro.</td></tr>
                                 {% endfor %}
                             </tbody>
                         </table>
@@ -716,7 +756,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         <span><i class="fa-solid fa-star text-purple-500 mr-2"></i> Ventana - Turno Nocturno B</span>
                         <div class="flex items-center gap-2">
                             <span class="bg-purple-100 text-purple-800 text-[10px] px-2.5 py-0.5 rounded-full font-bold">{{ nocturno_b_cargos|length }} registros</span>
-                            <a href="/imprimir_turno_pdf?shift=Nocturno B" target="_blank" class="px-2.5 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-[11px] font-bold shadow transition flex items-center gap-1">
+                            <a href="/imprimir_turno_pdf?shift=Nocturno B&filtro_fecha={{ request.args.get('filtro_fecha', '') }}&filtro_dia={{ request.args.get('filtro_dia', '') }}" target="_blank" class="px-2.5 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-[11px] font-bold shadow transition flex items-center gap-1">
                                 <i class="fa-solid fa-print"></i> Imprimir Turno
                             </a>
                         </div>
@@ -725,24 +765,24 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         <table class="w-full text-left text-xs">
                             <thead class="bg-purple-50 text-purple-900 sticky top-0">
                                 <tr>
+                                    <th class="p-2">Fecha / Hora</th>
                                     <th class="p-2">Paciente / Exp.</th>
-                                    <th class="p-2">Habitación</th>
+                                    <th class="p-2">Hab.</th>
                                     <th class="p-2">Insumo</th>
                                     <th class="p-2 text-center">Cant.</th>
-                                    <th class="p-2">Hora</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100">
                                 {% for c in nocturno_b_cargos %}
                                 <tr class="hover:bg-slate-50">
+                                    <td class="p-2 text-[10px] text-slate-500 font-mono">{{ c.timestamp.strftime('%d/%m/%Y %H:%M') }}</td>
                                     <td class="p-2 font-medium">{{ c.patient_name }}<br><span class="text-[10px] text-slate-400">Exp: {{ c.patient_id }}</span></td>
                                     <td class="p-2">{{ c.room }}</td>
                                     <td class="p-2">{{ c.item_name }}</td>
                                     <td class="p-2 text-center font-bold text-emerald-600">{{ c.quantity }}</td>
-                                    <td class="p-2 text-[10px] text-slate-400">{{ c.timestamp.strftime('%H:%M') }}</td>
                                 </tr>
                                 {% else %}
-                                <tr><td colspan="5" class="p-4 text-center text-slate-400 text-xs">Sin cargos en turno nocturno B.</td></tr>
+                                <tr><td colspan="5" class="p-4 text-center text-slate-400 text-xs">Sin cargos registrados para este turno / filtro.</td></tr>
                                 {% endfor %}
                             </tbody>
                         </table>
@@ -2141,13 +2181,52 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 """
 
 # -----------------------------------------------------------------------------
-# RUTAS DE PDF Y FUNCIONALIDADES
+# RENDERIZACIÓN Y FILTRADO REAL DE CARGOS A COSTOS
+# -----------------------------------------------------------------------------
+
+def obtener_cargos_filtrados(shift_target=None, filtro_fecha=None, filtro_dia=None):
+    query = Movement.query.filter_by(is_cost_cargo=True)
+    if shift_target:
+        query = query.filter_by(shift=shift_target)
+        
+    cargos = query.order_by(Movement.timestamp.desc()).all()
+    cargos_filtrados = []
+
+    dias_esp = {
+        0: "Lunes", 1: "Martes", 2: "Miércoles", 3: "Jueves",
+        4: "Viernes", 5: "Sábado", 6: "Domingo"
+    }
+
+    for cgo in cargos:
+        if not cgo.timestamp:
+            continue
+        cumple_fecha = True
+        cumple_dia = True
+
+        if filtro_fecha:
+            fecha_cgo_str = cgo.timestamp.strftime('%Y-%m-%d')
+            if fecha_cgo_str != filtro_fecha:
+                cumple_fecha = False
+
+        if filtro_dia:
+            dia_semana_nombre = dias_esp.get(cgo.timestamp.weekday(), "")
+            if dia_semana_nombre.lower() != filtro_dia.lower():
+                cumple_dia = False
+
+        if cumple_fecha and cumple_dia:
+            cargos_filtrados.append(cgo)
+
+    return cargos_filtrados
+
+# -----------------------------------------------------------------------------
+# RUTAS DE GENERACIÓN PDF (FILTRADO EXACTO)
 # -----------------------------------------------------------------------------
 
 @app.route("/imprimir_costos_pdf")
 def imprimir_costos_pdf():
+    filtro_fecha = request.args.get("filtro_fecha", "").strip()
     filtro_dia = request.args.get("filtro_dia", "").strip()
-    cargos = Movement.query.filter_by(is_cost_cargo=True).order_by(Movement.timestamp.desc()).all()
+    cargos = obtener_cargos_filtrados(filtro_fecha=filtro_fecha, filtro_dia=filtro_dia)
 
     buffer = io.BytesIO()
     c = canvas.Canvas(buffer, pagesize=letter)
@@ -2155,40 +2234,50 @@ def imprimir_costos_pdf():
 
     c.setFont("Helvetica-Bold", 14)
     c.drawString(20 * mm, height - 20 * mm, "HOSPITAL OBREGÓN - REPORTE DE CARGOS A COSTOS")
-    c.setFont("Helvetica-Bold", 11)
-    c.drawString(20 * mm, height - 26 * mm, f"FILTRO DE DÍA: {filtro_dia.upper() if filtro_dia else 'TODOS LOS DÍAS'}")
+    
+    c.setFont("Helvetica-Bold", 10)
+    lbl_filtro = "TODOS LOS REGISTROS"
+    if filtro_fecha and filtro_dia:
+        lbl_filtro = f"FECHA: {filtro_fecha} | DÍA: {filtro_dia.upper()}"
+    elif filtro_fecha:
+        lbl_filtro = f"FECHA EXACTA: {filtro_fecha}"
+    elif filtro_dia:
+        lbl_filtro = f"DÍA DE LA SEMANA: {filtro_dia.upper()}"
+        
+    c.drawString(20 * mm, height - 26 * mm, f"FILTRO APLICADO: {lbl_filtro}")
     
     fecha_actual = datetime.now(LOCAL_TZ).strftime("%d/%m/%Y %H:%M")
     c.setFont("Helvetica", 9)
-    c.drawString(20 * mm, height - 32 * mm, f"Fecha de emisión: {fecha_actual}")
+    c.drawString(20 * mm, height - 32 * mm, f"Fecha de emisión: {fecha_actual} | Total Registros: {len(cargos)}")
     
     c.setLineWidth(1)
     c.line(20 * mm, height - 35 * mm, width - 20 * mm, height - 35 * mm)
 
     y = height - 45 * mm
     c.setFont("Helvetica-Bold", 9)
-    c.drawString(20 * mm, y, "Paciente / Expediente")
-    c.drawString(70 * mm, y, "Habitación")
-    c.drawString(95 * mm, y, "Insumo / Material")
-    c.drawString(160 * mm, y, "Cant.")
-    c.drawString(178 * mm, y, "Hora")
+    c.drawString(20 * mm, y, "Fecha/Hora")
+    c.drawString(55 * mm, y, "Paciente / Expediente")
+    c.drawString(105 * mm, y, "Hab.")
+    c.drawString(125 * mm, y, "Insumo / Material")
+    c.drawString(185 * mm, y, "Cant.")
     
     y -= 6 * mm
     c.line(20 * mm, y + 4 * mm, width - 20 * mm, y + 4 * mm)
 
-    c.setFont("Helvetica", 9)
+    c.setFont("Helvetica", 8)
     for cgo in cargos:
         if y < 25 * mm:
             c.showPage()
             y = height - 25 * mm
         
+        f_str = cgo.timestamp.strftime('%d/%m/%Y %H:%M') if cgo.timestamp else "--"
         patient_info = f"{cgo.patient_name} (Exp: {cgo.patient_id})"
-        c.drawString(20 * mm, y, patient_info[:32])
-        c.drawString(70 * mm, y, str(cgo.room or "-")[:15])
-        c.drawString(95 * mm, y, str(cgo.item_name)[:35])
-        c.drawRightString(168 * mm, y, str(cgo.quantity))
-        c.drawString(178 * mm, y, cgo.timestamp.strftime('%H:%M') if cgo.timestamp else "--:--")
-        y -= 7 * mm
+        c.drawString(20 * mm, y, f_str)
+        c.drawString(55 * mm, y, patient_info[:28])
+        c.drawString(105 * mm, y, str(cgo.room or "-")[:10])
+        c.drawString(125 * mm, y, str(cgo.item_name)[:35])
+        c.drawRightString(192 * mm, y, str(cgo.quantity))
+        y -= 6.5 * mm
 
     c.save()
     buffer.seek(0)
@@ -2197,7 +2286,10 @@ def imprimir_costos_pdf():
 @app.route("/imprimir_turno_pdf")
 def imprimir_turno_pdf():
     shift = request.args.get("shift", "Matutino").strip()
-    cargos = Movement.query.filter_by(is_cost_cargo=True, shift=shift).order_by(Movement.timestamp.desc()).all()
+    filtro_fecha = request.args.get("filtro_fecha", "").strip()
+    filtro_dia = request.args.get("filtro_dia", "").strip()
+    
+    cargos = obtener_cargos_filtrados(shift_target=shift, filtro_fecha=filtro_fecha, filtro_dia=filtro_dia)
     
     buffer = io.BytesIO()
     c = canvas.Canvas(buffer, pagesize=letter)
@@ -2208,36 +2300,48 @@ def imprimir_turno_pdf():
     c.setFont("Helvetica-Bold", 11)
     c.drawString(20 * mm, height - 26 * mm, f"REPORTE VENTANA DE CARGOS - TURNO: {shift.upper()}")
     
+    lbl_filtro = "SIN FILTRO ADICIONAL"
+    if filtro_fecha and filtro_dia:
+        lbl_filtro = f"FECHA: {filtro_fecha} | DÍA: {filtro_dia.upper()}"
+    elif filtro_fecha:
+        lbl_filtro = f"FECHA EXACTA: {filtro_fecha}"
+    elif filtro_dia:
+        lbl_filtro = f"DÍA DE LA SEMANA: {filtro_dia.upper()}"
+
+    c.setFont("Helvetica-Bold", 9)
+    c.drawString(20 * mm, height - 31 * mm, f"FILTRO APLICADO: {lbl_filtro}")
+
     fecha_actual = datetime.now(LOCAL_TZ).strftime("%d/%m/%Y %H:%M")
-    c.setFont("Helvetica", 9)
-    c.drawString(20 * mm, height - 32 * mm, f"Fecha de emisión: {fecha_actual}")
+    c.setFont("Helvetica", 8)
+    c.drawString(20 * mm, height - 36 * mm, f"Fecha de emisión: {fecha_actual} | Registros en este turno: {len(cargos)}")
     
     c.setLineWidth(1)
-    c.line(20 * mm, height - 35 * mm, width - 20 * mm, height - 35 * mm)
+    c.line(20 * mm, height - 39 * mm, width - 20 * mm, height - 39 * mm)
 
-    y = height - 45 * mm
+    y = height - 48 * mm
     c.setFont("Helvetica-Bold", 9)
-    c.drawString(20 * mm, y, "Paciente / Expediente")
-    c.drawString(70 * mm, y, "Habitación")
-    c.drawString(95 * mm, y, "Insumo / Material")
-    c.drawString(160 * mm, y, "Cant.")
-    c.drawString(178 * mm, y, "Hora")
+    c.drawString(20 * mm, y, "Fecha/Hora")
+    c.drawString(55 * mm, y, "Paciente / Expediente")
+    c.drawString(105 * mm, y, "Hab.")
+    c.drawString(125 * mm, y, "Insumo / Material")
+    c.drawString(185 * mm, y, "Cant.")
     
     y -= 6 * mm
     c.line(20 * mm, y + 4 * mm, width - 20 * mm, y + 4 * mm)
 
-    c.setFont("Helvetica", 9)
+    c.setFont("Helvetica", 8)
     for cgo in cargos:
         if y < 25 * mm:
             c.showPage()
             y = height - 25 * mm
+        f_str = cgo.timestamp.strftime('%d/%m/%Y %H:%M') if cgo.timestamp else "--"
         patient_info = f"{cgo.patient_name} (Exp: {cgo.patient_id})"
-        c.drawString(20 * mm, y, patient_info[:32])
-        c.drawString(70 * mm, y, str(cgo.room or "-")[:15])
-        c.drawString(95 * mm, y, str(cgo.item_name)[:35])
-        c.drawRightString(168 * mm, y, str(cgo.quantity))
-        c.drawString(178 * mm, y, cgo.timestamp.strftime('%H:%M') if cgo.timestamp else "--:--")
-        y -= 7 * mm
+        c.drawString(20 * mm, y, f_str)
+        c.drawString(55 * mm, y, patient_info[:28])
+        c.drawString(105 * mm, y, str(cgo.room or "-")[:10])
+        c.drawString(125 * mm, y, str(cgo.item_name)[:35])
+        c.drawRightString(192 * mm, y, str(cgo.quantity))
+        y -= 6.5 * mm
 
     c.save()
     buffer.seek(0)
@@ -2324,17 +2428,31 @@ def terminal():
     users = User.query.order_by(User.name).all()
     patients = Patient.query.order_by(Patient.name).all()
     
-    # Generación automática del rol semanal aleatorio si está vacío
+    # 1. ROL SEMANAL: Excluir Administradores
+    staff_users = User.query.filter(User.role != "Administrador").order_by(User.name).all()
+    
     if WeeklySchedule.query.count() == 0:
         generar_rol_aleatorio_interno()
 
-    weekly_tasks = WeeklySchedule.query.all()
+    all_weekly_tasks = WeeklySchedule.query.all()
+    
+    # Agrupar tareas semanal por usuario
+    weekly_tasks_by_user = {}
+    for task in all_weekly_tasks:
+        if task.user_name not in weekly_tasks_by_user:
+            weekly_tasks_by_user[task.user_name] = []
+        weekly_tasks_by_user[task.user_name].append(task)
+
     hospital_requests = HospitalRequest.query.order_by(HospitalRequest.timestamp.desc()).all()
 
-    matutino_cargos = Movement.query.filter_by(is_cost_cargo=True, shift="Matutino").order_by(Movement.timestamp.desc()).all()
-    vespertino_cargos = Movement.query.filter_by(is_cost_cargo=True, shift="Vespertino").order_by(Movement.timestamp.desc()).all()
-    nocturno_a_cargos = Movement.query.filter_by(is_cost_cargo=True, shift="Nocturno A").order_by(Movement.timestamp.desc()).all()
-    nocturno_b_cargos = Movement.query.filter_by(is_cost_cargo=True, shift="Nocturno B").order_by(Movement.timestamp.desc()).all()
+    # 2. CARGO COSTOS: Obtención con Filtro Real por Fecha/Día
+    filtro_fecha = request.args.get("filtro_fecha", "").strip()
+    filtro_dia = request.args.get("filtro_dia", "").strip()
+
+    matutino_cargos = obtener_cargos_filtrados("Matutino", filtro_fecha, filtro_dia)
+    vespertino_cargos = obtener_cargos_filtrados("Vespertino", filtro_fecha, filtro_dia)
+    nocturno_a_cargos = obtener_cargos_filtrados("Nocturno A", filtro_fecha, filtro_dia)
+    nocturno_b_cargos = obtener_cargos_filtrados("Nocturno B", filtro_fecha, filtro_dia)
 
     controlled_items = Item.query.filter_by(etiqueta="Controlado").order_by(Item.name).all()
     controlled_logs = ControlledLog.query.order_by(ControlledLog.timestamp.desc()).all()
@@ -2374,8 +2492,9 @@ def terminal():
         view=view,
         items=items,
         users=users,
+        staff_users=staff_users,
         patients=patients,
-        weekly_tasks=weekly_tasks,
+        weekly_tasks_by_user=weekly_tasks_by_user,
         hospital_requests=hospital_requests,
         matutino_cargos=matutino_cargos,
         vespertino_cargos=vespertino_cargos,
@@ -2404,21 +2523,21 @@ def generar_rol_aleatorio_interno():
         "Cajas de traslado",
         "Acomodo de medicamento"
     ]
-    # Excluir administradores
-    personal = [u.name for u in User.query.all() if u.role != "Administrador"]
+    # Excluir Administradores
+    personal = User.query.filter(User.role != "Administrador").all()
     if not personal:
-        personal = ["Personal de Apoyo"]
+        return
 
-    for dia in dias:
-        act = random.choice(actividades)
-        usr = random.choice(personal)
-        db.session.add(WeeklySchedule(dia_semana=dia, user_name=usr, actividad=act, estado="Pendiente"))
+    for usr in personal:
+        for dia in dias:
+            act = random.choice(actividades)
+            db.session.add(WeeklySchedule(dia_semana=dia, user_name=usr.name, actividad=act, estado="Pendiente"))
     db.session.commit()
 
 @app.route("/generate_random_rol")
 def generate_random_rol():
     generar_rol_aleatorio_interno()
-    flash("Rol semanal aleatorio generado con éxito para el personal.", "success")
+    flash("Rol semanal aleatorio generado con éxito para todo el personal operativo (sin admin).", "success")
     return redirect(url_for("terminal", view="rol_semanal"))
 
 @app.route("/toggle_weekly_task")
@@ -2770,7 +2889,7 @@ def delete_controlled():
     return redirect(url_for("terminal", view="controlados"))
 
 # -----------------------------------------------------------------------------
-# INICIALIZACIÓN
+# INICIALIZACIÓN DE LA BASE DE DATOS
 # -----------------------------------------------------------------------------
 
 def seed_database():
