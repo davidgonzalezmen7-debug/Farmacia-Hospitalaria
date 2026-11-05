@@ -1,6 +1,7 @@
 import os
 from datetime import datetime, date, timedelta, timezone
 import json
+import random
 import io
 from flask import Flask, render_template_string, request, redirect, url_for, flash, send_file
 from flask_sqlalchemy import SQLAlchemy
@@ -54,7 +55,7 @@ class Item(db.Model):
     via_administracion = db.Column(db.String(50), nullable=True)
     presentacion = db.Column(db.String(50), nullable=True)
     lote = db.Column(db.String(50), nullable=True)
-    caducidad = db.Column(db.String(20), nullable=True) # Formato YYYY-MM-DD
+    caducidad = db.Column(db.String(20), nullable=True)
     etiqueta = db.Column(db.String(50), default="Ninguna")
     stock_general = db.Column(db.Integer, default=0)
     stock_quirofano = db.Column(db.Integer, default=0)
@@ -103,19 +104,19 @@ class CleaningLog(db.Model):
 
 class WeeklySchedule(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    dia_semana = db.Column(db.String(20), nullable=False) # Lunes a Domingo
+    dia_semana = db.Column(db.String(20), nullable=False)
     user_name = db.Column(db.String(100), nullable=False)
     actividad = db.Column(db.String(150), nullable=False)
-    estado = db.Column(db.String(20), default="Pendiente") # Pendiente / Completado
+    estado = db.Column(db.String(20), default="Pendiente")
 
 class HospitalRequest(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     timestamp = db.Column(db.DateTime, default=get_local_now)
-    service_name = db.Column(db.String(100), nullable=False) # Ej. Urgencias, UCI, Piso 2
+    service_name = db.Column(db.String(100), nullable=False)
     requester_name = db.Column(db.String(100), nullable=False)
     item_name = db.Column(db.String(150), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
-    status = db.Column(db.String(30), default="Pendiente") # Pendiente, Surtido, Cancelado
+    status = db.Column(db.String(30), default="Pendiente")
     notes = db.Column(db.String(250), nullable=True)
 
 # -----------------------------------------------------------------------------
@@ -154,7 +155,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             
             <nav class="flex flex-wrap gap-1 text-xs font-bold">
                 {% if request.args.get('portal') == 'servicio' %}
-                    <!-- Navegación exclusiva para Servicios del Hospital -->
                     <a href="/terminal?view=solicitar_insumos&portal=servicio" class="px-3 py-2 rounded-xl transition flex items-center gap-1.5 bg-emerald-600 text-white shadow">
                         <i class="fa-solid fa-hand-holding-medical"></i> Solicitar Material / Medicamento
                     </a>
@@ -162,7 +162,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         <i class="fa-solid fa-right-from-bracket"></i> Salir Portal Servicio
                     </a>
                 {% else %}
-                    <!-- Navegación Completa de Farmacia / Admin -->
                     <a href="/terminal?view=terminal" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'terminal' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
                         <i class="fa-solid fa-prescription-bottle-medical"></i> Surtido Múltiple
                     </a>
@@ -242,7 +241,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                             <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Servicio Solicitante</label>
                             <select name="service_name" required class="w-full p-2.5 border rounded-xl text-xs bg-slate-50 font-bold outline-none">
                                 <option value="Urgencias">Urgencias</option>
-                                <option value="UCI (Unidad de Cuidados Intensivos)">UCI (Cuidados Intensivos)</option>
+                                <option value="UCI (Cuidados Intensivos)">UCI (Cuidados Intensivos)</option>
                                 <option value="Quirófano">Quirófano</option>
                                 <option value="Piso 1 - Hospitalización">Piso 1 - Hospitalización</option>
                                 <option value="Piso 2 - Hospitalización">Piso 2 - Hospitalización</option>
@@ -277,7 +276,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 </form>
             </div>
 
-            <!-- Historial de Solicitudes del Servicio -->
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                 <h3 class="text-xs font-bold text-slate-700 uppercase mb-3 flex items-center justify-between">
                     <span><i class="fa-solid fa-clock-rotate-left text-slate-500"></i> Estado de mis Solicitudes Recientes</span>
@@ -393,122 +391,70 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             </div>
         </div>
 
-        <!-- ==================== VISTA: ROL SEMANAL ==================== -->
+        <!-- ==================== VISTA: ROL SEMANAL AUTOMÁTICO Y ALEATORIO ==================== -->
         {% elif view == 'rol_semanal' %}
         <div class="space-y-6">
             <div class="bg-gradient-to-r from-indigo-900 to-slate-900 text-white p-6 rounded-2xl shadow-md border border-indigo-800 flex flex-col md:flex-row justify-between items-center gap-4">
                 <div>
                     <h2 class="text-base font-bold flex items-center gap-2">
-                        <i class="fa-solid fa-calendar-days text-indigo-400"></i> Rol Semanal de Actividades del Personal
+                        <i class="fa-solid fa-calendar-days text-indigo-400"></i> Rol Semanal de Actividades (Automático y Aleatorio)
                     </h2>
-                    <p class="text-xs text-indigo-200">Asignación semanal de tareas (Excluyendo al Administrador): Limpieza de anaqueles, pasillos, refrigerador, desecho de cartón, cajas de traslado y acomodo de medicamento.</p>
+                    <p class="text-xs text-indigo-200">Asignación automática de tareas excluyendo al Administrador. Cambia cada semana o mediante el botón de regeneración.</p>
                 </div>
                 <div class="flex gap-2">
+                    <a href="/generate_random_rol" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow">
+                        <i class="fa-solid fa-shuffle"></i> Regenerar Rol Aleatorio
+                    </a>
                     <button onclick="window.print()" class="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl text-xs font-bold transition">
                         <i class="fa-solid fa-print"></i> Imprimir Rol
                     </button>
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- Formulario Asignar Actividad -->
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1">
-                    <h3 class="text-base font-bold text-slate-900 mb-4 border-b pb-2 flex items-center gap-2">
-                        <i class="fa-solid fa-plus-circle text-indigo-600"></i> Asignar Tarea a Usuario
-                    </h3>
-                    <form action="/add_weekly_task" method="POST" class="space-y-3">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Día de la Semana</label>
-                            <select name="dia_semana" required class="w-full p-2.5 border rounded-xl text-xs bg-slate-50 outline-none font-bold">
-                                <option value="Lunes">Lunes</option>
-                                <option value="Martes">Martes</option>
-                                <option value="Miércoles">Miércoles</option>
-                                <option value="Jueves">Jueves</option>
-                                <option value="Viernes">Viernes</option>
-                                <option value="Sábado">Sábado</option>
-                                <option value="Domingo">Domingo</option>
-                            </select>
-                        </div>
-
-                        <div>
-                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Usuario Asignado (Sin Administrador)</label>
-                            <select name="user_name" required class="w-full p-2.5 border rounded-xl text-xs bg-slate-50 outline-none font-bold text-indigo-900">
-                                <option value="">Seleccione personal...</option>
-                                {% for u in users %}
-                                    {% if u.role != 'Administrador' %}
-                                        <option value="{{ u.name }}">{{ u.name }} ({{ u.role }})</option>
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+                <h3 class="text-base font-bold text-slate-900 mb-2 border-b pb-2 flex items-center gap-2">
+                    <i class="fa-solid fa-table text-indigo-600"></i> Matriz Semanal de Actividades Generadas
+                </h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-xs text-left text-slate-700 border">
+                        <thead class="bg-indigo-50 text-indigo-900 uppercase text-[10px] border-b">
+                            <tr>
+                                <th class="p-3">Día</th>
+                                <th class="p-3">Personal Asignado (Sin Administrador)</th>
+                                <th class="p-3">Actividad Asignada</th>
+                                <th class="p-3 text-center">Estado</th>
+                                <th class="p-3 text-center">Cambiar Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            {% for task in weekly_tasks %}
+                            <tr class="hover:bg-slate-50">
+                                <td class="p-3 font-bold text-slate-900 text-sm">{{ task.dia_semana }}</td>
+                                <td class="p-3 font-bold text-indigo-900 text-sm">{{ task.user_name }}</td>
+                                <td class="p-3 font-semibold text-slate-800">{{ task.actividad }}</td>
+                                <td class="p-3 text-center">
+                                    {% if task.estado == 'Completado' %}
+                                        <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full font-bold text-[11px]">Completado</span>
+                                    {% else %}
+                                        <span class="bg-amber-100 text-amber-800 px-3 py-1 rounded-full font-bold text-[11px]">Pendiente</span>
                                     {% endif %}
-                                {% endfor %}
-                            </select>
-                        </div>
-
-                        <div>
-                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Actividad Obligatoria</label>
-                            <select name="actividad" required class="w-full p-2.5 border rounded-xl text-xs bg-slate-50 outline-none font-bold">
-                                <option value="Limpieza de anaqueles">🧹 Limpieza de anaqueles</option>
-                                <option value="Limpieza de pasillo">🚶‍♂️ Limpieza de pasillo</option>
-                                <option value="Limpieza de refrigerador">❄️ Limpieza de refrigerador</option>
-                                <option value="Desecho de cartón">📦 Desecho de cartón</option>
-                                <option value="Cajas de traslado">🧳 Cajas de traslado</option>
-                                <option value="Acomodo de medicamento">💊 Acomodo de medicamento</option>
-                            </select>
-                        </div>
-
-                        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-md transition flex items-center justify-center gap-2 mt-2 text-xs">
-                            <i class="fa-solid fa-check"></i> Agregar al Rol Semanal
-                        </button>
-                    </form>
-                </div>
-
-                <!-- Tabla de Rol Semanal -->
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-2">
-                    <h3 class="text-base font-bold text-slate-900 mb-4 border-b pb-2 flex items-center gap-2">
-                        <i class="fa-solid fa-table text-indigo-600"></i> Matriz de Turnos y Actividades Semanales
-                    </h3>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-xs text-left text-slate-700 border">
-                            <thead class="bg-indigo-50 text-indigo-900 uppercase text-[10px] border-b">
-                                <tr>
-                                    <th class="p-2.5">Día</th>
-                                    <th class="p-2.5">Personal Asignado</th>
-                                    <th class="p-2.5">Actividad</th>
-                                    <th class="p-2.5 text-center">Estado</th>
-                                    <th class="p-2.5 text-center">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-100">
-                                {% for task in weekly_tasks %}
-                                <tr class="hover:bg-slate-50">
-                                    <td class="p-2.5 font-bold text-slate-900">{{ task.dia_semana }}</td>
-                                    <td class="p-2.5 font-medium text-indigo-900">{{ task.user_name }}</td>
-                                    <td class="p-2.5 font-semibold text-slate-800">{{ task.actividad }}</td>
-                                    <td class="p-2.5 text-center">
-                                        {% if task.estado == 'Completado' %}
-                                            <span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold text-[10px]">Completado</span>
-                                        {% else %}
-                                            <span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold text-[10px]">Pendiente</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="p-2.5 text-center flex items-center justify-center gap-1">
-                                        <a href="/toggle_weekly_task?id={{ task.id }}" class="px-2 py-1 bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold rounded text-[10px]" title="Cambiar Estado">
-                                            <i class="fa-solid fa-rotate"></i>
-                                        </a>
-                                        <a href="/delete_weekly_task?id={{ task.id }}" class="px-2 py-1 bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold rounded text-[10px]" title="Eliminar">
-                                            <i class="fa-solid fa-trash"></i>
-                                        </a>
-                                    </td>
-                                </tr>
-                                {% else %}
-                                <tr><td colspan="5" class="p-6 text-center text-slate-400 italic">No hay tareas asignadas en el rol semanal.</td></tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+                                </td>
+                                <td class="p-3 text-center">
+                                    <a href="/toggle_weekly_task?id={{ task.id }}" class="px-3 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold rounded-lg text-xs transition inline-flex items-center gap-1">
+                                        <i class="fa-solid fa-rotate"></i> Cambiar
+                                    </a>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="5" class="p-8 text-center text-slate-400 italic">No hay tareas generadas. Haga clic en "Regenerar Rol Aleatorio".</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
 
-        <!-- ==================== PESTAÑA: CARGO COSTOS ==================== -->
+        <!-- ==================== VISTA: CARGO COSTOS CON VENTANAS POR TURNO Y FILTRO ==================== -->
         {% elif view == 'costos' %}
         <div class="space-y-6">
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
@@ -519,7 +465,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         </h2>
                         <p class="text-xs text-slate-500">Agregue varios insumos a la lista de cargo para un paciente y regístrelos por turno.</p>
                     </div>
-                    <!-- Filtro por Día y Botón de Impresión -->
+                    <!-- Filtro por Día -->
                     <form action="/terminal" method="GET" class="flex items-center gap-2 no-print">
                         <input type="hidden" name="view" value="costos">
                         <select name="filtro_dia" class="p-2 border rounded-xl text-xs bg-slate-50 font-bold text-slate-700 outline-none">
@@ -640,6 +586,398 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
                     <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl transition shadow flex items-center justify-center gap-2 text-xs">
                         <i class="fa-solid fa-check-circle"></i> Registrar Cargo Múltiple de Material
+                    </button>
+                </form>
+            </div>
+
+            <!-- Ventanas / Tarjetas Independientes por Turno con Opción de Imprimir -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                <!-- Turno Matutino -->
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-amber-200">
+                    <h3 class="text-sm font-bold text-amber-800 flex items-center justify-between border-b pb-3 mb-3">
+                        <span><i class="fa-solid fa-sun text-amber-500 mr-2"></i> Ventana - Turno Matutino</span>
+                        <div class="flex items-center gap-2">
+                            <span class="bg-amber-100 text-amber-800 text-[10px] px-2.5 py-0.5 rounded-full font-bold">{{ matutino_cargos|length }} registros</span>
+                            <a href="/imprimir_turno_pdf?shift=Matutino" target="_blank" class="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[11px] font-bold shadow transition flex items-center gap-1">
+                                <i class="fa-solid fa-print"></i> Imprimir Turno
+                            </a>
+                        </div>
+                    </h3>
+                    <div class="overflow-x-auto max-h-72">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-amber-50 text-amber-900 sticky top-0">
+                                <tr>
+                                    <th class="p-2">Paciente / Exp.</th>
+                                    <th class="p-2">Habitación</th>
+                                    <th class="p-2">Insumo</th>
+                                    <th class="p-2 text-center">Cant.</th>
+                                    <th class="p-2">Hora</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                {% for c in matutino_cargos %}
+                                <tr class="hover:bg-slate-50">
+                                    <td class="p-2 font-medium">{{ c.patient_name }}<br><span class="text-[10px] text-slate-400">Exp: {{ c.patient_id }}</span></td>
+                                    <td class="p-2">{{ c.room }}</td>
+                                    <td class="p-2">{{ c.item_name }}</td>
+                                    <td class="p-2 text-center font-bold text-emerald-600">{{ c.quantity }}</td>
+                                    <td class="p-2 text-[10px] text-slate-400">{{ c.timestamp.strftime('%H:%M') }}</td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="5" class="p-4 text-center text-slate-400 text-xs">Sin cargos en turno matutino.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Turno Vespertino -->
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-orange-200">
+                    <h3 class="text-sm font-bold text-orange-800 flex items-center justify-between border-b pb-3 mb-3">
+                        <span><i class="fa-solid fa-cloud-sun text-orange-500 mr-2"></i> Ventana - Turno Vespertino</span>
+                        <div class="flex items-center gap-2">
+                            <span class="bg-orange-100 text-orange-800 text-[10px] px-2.5 py-0.5 rounded-full font-bold">{{ vespertino_cargos|length }} registros</span>
+                            <a href="/imprimir_turno_pdf?shift=Vespertino" target="_blank" class="px-2.5 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-[11px] font-bold shadow transition flex items-center gap-1">
+                                <i class="fa-solid fa-print"></i> Imprimir Turno
+                            </a>
+                        </div>
+                    </h3>
+                    <div class="overflow-x-auto max-h-72">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-orange-50 text-orange-900 sticky top-0">
+                                <tr>
+                                    <th class="p-2">Paciente / Exp.</th>
+                                    <th class="p-2">Habitación</th>
+                                    <th class="p-2">Insumo</th>
+                                    <th class="p-2 text-center">Cant.</th>
+                                    <th class="p-2">Hora</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                {% for c in vespertino_cargos %}
+                                <tr class="hover:bg-slate-50">
+                                    <td class="p-2 font-medium">{{ c.patient_name }}<br><span class="text-[10px] text-slate-400">Exp: {{ c.patient_id }}</span></td>
+                                    <td class="p-2">{{ c.room }}</td>
+                                    <td class="p-2">{{ c.item_name }}</td>
+                                    <td class="p-2 text-center font-bold text-emerald-600">{{ c.quantity }}</td>
+                                    <td class="p-2 text-[10px] text-slate-400">{{ c.timestamp.strftime('%H:%M') }}</td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="5" class="p-4 text-center text-slate-400 text-xs">Sin cargos en turno vespertino.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Turno Nocturno A -->
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-indigo-200">
+                    <h3 class="text-sm font-bold text-indigo-800 flex items-center justify-between border-b pb-3 mb-3">
+                        <span><i class="fa-solid fa-moon text-indigo-500 mr-2"></i> Ventana - Turno Nocturno A</span>
+                        <div class="flex items-center gap-2">
+                            <span class="bg-indigo-100 text-indigo-800 text-[10px] px-2.5 py-0.5 rounded-full font-bold">{{ nocturno_a_cargos|length }} registros</span>
+                            <a href="/imprimir_turno_pdf?shift=Nocturno A" target="_blank" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-bold shadow transition flex items-center gap-1">
+                                <i class="fa-solid fa-print"></i> Imprimir Turno
+                            </a>
+                        </div>
+                    </h3>
+                    <div class="overflow-x-auto max-h-72">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-indigo-50 text-indigo-900 sticky top-0">
+                                <tr>
+                                    <th class="p-2">Paciente / Exp.</th>
+                                    <th class="p-2">Habitación</th>
+                                    <th class="p-2">Insumo</th>
+                                    <th class="p-2 text-center">Cant.</th>
+                                    <th class="p-2">Hora</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                {% for c in nocturno_a_cargos %}
+                                <tr class="hover:bg-slate-50">
+                                    <td class="p-2 font-medium">{{ c.patient_name }}<br><span class="text-[10px] text-slate-400">Exp: {{ c.patient_id }}</span></td>
+                                    <td class="p-2">{{ c.room }}</td>
+                                    <td class="p-2">{{ c.item_name }}</td>
+                                    <td class="p-2 text-center font-bold text-emerald-600">{{ c.quantity }}</td>
+                                    <td class="p-2 text-[10px] text-slate-400">{{ c.timestamp.strftime('%H:%M') }}</td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="5" class="p-4 text-center text-slate-400 text-xs">Sin cargos en turno nocturno A.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Turno Nocturno B -->
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-purple-200">
+                    <h3 class="text-sm font-bold text-purple-800 flex items-center justify-between border-b pb-3 mb-3">
+                        <span><i class="fa-solid fa-star text-purple-500 mr-2"></i> Ventana - Turno Nocturno B</span>
+                        <div class="flex items-center gap-2">
+                            <span class="bg-purple-100 text-purple-800 text-[10px] px-2.5 py-0.5 rounded-full font-bold">{{ nocturno_b_cargos|length }} registros</span>
+                            <a href="/imprimir_turno_pdf?shift=Nocturno B" target="_blank" class="px-2.5 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-[11px] font-bold shadow transition flex items-center gap-1">
+                                <i class="fa-solid fa-print"></i> Imprimir Turno
+                            </a>
+                        </div>
+                    </h3>
+                    <div class="overflow-x-auto max-h-72">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-purple-50 text-purple-900 sticky top-0">
+                                <tr>
+                                    <th class="p-2">Paciente / Exp.</th>
+                                    <th class="p-2">Habitación</th>
+                                    <th class="p-2">Insumo</th>
+                                    <th class="p-2 text-center">Cant.</th>
+                                    <th class="p-2">Hora</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                {% for c in nocturno_b_cargos %}
+                                <tr class="hover:bg-slate-50">
+                                    <td class="p-2 font-medium">{{ c.patient_name }}<br><span class="text-[10px] text-slate-400">Exp: {{ c.patient_id }}</span></td>
+                                    <td class="p-2">{{ c.room }}</td>
+                                    <td class="p-2">{{ c.item_name }}</td>
+                                    <td class="p-2 text-center font-bold text-emerald-600">{{ c.quantity }}</td>
+                                    <td class="p-2 text-[10px] text-slate-400">{{ c.timestamp.strftime('%H:%M') }}</td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="5" class="p-4 text-center text-slate-400 text-xs">Sin cargos en turno nocturno B.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ==================== VISTA: CONTROLADOS CON ARQUEO Y CONCILIACIÓN ==================== -->
+        {% elif view == 'controlados' %}
+        <div class="space-y-6">
+            {% if is_admin_controlled %}
+            <div class="bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 p-6 rounded-2xl shadow-md text-white space-y-4">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b border-purple-800 pb-3">
+                    <div>
+                        <h2 class="text-base font-bold flex items-center gap-2">
+                            <i class="fa-solid fa-scale-balanced text-purple-300"></i> Módulo de Arqueo y Conciliación Diaria de Controlados (Admin)
+                        </h2>
+                        <p class="text-xs text-purple-200">Cotejo diario entre las salidas surtidas y lo registrado en la bitácora de controlados para la fecha de hoy ({{ today_str }})</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="bg-purple-600 px-3 py-1.5 rounded-xl text-xs font-mono font-bold shadow">
+                            {{ controlled_reconciliation | length }} Fármacos Monitoreados
+                        </span>
+                        <a href="/terminal?view=controlados" class="bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition">Cerrar Arqueo</a>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {% for rec in controlled_reconciliation %}
+                    <div class="bg-white/15 backdrop-blur-md rounded-xl p-4 border border-purple-700/50 space-y-3">
+                        <div class="flex justify-between items-start">
+                            <h4 class="font-bold text-sm text-white truncate max-w-[200px]" title="{{ rec.item.name }}">{{ rec.item.name }}</h4>
+                            {% if rec.status == 'Conciliado' %}
+                                <span class="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded-full text-[10px] font-extrabold flex items-center gap-1">
+                                    <i class="fa-solid fa-circle-check"></i> Conciliado
+                                </span>
+                            {% else %}
+                                <span class="bg-rose-500/20 text-rose-300 border border-rose-500/40 px-2 py-0.5 rounded-full text-[10px] font-extrabold flex items-center gap-1">
+                                    <i class="fa-solid fa-triangle-exclamation"></i> Discrepancia
+                                </span>
+                            {% endif %}
+                        </div>
+
+                        <div class="grid grid-cols-3 gap-1.5 text-xs bg-black/20 p-2.5 rounded-lg border border-purple-900/40 text-center">
+                            <div>
+                                <span class="text-[9px] text-purple-300 block">Stock Actual:</span>
+                                <strong class="text-xs text-emerald-300 font-mono">{{ rec.current_stock }} pzas</strong>
+                            </div>
+                            <div>
+                                <span class="text-[9px] text-purple-300 block">Surtidas Hoy:</span>
+                                <strong class="text-xs text-white font-mono">{{ rec.dispensed_today }} pzas</strong>
+                            </div>
+                            <div>
+                                <span class="text-[9px] text-purple-300 block">Bitácora Hoy:</span>
+                                <strong class="text-xs text-amber-300 font-mono">{{ rec.logged_today }} pzas</strong>
+                            </div>
+                        </div>
+
+                        <div class="text-[11px] text-purple-200 flex justify-between">
+                            <span>Lote: <strong class="text-white">{{ rec.item.lote or 'S/L' }}</strong></span>
+                            <span>Estado: <strong class="{% if rec.status == 'Conciliado' %}text-emerald-300{% else %}text-rose-300{% endif %}">{{ rec.status }}</strong></span>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="col-span-full text-center text-purple-300 italic py-3 text-xs">
+                        No hay medicamentos controlados registrados en el inventario para cotejar.
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% else %}
+            <div class="bg-purple-900/10 border border-purple-200 p-4 rounded-2xl flex flex-col sm:flex-row justify-between items-center gap-3 no-print">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
+                        <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-purple-900 text-xs">Módulo de Arqueo y Conciliación Diaria Protegido</h4>
+                        <p class="text-[11px] text-slate-500">Esta herramienta analítica es exclusiva para el Administrador.</p>
+                    </div>
+                </div>
+                <button onclick="openUnlockArqueoModal()" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-xs shadow transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-lock-open"></i> Desbloquear Arqueo Diario (Admin)
+                </button>
+            </div>
+            {% endif %}
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1">
+                    <h2 class="text-base font-bold text-slate-900 mb-4 border-b pb-2 flex items-center gap-2">
+                        <i class="fa-solid fa-file-prescription text-rose-600"></i> Surtir Medicamento Controlado
+                    </h2>
+
+                    <form action="/add_controlled" method="POST" class="space-y-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Medicamento Controlado</label>
+                            <input list="controlled_items_list" name="item_name" required placeholder="Escriba o busque..." class="w-full p-2.5 border rounded-xl text-sm bg-rose-50 focus:bg-white focus:ring-2 focus:ring-rose-500 outline-none font-bold">
+                            <datalist id="controlled_items_list">
+                                {% for item in controlled_items %}
+                                    <option value="{{ item.name }} (Lote: {{ item.lote or 'S/L' }})">
+                                {% endfor %}
+                            </datalist>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nombre del Paciente</label>
+                            <input type="text" list="patients_datalist" name="patient_name" required placeholder="Nombre del paciente..." class="w-full p-2.5 border rounded-xl text-sm outline-none font-medium">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">No. Receta / Folio Controlado</label>
+                            <input type="text" name="prescription_num" required placeholder="Ej. REC-2026-9901" class="w-full p-2.5 border rounded-xl text-sm font-mono outline-none">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Cantidad</label>
+                                <input type="number" min="1" value="1" name="quantity" required class="w-full p-2.5 border rounded-xl text-sm outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Médico Prescriptor</label>
+                                <input type="text" name="doctor_name" placeholder="Ej. Dr. Ramírez" class="w-full p-2.5 border rounded-xl text-sm outline-none">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Usuario</label>
+                                <select name="user_id" required class="w-full p-2.5 border rounded-xl text-sm bg-slate-50 outline-none">
+                                    <option value="">Seleccione...</option>
+                                    {% for u in users %}
+                                        <option value="{{ u.id }}">{{ u.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">PIN</label>
+                                <input type="password" name="pin" required placeholder="PIN" class="w-full p-2.5 border rounded-xl text-sm outline-none">
+                            </div>
+                        </div>
+
+                        <button type="submit" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 rounded-xl shadow-md transition duration-200 flex items-center justify-center gap-2 mt-2">
+                            <i class="fa-solid fa-file-signature"></i> Registrar Salida Controlada
+                        </button>
+                    </form>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-2">
+                    <div class="flex justify-between items-center mb-4 border-b pb-3">
+                        <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-book-medical text-rose-600"></i> Bitácora de Medicamentos Controlados
+                        </h2>
+                        <button onclick="window.print()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold no-print">
+                            <i class="fa-solid fa-print"></i> Imprimir Libro
+                        </button>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs text-left text-slate-600">
+                            <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b">
+                                <tr>
+                                    <th class="p-2.5">Fecha/Hora</th>
+                                    <th class="p-2.5">Medicamento</th>
+                                    <th class="p-2.5">Paciente</th>
+                                    <th class="p-2.5">No. Receta</th>
+                                    <th class="p-2.5 text-center">Cant.</th>
+                                    <th class="p-2.5">Médico / Responsable</th>
+                                    <th class="p-2.5 text-center">Acción Admin</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                {% for log in controlled_logs %}
+                                <tr class="hover:bg-slate-50">
+                                    <td class="p-2.5 font-mono text-slate-500">{{ log.timestamp.strftime('%d/%m/%Y %H:%M') }}</td>
+                                    <td class="p-2.5 font-bold text-slate-900">{{ log.item_name }}</td>
+                                    <td class="p-2.5 font-medium text-slate-800">{{ log.patient_name }}</td>
+                                    <td class="p-2.5 font-mono text-rose-700 font-bold bg-rose-50 rounded px-1.5 py-0.5">{{ log.prescription_num }}</td>
+                                    <td class="p-2.5 text-center font-bold text-slate-900">{{ log.quantity }}</td>
+                                    <td class="p-2.5">
+                                        <span class="block text-slate-800 font-medium">{{ log.doctor_name or 'N/E' }}</span>
+                                        <span class="block text-[10px] text-slate-400">Entregó: {{ log.user_name }}</span>
+                                    </td>
+                                    <td class="p-2.5 text-center">
+                                        <button onclick="deleteControlledModal('{{ log.id }}')" class="px-2 py-1 bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold rounded text-[11px]" title="Eliminar registro controlado">
+                                            <i class="fa-solid fa-trash"></i> Eliminar
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="7" class="p-6 text-center text-slate-400 italic">No hay registros controlados.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL DESBLOQUEAR ARQUEO CONTROLADOS -->
+        <div id="unlockArqueoModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border space-y-4">
+                <div class="flex justify-between items-center border-b pb-2">
+                    <h3 class="font-bold text-slate-900 text-base">Autorización de Administrador</h3>
+                    <button onclick="closeUnlockArqueoModal()" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
+                </div>
+                <p class="text-xs text-slate-600">Ingrese el PIN del Administrador para visualizar el módulo de arqueo y conciliación diaria de controlados.</p>
+                <form action="/auth_admin_controlled" method="POST" class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">PIN del Administrador</label>
+                        <input type="password" name="admin_pin" required placeholder="PIN de Administrador" class="w-full p-2.5 border rounded-xl text-center text-lg font-bold tracking-widest outline-none">
+                    </div>
+                    <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2.5 rounded-xl transition">
+                        Desbloquear Módulo
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- MODAL ELIMINAR REGISTRO CONTROLADO -->
+        <div id="deleteControlledModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border space-y-4">
+                <div class="flex justify-between items-center border-b pb-2">
+                    <h3 class="font-bold text-slate-900 text-base text-rose-600">Eliminar Registro Controlado</h3>
+                    <button onclick="closeDeleteControlledModal()" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
+                </div>
+                <form action="/delete_controlled" method="POST" class="space-y-3">
+                    <input type="hidden" name="log_id" id="modal_delete_controlled_id">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">PIN del Administrador</label>
+                        <input type="password" name="admin_pin" required placeholder="PIN de Administrador" class="w-full p-2.5 border rounded-xl text-center text-lg font-bold tracking-widest outline-none">
+                    </div>
+                    <button type="submit" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-2.5 rounded-xl transition">
+                        Eliminar Definitivamente
                     </button>
                 </form>
             </div>
@@ -1531,122 +1869,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             </div>
         </div>
 
-        {% elif view == 'controlados' %}
-        <div class="space-y-6">
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1">
-                    <h2 class="text-base font-bold text-slate-900 mb-4 border-b pb-2 flex items-center gap-2">
-                        <i class="fa-solid fa-file-prescription text-rose-600"></i> Surtir Medicamento Controlado
-                    </h2>
-                    <form action="/add_controlled" method="POST" class="space-y-3">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Medicamento Controlado</label>
-                            <input list="controlled_items_list" name="item_name" required placeholder="Buscar..." class="w-full p-2.5 border rounded-xl text-sm bg-rose-50 outline-none font-bold">
-                            <datalist id="controlled_items_list">
-                                {% for item in controlled_items %}
-                                    <option value="{{ item.name }} (Lote: {{ item.lote or 'S/L' }})">
-                                {% endfor %}
-                            </datalist>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nombre del Paciente</label>
-                            <input type="text" list="patients_datalist" name="patient_name" required placeholder="Paciente..." class="w-full p-2.5 border rounded-xl text-sm outline-none font-medium">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">No. Receta / Folio</label>
-                            <input type="text" name="prescription_num" required placeholder="REC-2026-X" class="w-full p-2.5 border rounded-xl text-sm font-mono outline-none">
-                        </div>
-                        <div class="grid grid-cols-2 gap-2">
-                            <div>
-                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Cantidad</label>
-                                <input type="number" min="1" value="1" name="quantity" required class="w-full p-2.5 border rounded-xl text-sm outline-none">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Médico</label>
-                                <input type="text" name="doctor_name" placeholder="Dr. Ramírez" class="w-full p-2.5 border rounded-xl text-sm outline-none">
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-2 gap-2">
-                            <div>
-                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Usuario</label>
-                                <select name="user_id" required class="w-full p-2.5 border rounded-xl text-sm bg-slate-50 outline-none">
-                                    <option value="">Seleccione...</option>
-                                    {% for u in users %}
-                                        <option value="{{ u.id }}">{{ u.name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">PIN</label>
-                                <input type="password" name="pin" required placeholder="PIN" class="w-full p-2.5 border rounded-xl text-sm outline-none">
-                            </div>
-                        </div>
-                        <button type="submit" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 rounded-xl shadow-md transition flex items-center justify-center gap-2 mt-2">
-                            <i class="fa-solid fa-file-signature"></i> Registrar Salida Controlada
-                        </button>
-                    </form>
-                </div>
-
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-2">
-                    <div class="flex justify-between items-center mb-4 border-b pb-3">
-                        <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
-                            <i class="fa-solid fa-book-medical text-rose-600"></i> Bitácora Controlados
-                        </h2>
-                        <button onclick="window.print()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold no-print">Imprimir</button>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-xs text-left text-slate-600">
-                            <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b">
-                                <tr>
-                                    <th class="p-2.5">Fecha/Hora</th>
-                                    <th class="p-2.5">Medicamento</th>
-                                    <th class="p-2.5">Paciente</th>
-                                    <th class="p-2.5">Receta</th>
-                                    <th class="p-2.5 text-center">Cant.</th>
-                                    <th class="p-2.5">Responsable</th>
-                                    <th class="p-2.5 text-center">Acción</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-100">
-                                {% for log in controlled_logs %}
-                                <tr class="hover:bg-slate-50">
-                                    <td class="p-2.5 font-mono text-slate-500">{{ log.timestamp.strftime('%d/%m/%Y %H:%M') }}</td>
-                                    <td class="p-2.5 font-bold text-slate-900">{{ log.item_name }}</td>
-                                    <td class="p-2.5 font-medium text-slate-800">{{ log.patient_name }}</td>
-                                    <td class="p-2.5 font-mono text-rose-700 font-bold bg-rose-50 rounded px-1.5 py-0.5">{{ log.prescription_num }}</td>
-                                    <td class="p-2.5 text-center font-bold text-slate-900">{{ log.quantity }}</td>
-                                    <td class="p-2.5">{{ log.user_name }}</td>
-                                    <td class="p-2.5 text-center">
-                                        <button onclick="deleteControlledModal('{{ log.id }}')" class="px-2 py-1 bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold rounded text-[11px]"><i class="fa-solid fa-trash"></i></button>
-                                    </td>
-                                </tr>
-                                {% else %}
-                                <tr><td colspan="7" class="p-6 text-center text-slate-400 italic">No hay registros.</td></tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div id="deleteControlledModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border space-y-4">
-                <div class="flex justify-between items-center border-b pb-2">
-                    <h3 class="font-bold text-slate-900 text-base text-rose-600">Eliminar Registro Controlado</h3>
-                    <button onclick="closeDeleteControlledModal()" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
-                </div>
-                <form action="/delete_controlled" method="POST" class="space-y-3">
-                    <input type="hidden" name="log_id" id="modal_delete_controlled_id">
-                    <div>
-                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">PIN del Administrador</label>
-                        <input type="password" name="admin_pin" required placeholder="PIN" class="w-full p-2.5 border rounded-xl text-center text-lg font-bold tracking-widest outline-none">
-                    </div>
-                    <button type="submit" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-2.5 rounded-xl transition">Eliminar Definitivamente</button>
-                </form>
-            </div>
-        </div>
-
         {% elif view == 'usuarios' %}
         {% if not is_admin %}
         <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 max-w-md mx-auto text-center space-y-4">
@@ -1901,6 +2123,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         function closeRevertModal() { document.getElementById('revertModal').classList.add('hidden'); }
         function deleteMovementModal(id) { document.getElementById('modal_delete_mov_id').value = id; document.getElementById('deleteMovModal').classList.remove('hidden'); }
         function closeDeleteMovementModal() { document.getElementById('deleteMovModal').classList.add('hidden'); }
+        function openUnlockArqueoModal() { document.getElementById('unlockArqueoModal').classList.remove('hidden'); }
+        function closeUnlockArqueoModal() { document.getElementById('unlockArqueoModal').classList.add('hidden'); }
         function deleteControlledModal(id) { document.getElementById('modal_delete_controlled_id').value = id; document.getElementById('deleteControlledModal').classList.remove('hidden'); }
         function closeDeleteControlledModal() { document.getElementById('deleteControlledModal').classList.add('hidden'); }
         function editUser(id, name, role, pin) {
@@ -1923,15 +2147,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 @app.route("/imprimir_costos_pdf")
 def imprimir_costos_pdf():
     filtro_dia = request.args.get("filtro_dia", "").strip()
-    
-    # Consulta base de cargos a costos
-    query = Movement.query.filter_by(is_cost_cargo=True)
-    if filtro_dia:
-        # Nota: Filtramos por fecha si corresponde o mostramos todos si no hay coincidencia exacta de día de semana en timestamp
-        cargos = query.order_by(Movement.timestamp.desc()).all()
-        # Filtrado lógico por nombre del día de la semana si se desea estricto
-    else:
-        cargos = query.order_by(Movement.timestamp.desc()).all()
+    cargos = Movement.query.filter_by(is_cost_cargo=True).order_by(Movement.timestamp.desc()).all()
 
     buffer = io.BytesIO()
     c = canvas.Canvas(buffer, pagesize=letter)
@@ -1976,7 +2192,56 @@ def imprimir_costos_pdf():
 
     c.save()
     buffer.seek(0)
-    return send_file(buffer, as_attachment=False, mimetype="application/pdf", download_name=f"reporte_cargos_filtrado.pdf")
+    return send_file(buffer, as_attachment=False, mimetype="application/pdf", download_name="reporte_cargos_filtrado.pdf")
+
+@app.route("/imprimir_turno_pdf")
+def imprimir_turno_pdf():
+    shift = request.args.get("shift", "Matutino").strip()
+    cargos = Movement.query.filter_by(is_cost_cargo=True, shift=shift).order_by(Movement.timestamp.desc()).all()
+    
+    buffer = io.BytesIO()
+    c = canvas.Canvas(buffer, pagesize=letter)
+    width, height = letter
+
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(20 * mm, height - 20 * mm, "HOSPITAL OBREGÓN - FARMACIA HOSPITALARIA")
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(20 * mm, height - 26 * mm, f"REPORTE VENTANA DE CARGOS - TURNO: {shift.upper()}")
+    
+    fecha_actual = datetime.now(LOCAL_TZ).strftime("%d/%m/%Y %H:%M")
+    c.setFont("Helvetica", 9)
+    c.drawString(20 * mm, height - 32 * mm, f"Fecha de emisión: {fecha_actual}")
+    
+    c.setLineWidth(1)
+    c.line(20 * mm, height - 35 * mm, width - 20 * mm, height - 35 * mm)
+
+    y = height - 45 * mm
+    c.setFont("Helvetica-Bold", 9)
+    c.drawString(20 * mm, y, "Paciente / Expediente")
+    c.drawString(70 * mm, y, "Habitación")
+    c.drawString(95 * mm, y, "Insumo / Material")
+    c.drawString(160 * mm, y, "Cant.")
+    c.drawString(178 * mm, y, "Hora")
+    
+    y -= 6 * mm
+    c.line(20 * mm, y + 4 * mm, width - 20 * mm, y + 4 * mm)
+
+    c.setFont("Helvetica", 9)
+    for cgo in cargos:
+        if y < 25 * mm:
+            c.showPage()
+            y = height - 25 * mm
+        patient_info = f"{cgo.patient_name} (Exp: {cgo.patient_id})"
+        c.drawString(20 * mm, y, patient_info[:32])
+        c.drawString(70 * mm, y, str(cgo.room or "-")[:15])
+        c.drawString(95 * mm, y, str(cgo.item_name)[:35])
+        c.drawRightString(168 * mm, y, str(cgo.quantity))
+        c.drawString(178 * mm, y, cgo.timestamp.strftime('%H:%M') if cgo.timestamp else "--:--")
+        y -= 7 * mm
+
+    c.save()
+    buffer.seek(0)
+    return send_file(buffer, as_attachment=False, mimetype="application/pdf", download_name=f"reporte_turno_{shift.lower().replace(' ', '_')}.pdf")
 
 @app.route("/imprimir_lote_pdf")
 def imprimir_lote_pdf():
@@ -2052,26 +2317,57 @@ def terminal():
     view = request.args.get("view", "costos")
     portal = request.args.get("portal")
     
-    # Restricción de seguridad: Si es portal de servicio, solo puede ver la pestaña de solicitar insumos
     if portal == "servicio" and view != "solicitar_insumos":
         return redirect(url_for("terminal", view="solicitar_insumos", portal="servicio"))
 
     items = Item.query.order_by(Item.name, Item.lote).all()
     users = User.query.order_by(User.name).all()
     patients = Patient.query.order_by(Patient.name).all()
+    
+    # Generación automática del rol semanal aleatorio si está vacío
+    if WeeklySchedule.query.count() == 0:
+        generar_rol_aleatorio_interno()
+
     weekly_tasks = WeeklySchedule.query.all()
     hospital_requests = HospitalRequest.query.order_by(HospitalRequest.timestamp.desc()).all()
+
+    matutino_cargos = Movement.query.filter_by(is_cost_cargo=True, shift="Matutino").order_by(Movement.timestamp.desc()).all()
+    vespertino_cargos = Movement.query.filter_by(is_cost_cargo=True, shift="Vespertino").order_by(Movement.timestamp.desc()).all()
+    nocturno_a_cargos = Movement.query.filter_by(is_cost_cargo=True, shift="Nocturno A").order_by(Movement.timestamp.desc()).all()
+    nocturno_b_cargos = Movement.query.filter_by(is_cost_cargo=True, shift="Nocturno B").order_by(Movement.timestamp.desc()).all()
 
     controlled_items = Item.query.filter_by(etiqueta="Controlado").order_by(Item.name).all()
     controlled_logs = ControlledLog.query.order_by(ControlledLog.timestamp.desc()).all()
     cleaning_logs = CleaningLog.query.order_by(CleaningLog.timestamp.desc()).all()
     movements = Movement.query.order_by(Movement.timestamp.desc()).all()
     is_admin = request.args.get("admin") == "true"
+    is_admin_controlled = request.args.get("admin_arqueo") == "true"
 
     today_date = datetime.now(LOCAL_TZ).date()
     today_str = today_date.strftime('%d/%m/%Y')
     warning_str = (today_date + timedelta(days=30)).isoformat()
     today_iso = today_date.isoformat()
+
+    controlled_reconciliation = []
+    if is_admin_controlled:
+        for item in controlled_items:
+            current_stock = (item.stock_general or 0) + (item.stock_quirofano or 0)
+            dispensed_today = sum(
+                mov.quantity for mov in Movement.query.filter(Movement.type == 'Salida').all()
+                if item.name.lower() in mov.item_name.lower() and mov.timestamp.date() == today_date
+            )
+            logged_today = sum(
+                log.quantity for log in controlled_logs
+                if item.name.lower() in log.item_name.lower() and log.timestamp.date() == today_date
+            )
+            status = "Conciliado" if dispensed_today == logged_today else "Discrepancia"
+            controlled_reconciliation.append({
+                'item': item,
+                'current_stock': current_stock,
+                'dispensed_today': dispensed_today,
+                'logged_today': logged_today,
+                'status': status
+            })
 
     return render_template_string(
         HTML_TEMPLATE,
@@ -2081,15 +2377,58 @@ def terminal():
         patients=patients,
         weekly_tasks=weekly_tasks,
         hospital_requests=hospital_requests,
+        matutino_cargos=matutino_cargos,
+        vespertino_cargos=vespertino_cargos,
+        nocturno_a_cargos=nocturno_a_cargos,
+        nocturno_b_cargos=nocturno_b_cargos,
         controlled_items=controlled_items,
         controlled_logs=controlled_logs,
         cleaning_logs=cleaning_logs,
         movements=movements,
         is_admin=is_admin,
+        is_admin_controlled=is_admin_controlled,
         today_str=today_str,
         today_str_inv=today_iso,
-        warning_str=warning_str
+        warning_str=warning_str,
+        controlled_reconciliation=controlled_reconciliation
     )
+
+def generar_rol_aleatorio_interno():
+    WeeklySchedule.query.delete()
+    dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+    actividades = [
+        "Limpieza de anaqueles",
+        "Limpieza de pasillo",
+        "Limpieza de refrigerador",
+        "Desecho de cartón",
+        "Cajas de traslado",
+        "Acomodo de medicamento"
+    ]
+    # Excluir administradores
+    personal = [u.name for u in User.query.all() if u.role != "Administrador"]
+    if not personal:
+        personal = ["Personal de Apoyo"]
+
+    for dia in dias:
+        act = random.choice(actividades)
+        usr = random.choice(personal)
+        db.session.add(WeeklySchedule(dia_semana=dia, user_name=usr, actividad=act, estado="Pendiente"))
+    db.session.commit()
+
+@app.route("/generate_random_rol")
+def generate_random_rol():
+    generar_rol_aleatorio_interno()
+    flash("Rol semanal aleatorio generado con éxito para el personal.", "success")
+    return redirect(url_for("terminal", view="rol_semanal"))
+
+@app.route("/toggle_weekly_task")
+def toggle_weekly_task():
+    task_id = request.args.get("id")
+    task = WeeklySchedule.query.get(task_id)
+    if task:
+        task.estado = "Completado" if task.estado == "Pendiente" else "Pendiente"
+        db.session.commit()
+    return redirect(url_for("terminal", view="rol_semanal"))
 
 @app.route("/submit_hospital_request", methods=["POST"])
 def submit_hospital_request():
@@ -2120,64 +2459,26 @@ def fulfill_hospital_request():
     req = HospitalRequest.query.get(req_id)
     if req and req.status == "Pendiente":
         req.status = "Surtido"
-        
-        # Descontar stock general automáticamente
         item = Item.query.filter(Item.name.ilike(f"%{req.item_name}%")).first()
-        if item:
-            if item.stock_general >= req.quantity:
-                item.stock_general -= req.quantity
-            
+        if item and item.stock_general >= req.quantity:
+            item.stock_general -= req.quantity
         db.session.commit()
         flash(f"Solicitud de {req.service_name} marcada como surtida.", "success")
     return redirect(url_for("terminal", view="surtir_solicitudes"))
 
 @app.route("/cancel_hospital_request", methods=["POST"])
 def cancel_hospital_request():
-    req_id = request.form.get("request_id")
-    req = HospitalRequest.query.get(req_id)
+    req = HospitalRequest.query.get(request.form.get("request_id"))
     if req:
         req.status = "Cancelado"
         db.session.commit()
         flash("Solicitud cancelada.", "success")
     return redirect(url_for("terminal", view="surtir_solicitudes"))
 
-@app.route("/add_weekly_task", methods=["POST"])
-def add_weekly_task():
-    dia_semana = request.form.get("dia_semana")
-    user_name = request.form.get("user_name")
-    actividad = request.form.get("actividad")
-
-    task = WeeklySchedule(dia_semana=dia_semana, user_name=user_name, actividad=actividad, estado="Pendiente")
-    db.session.add(task)
-    db.session.commit()
-    flash("Tarea asignada al rol semanal exitosamente.", "success")
-    return redirect(url_for("terminal", view="rol_semanal"))
-
-@app.route("/toggle_weekly_task")
-def toggle_weekly_task():
-    task_id = request.args.get("id")
-    task = WeeklySchedule.query.get(task_id)
-    if task:
-        task.estado = "Completado" if task.estado == "Pendiente" else "Pendiente"
-        db.session.commit()
-    return redirect(url_for("terminal", view="rol_semanal"))
-
-@app.route("/delete_weekly_task")
-def delete_weekly_task():
-    task_id = request.args.get("id")
-    task = WeeklySchedule.query.get(task_id)
-    if task:
-        db.session.delete(task)
-        db.session.commit()
-    return redirect(url_for("terminal", view="rol_semanal"))
-
 @app.route("/add_cost_cargo_batch", methods=["POST"])
 def add_cost_cargo_batch():
-    user_id = request.form.get("user_id")
-    pin = request.form.get("pin")
-    user = User.query.get(user_id)
-
-    if not user or user.pin != pin:
+    user = User.query.get(request.form.get("user_id"))
+    if not user or user.pin != request.form.get("pin"):
         flash("PIN o usuario incorrecto.", "error")
         return redirect(url_for("terminal", view="costos"))
 
@@ -2185,11 +2486,10 @@ def add_cost_cargo_batch():
     room = request.form.get("room", "").strip()
     patient_id = request.form.get("patient_id", "").strip()
     shift = request.form.get("shift")
-    cart_json = request.form.get("cart_costos_data", "[]")
-
+    
     try:
-        cart_items = json.loads(cart_json)
-    except Exception:
+        cart_items = json.loads(request.form.get("cart_costos_data", "[]"))
+    except:
         cart_items = []
 
     if not cart_items:
@@ -2222,7 +2522,7 @@ def add_cost_cargo_batch():
                 return redirect(url_for("terminal", view="costos"))
             item.stock_general -= quantity
 
-        mov = Movement(
+        db.session.add(Movement(
             timestamp=get_local_now(),
             item_code=item.code,
             item_name=f"{item.name} (Lote: {item.lote or 'S/L'})",
@@ -2235,45 +2535,29 @@ def add_cost_cargo_batch():
             room=room,
             shift=shift,
             is_cost_cargo=True
-        )
-        db.session.add(mov)
+        ))
 
     db.session.commit()
-    flash(f"Cargo múltiple registrado correctamente para {patient_name}.", "success")
+    flash(f"Cargo múltiple registrado correctamente para {patient_name} en Turno {shift}.", "success")
     return redirect(url_for("terminal", view="costos"))
-
-@app.route("/etiquetas")
-def etiquetas():
-    return redirect(url_for("terminal", view="etiquetas"))
-
-@app.route("/save_patient_from_label", methods=["POST"])
-def save_patient_from_label():
-    patient_name = request.form.get("patient_name", "").strip()
-    if patient_name and not Patient.query.filter_by(name=patient_name).first():
-        db.session.add(Patient(name=patient_name))
-        db.session.commit()
-        flash(f"Paciente '{patient_name}' guardado exitosamente.", "success")
-    return redirect(url_for("terminal", view="etiquetas"))
 
 @app.route("/register_batch", methods=["POST"])
 def register_batch():
-    user_id = request.form.get("user_id")
+    user = User.query.get(request.form.get("user_id"))
     pin = request.form.get("pin")
+    if not user or user.pin != pin:
+        flash("PIN o contraseña incorrecta.", "error")
+        return redirect(url_for("terminal", view="terminal"))
+
     patient_name = request.form.get("patient_name", "").strip() or "PACIENTE GENERAL"
     patient_fnac = request.form.get("patient_fnac", "").strip() or "S/F"
     patient_id = request.form.get("patient_id", "").strip() or "S/H"
     service = request.form.get("service", "").strip()
     notes = request.form.get("notes", "").strip()
-    cart_json = request.form.get("cart_data", "[]")
-
-    user = User.query.get(user_id)
-    if not user or user.pin != pin:
-        flash("PIN incorrecto.", "error")
-        return redirect(url_for("terminal", view="terminal"))
 
     try:
-        cart_items = json.loads(cart_json)
-    except Exception:
+        cart_items = json.loads(request.form.get("cart_data", "[]"))
+    except:
         cart_items = []
 
     if not cart_items:
@@ -2307,7 +2591,7 @@ def register_batch():
             else:
                 item.stock_quirofano += quantity
 
-        mov = Movement(
+        db.session.add(Movement(
             timestamp=get_local_now(),
             item_code=item.code,
             item_name=f"{item.name} (Lote: {item.lote or 'S/L'}) [Vía: {via_admin}]",
@@ -2319,8 +2603,7 @@ def register_batch():
             patient_id=patient_id,
             user_name=user.name,
             notes=notes
-        )
-        db.session.add(mov)
+        ))
         batch_labels.append({"name": item.name, "via": via_admin, "quantity": quantity})
 
     db.session.commit()
@@ -2381,7 +2664,7 @@ def add_cleaning():
         flash("PIN incorrecto.", "error")
         return redirect(url_for("terminal", view="limpieza"))
 
-    log = CleaningLog(
+    db.session.add(CleaningLog(
         timestamp=get_local_now(),
         user_name=user.name,
         dia_semana=request.form.get("dia_semana"),
@@ -2393,8 +2676,7 @@ def add_cleaning():
         cajas_traslado='cajas_traslado' in request.form,
         acomodo_medicamento='acomodo_medicamento' in request.form,
         notes=request.form.get("notes")
-    )
-    db.session.add(log)
+    ))
     db.session.commit()
     flash("Limpieza registrada.", "success")
     return redirect(url_for("terminal", view="limpieza"))
@@ -2427,6 +2709,13 @@ def auth_admin_users():
         return redirect(url_for("terminal", view="usuarios", admin="true"))
     flash("PIN incorrecto.", "error")
     return redirect(url_for("terminal", view="usuarios"))
+
+@app.route("/auth_admin_controlled", methods=["POST"])
+def auth_admin_controlled():
+    if request.form.get("admin_pin") in ["5678", "1234"]:
+        return redirect(url_for("terminal", view="controlados", admin_arqueo="true"))
+    flash("PIN de Administrador incorrecto.", "error")
+    return redirect(url_for("terminal", view="controlados"))
 
 @app.route("/save_user", methods=["POST"])
 def save_user():
