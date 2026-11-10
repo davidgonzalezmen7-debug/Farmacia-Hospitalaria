@@ -2864,7 +2864,47 @@ def seed_database():
                 User(name="Hannia Martinez Salas", role="Enfermería", pin="1122")
             ])
             db.session.commit()
+            
+# INICIALIZACIÓN Y AUTO-MIGRACIÓN ROBUSTA DE BASE DE DATOS
+def seed_database():
+    with app.app_context():
+        # 1. Crear las tablas que no existan
+        db.create_all()
+        
+        # 2. Ejecutar la alteración de columnas usando SQL directo antes de cualquier consulta del ORM
+        try:
+            with db.engine.connect() as conn:
+                # Agregar columnas faltantes en la tabla 'user' si ya existía de un despliegue previo
+                conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS vistas_permitidas VARCHAR(500) DEFAULT \'terminal,costos,etiquetas,alta_insumos,inventario,controlados,limpieza,rol_semanal,solicitud_insumos,autorizaciones,estado_autorizaciones,bitacora,usuarios\';'))
+                conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS acciones_permitidas VARCHAR(500) DEFAULT \'surtir,modificar,eliminar,autorizar\';'))
+                
+                # Agregar columnas en 'insumo_request' si aplicara
+                conn.execute(text('ALTER TABLE "insumo_request" ADD COLUMN IF NOT EXISTS patient_name VARCHAR(150) DEFAULT \'\';'))
+                conn.execute(text('ALTER TABLE "insumo_request" ADD COLUMN IF NOT EXISTS convenio VARCHAR(100) DEFAULT \'\';'))
+                conn.execute(text('ALTER TABLE "insumo_request" ADD COLUMN IF NOT EXISTS expediente VARCHAR(50) DEFAULT \'\';'))
+                
+                conn.commit()
+                print("Migración automática de esquema SQL completada exitosamente.")
+        except Exception as e:
+            print("Aviso de migración de esquema:", e)
 
+        # 3. Insertar usuarios iniciales usando SQL directo para evitar errores de mapeo previo si la tabla estaba desactualizada
+        try:
+            with db.engine.connect() as conn:
+                user_count = conn.execute(text('SELECT COUNT(*) FROM "user"')).scalar()
+                if user_count == 0:
+                    conn.execute(text("""
+                        INSERT INTO "user" (name, role, pin, vistas_permitidas, acciones_permitidas)
+                        VALUES 
+                        ('David Gonzalez Mendoza', 'Administrador', '5678', 'terminal,costos,etiquetas,alta_insumos,inventario,controlados,limpieza,rol_semanal,solicitud_insumos,autorizaciones,estado_autorizaciones,bitacora,usuarios', 'surtir,modificar,eliminar,autorizar'),
+                        ('Alfonso Salvador Guzman Reyes', 'Autorizador', '1234', 'terminal,costos,etiquetas,alta_insumos,inventario,controlados,limpieza,rol_semanal,solicitud_insumos,autorizaciones,estado_autorizaciones,bitacora', 'surtir,modificar,autorizar'),
+                        ('Hannia Martinez Salas', 'Enfermería', '1122', 'terminal,costos,etiquetas,solicitud_insumos,estado_autorizaciones', 'surtir')
+                    """))
+                    conn.commit()
+        except Exception as e:
+            print("Aviso al sembrar usuarios iniciales:", e)
+
+# Ejecutar la semilla al arrancar el servidor
 seed_database()
 
 if __name__ == "__main__":
