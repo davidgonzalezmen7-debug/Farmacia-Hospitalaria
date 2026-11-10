@@ -5,6 +5,7 @@ import random
 import io
 from flask import Flask, render_template_string, request, redirect, url_for, flash, session, send_file
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import text
 
 # Dependencias para generación de PDF y Reportes
 from reportlab.lib.pagesizes import letter
@@ -115,9 +116,9 @@ class WeeklySchedule(db.Model):
 class InsumoRequest(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     timestamp = db.Column(db.DateTime, default=get_local_now)
-    patient_name = db.Column(db.String(150), nullable=False)
-    convenio = db.Column(db.String(100), nullable=False)
-    expediente = db.Column(db.String(50), nullable=False)
+    patient_name = db.Column(db.String(150), nullable=True)
+    convenio = db.Column(db.String(100), nullable=True)
+    expediente = db.Column(db.String(50), nullable=True)
     insumo_solicitado = db.Column(db.String(150), nullable=False)
     cantidad = db.Column(db.Integer, nullable=False)
     solicitante_nombre = db.Column(db.String(100), nullable=False)
@@ -218,7 +219,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     <i class="fa-solid fa-list-check"></i> Autorizaciones
                 </a>
 
-                <!-- NUEVA PESTAÑA: ESTADO DE AUTORIZACIONES -->
+                <!-- PESTAÑA: ESTADO DE AUTORIZACIONES -->
                 <a href="/terminal?view=estado_autorizaciones" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'estado_autorizaciones' %}bg-violet-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-violet-100{% endif %}">
                     <i class="fa-solid fa-clipboard-list"></i> Estado de Autorizaciones
                 </a>
@@ -405,7 +406,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                     <form action="/process_insumo_request" method="POST" class="flex flex-col gap-2">
                                         <input type="hidden" name="request_id" value="{{ req.id }}">
                                         <div class="grid grid-cols-2 gap-1">
-                                            <!-- Permite escribir manual o seleccionar del inventario con datalist -->
                                             <input type="text" list="items_list" name="insumo_final" value="{{ req.insumo_solicitado }}" placeholder="Sustituir insumo..." class="p-1.5 border rounded text-[11px] bg-white font-medium">
                                             <input type="number" min="1" name="cantidad_final" value="{{ req.cantidad }}" placeholder="Cant." class="p-1.5 border rounded text-[11px] bg-white text-center font-bold">
                                         </div>
@@ -429,7 +429,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             </div>
         </div>
 
-        <!-- ==================== VISTA: ESTADO DE AUTORIZACIONES (NUEVA) ==================== -->
+        <!-- ==================== VISTA: ESTADO DE AUTORIZACIONES ==================== -->
         {% elif view == 'estado_autorizaciones' %}
         <div class="space-y-6">
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
@@ -2181,7 +2181,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             document.getElementById('edit_user_name').value = name;
             document.getElementById('edit_user_role').value = role;
             document.getElementById('edit_user_pin').value = pin;
-            // Marcar checkboxes según permisos guardados
             if(acciones) {
                 document.getElementById('perm_surtir').checked = acciones.includes('surtir');
                 document.getElementById('perm_modificar').checked = acciones.includes('modificar');
@@ -2314,7 +2313,6 @@ def index():
 
 @app.route("/terminal")
 def terminal():
-    # Autenticación obligatoria previa
     if not session.get('user_id'):
         flash("Debe iniciar sesión con su PIN para visualizar el sistema.", "error")
         return redirect(url_for('login'))
@@ -2791,7 +2789,6 @@ def auth_admin_controlled():
 def save_user():
     u_id = request.form.get("user_id")
     
-    # Recopilar acciones permitidas seleccionadas
     acciones = []
     if request.form.get("accion_surtir"): acciones.append("surtir")
     if request.form.get("accion_modificar"): acciones.append("modificar")
@@ -2799,7 +2796,6 @@ def save_user():
     if request.form.get("accion_autorizar"): acciones.append("autorizar")
     acciones_str = ",".join(acciones)
 
-    # Recopilar vistas permitidas seleccionadas
     vistas = []
     for v in ['terminal', 'costos', 'etiquetas', 'alta_insumos', 'inventario', 'controlados', 'limpieza', 'rol_semanal', 'solicitud_insumos', 'autorizaciones', 'estado_autorizaciones', 'bitacora']:
         if request.form.get("vista_" + v):
@@ -2844,10 +2840,23 @@ def delete_movement():
         flash("Movimiento eliminado.", "success")
     return redirect(url_for("terminal", view="bitacora"))
 
-# INICIALIZACIÓN DE LA BASE DE DATOS
+# INICIALIZACIÓN Y AUTO-MIGRACIÓN DE LA BASE DE DATOS
 def seed_database():
     with app.app_context():
         db.create_all()
+        
+        # Auto-parche para agregar columnas faltantes en bases de datos existentes en PostgreSQL o SQLite
+        try:
+            with db.engine.connect() as conn:
+                conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS vistas_permitidas VARCHAR(500) DEFAULT ""'))
+                conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS acciones_permitidas VARCHAR(500) DEFAULT ""'))
+                conn.execute(text('ALTER TABLE "insumo_request" ADD COLUMN IF NOT EXISTS patient_name VARCHAR(150) DEFAULT ""'))
+                conn.execute(text('ALTER TABLE "insumo_request" ADD COLUMN IF NOT EXISTS convenio VARCHAR(100) DEFAULT ""'))
+                conn.execute(text('ALTER TABLE "insumo_request" ADD COLUMN IF NOT EXISTS expediente VARCHAR(50) DEFAULT ""'))
+                conn.commit()
+        except Exception as e:
+            print("Nota de migración automática:", e)
+
         if User.query.count() == 0:
             db.session.add_all([
                 User(name="David Gonzalez Mendoza", role="Administrador", pin="5678"),
