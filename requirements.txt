@@ -1,5 +1,5 @@
 Flask
 Flask-SQLAlchemy
-psycopg[binary]
+reportlab
 gunicorn
-reportlab==4.1.0
+psycopg2-binary
