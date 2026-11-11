@@ -112,7 +112,6 @@ class WeeklySchedule(db.Model):
     actividad = db.Column(db.String(150), nullable=False)
     estado = db.Column(db.String(20), default="Pendiente")
 
-# MODELO DE SOLICITUDES DE INSUMOS
 class InsumoRequest(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     timestamp = db.Column(db.DateTime, default=get_local_now)
@@ -122,7 +121,7 @@ class InsumoRequest(db.Model):
     insumo_solicitado = db.Column(db.String(150), nullable=False)
     cantidad = db.Column(db.Integer, nullable=False)
     solicitante_nombre = db.Column(db.String(100), nullable=False)
-    estado = db.Column(db.String(30), default="Pendiente") # 'Pendiente', 'Aprobado', 'Modificado', 'Rechazado'
+    estado = db.Column(db.String(30), default="Pendiente")
     insumo_autorizado = db.Column(db.String(150), nullable=True)
     cantidad_autorizada = db.Column(db.Integer, nullable=True)
     autorizador_nombre = db.Column(db.String(100), nullable=True)
@@ -151,7 +150,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800 font-sans">
     
-    <!-- BARRA DE NAVEGACIÓN SUPERIOR CON SESIÓN Y NIVELES DE AUTORIZACIÓN -->
     <header class="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white shadow-lg sticky top-0 z-40 no-print">
         <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col md:flex-row justify-between items-center gap-4">
             <div class="flex items-center gap-3">
@@ -181,55 +179,88 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             </div>
         </div>
 
-        <!-- MENÚ DE PESTAÑAS INTEGRADO CON PERMISOS POR ROL -->
+        <!-- MENÚ DE PESTAÑAS DINÁMICO RESTRINGIDO POR PERMISOS -->
         <div class="bg-slate-950/60 border-t border-white/10 px-4 py-2 overflow-x-auto">
             <nav class="max-w-7xl mx-auto flex flex-wrap gap-1 text-xs font-bold">
+                {% set user_vistas = session.get('vistas_permitidas', '') %}
+                
+                {% if 'terminal' in user_vistas or session.get('user_role') == 'Administrador' %}
                 <a href="/terminal?view=terminal" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'terminal' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
                     <i class="fa-solid fa-prescription-bottle-medical"></i> Surtido Múltiple
                 </a>
+                {% endif %}
+
+                {% if 'costos' in user_vistas or session.get('user_role') == 'Administrador' %}
                 <a href="/terminal?view=costos" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'costos' %}bg-emerald-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-emerald-100{% endif %}">
                     <i class="fa-solid fa-file-invoice-dollar"></i> Cargo Costos
                 </a>
+                {% endif %}
+
+                {% if 'etiquetas' in user_vistas or session.get('user_role') == 'Administrador' %}
                 <a href="/terminal?view=etiquetas" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'etiquetas' %}bg-purple-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-purple-100{% endif %}">
                     <i class="fa-solid fa-tags"></i> Generar Etiquetas
                 </a>
+                {% endif %}
+
+                {% if 'alta_insumos' in user_vistas or session.get('user_role') == 'Administrador' %}
                 <a href="/terminal?view=alta_insumos" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'alta_insumos' %}bg-emerald-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-emerald-100{% endif %}">
                     <i class="fa-solid fa-plus-circle"></i> Alta Insumos
                 </a>
+                {% endif %}
+
+                {% if 'inventario' in user_vistas or session.get('user_role') == 'Administrador' %}
                 <a href="/terminal?view=inventario" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'inventario' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
                     <i class="fa-solid fa-boxes-stacked"></i> Inventario
                 </a>
+                {% endif %}
+
+                {% if 'controlados' in user_vistas or session.get('user_role') == 'Administrador' %}
                 <a href="/terminal?view=controlados" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'controlados' %}bg-rose-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-rose-100{% endif %}">
                     <i class="fa-solid fa-capsules"></i> Controlados
                 </a>
+                {% endif %}
+
+                {% if 'limpieza' in user_vistas or session.get('user_role') == 'Administrador' %}
                 <a href="/terminal?view=limpieza" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'limpieza' %}bg-teal-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-teal-100{% endif %}">
                     <i class="fa-solid fa-broom"></i> Limpieza
                 </a>
+                {% endif %}
+
+                {% if 'rol_semanal' in user_vistas or session.get('user_role') == 'Administrador' %}
                 <a href="/terminal?view=rol_semanal" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'rol_semanal' %}bg-indigo-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-indigo-100{% endif %}">
                     <i class="fa-solid fa-calendar-days"></i> Rol Semanal
                 </a>
+                {% endif %}
                 
-                <!-- PESTAÑA: SOLICITUD DE INSUMOS -->
+                {% if 'solicitud_insumos' in user_vistas or session.get('user_role') == 'Administrador' %}
                 <a href="/terminal?view=solicitud_insumos" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'solicitud_insumos' %}bg-cyan-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-cyan-100{% endif %}">
                     <i class="fa-solid fa-hand-holding-medical"></i> Solicitud Insumos
                 </a>
+                {% endif %}
 
-                <!-- PESTAÑA: AUTORIZACIONES -->
+                {% if 'autorizaciones' in user_vistas or session.get('user_role') == 'Administrador' %}
                 <a href="/terminal?view=autorizaciones" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'autorizaciones' %}bg-amber-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-amber-100{% endif %}">
                     <i class="fa-solid fa-list-check"></i> Autorizaciones
                 </a>
+                {% endif %}
 
-                <!-- PESTAÑA: ESTADO DE AUTORIZACIONES -->
+                {% if 'estado_autorizaciones' in user_vistas or session.get('user_role') == 'Administrador' %}
                 <a href="/terminal?view=estado_autorizaciones" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'estado_autorizaciones' %}bg-violet-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-violet-100{% endif %}">
                     <i class="fa-solid fa-clipboard-list"></i> Estado de Autorizaciones
                 </a>
+                {% endif %}
 
+                {% if 'bitacora' in user_vistas or session.get('user_role') == 'Administrador' %}
                 <a href="/terminal?view=bitacora" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'bitacora' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
                     <i class="fa-solid fa-clock-rotate-left"></i> Bitácora
                 </a>
+                {% endif %}
+
+                {% if 'usuarios' in user_vistas or session.get('user_role') == 'Administrador' %}
                 <a href="/terminal?view=usuarios" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'usuarios' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
                     <i class="fa-solid fa-lock"></i> Usuarios
                 </a>
+                {% endif %}
             </nav>
         </div>
     </header>
@@ -258,7 +289,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             {% endfor %}
         </datalist>
 
-        <!-- ==================== VISTA: SOLICITUD DE INSUMOS ==================== -->
         {% if view == 'solicitud_insumos' %}
         <div class="max-w-3xl mx-auto space-y-6">
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
@@ -312,7 +342,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 </form>
             </div>
 
-            <!-- Listado de Solicitudes Recientes -->
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                 <h3 class="text-xs font-bold text-slate-700 uppercase mb-3"><i class="fa-solid fa-clock-rotate-left"></i> Historial de Solicitudes Realizadas</h3>
                 <div class="overflow-x-auto">
@@ -356,7 +385,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             </div>
         </div>
 
-        <!-- ==================== VISTA: AUTORIZACIONES ==================== -->
         {% elif view == 'autorizaciones' %}
         <div class="space-y-6">
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
@@ -429,7 +457,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             </div>
         </div>
 
-        <!-- ==================== VISTA: ESTADO DE AUTORIZACIONES ==================== -->
         {% elif view == 'estado_autorizaciones' %}
         <div class="space-y-6">
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
@@ -494,7 +521,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             </div>
         </div>
 
-        <!-- ==================== VISTA: ROL SEMANAL POR USUARIOS (EXCLUYE ADMIN) ==================== -->
         {% elif view == 'rol_semanal' %}
         <div class="space-y-6">
             <div class="bg-gradient-to-r from-indigo-900 to-slate-900 text-white p-6 rounded-2xl shadow-md border border-indigo-800 flex flex-col md:flex-row justify-between items-center gap-4">
@@ -578,7 +604,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             </div>
         </div>
 
-        <!-- ==================== VISTA: CARGO COSTOS CON FILTRO REAL POR FECHA/DÍA ==================== -->
         {% elif view == 'costos' %}
         <div class="space-y-6">
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
@@ -590,7 +615,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         <p class="text-xs text-slate-500">Agregue varios insumos a la lista de cargo para un paciente y regístrelos por turno.</p>
                     </div>
 
-                    <!-- BARRA DE FILTRO REAL POR FECHA O DÍA -->
                     <form action="/terminal" method="GET" class="flex flex-wrap items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200 no-print">
                         <input type="hidden" name="view" value="costos">
                         
@@ -732,9 +756,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 </form>
             </div>
 
-            <!-- Tarjetas Independientes por Turno -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Matutino -->
                 <div class="bg-white p-5 rounded-2xl shadow-sm border border-amber-200">
                     <h3 class="text-sm font-bold text-amber-800 flex items-center justify-between border-b pb-3 mb-3">
                         <span><i class="fa-solid fa-sun text-amber-500 mr-2"></i> Ventana - Turno Matutino</span>
@@ -773,7 +795,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     </div>
                 </div>
 
-                <!-- Vespertino -->
                 <div class="bg-white p-5 rounded-2xl shadow-sm border border-orange-200">
                     <h3 class="text-sm font-bold text-orange-800 flex items-center justify-between border-b pb-3 mb-3">
                         <span><i class="fa-solid fa-cloud-sun text-orange-500 mr-2"></i> Ventana - Turno Vespertino</span>
@@ -812,7 +833,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     </div>
                 </div>
 
-                <!-- Nocturno A -->
                 <div class="bg-white p-5 rounded-2xl shadow-sm border border-indigo-200">
                     <h3 class="text-sm font-bold text-indigo-800 flex items-center justify-between border-b pb-3 mb-3">
                         <span><i class="fa-solid fa-moon text-indigo-500 mr-2"></i> Ventana - Turno Nocturno A</span>
@@ -851,7 +871,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     </div>
                 </div>
 
-                <!-- Nocturno B -->
                 <div class="bg-white p-5 rounded-2xl shadow-sm border border-purple-200">
                     <h3 class="text-sm font-bold text-purple-800 flex items-center justify-between border-b pb-3 mb-3">
                         <span><i class="fa-solid fa-star text-purple-500 mr-2"></i> Ventana - Turno Nocturno B</span>
@@ -892,7 +911,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             </div>
         </div>
 
-        <!-- ==================== VISTA: CONTROLADOS CON ARQUEO Y CONCILIACIÓN ==================== -->
         {% elif view == 'controlados' %}
         <div class="space-y-6">
             {% if is_admin_controlled %}
@@ -1083,7 +1101,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             </div>
         </div>
 
-        <!-- MODAL DESBLOQUEAR ARQUEO CONTROLADOS -->
         <div id="unlockArqueoModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border space-y-4">
                 <div class="flex justify-between items-center border-b pb-2">
@@ -1103,7 +1120,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             </div>
         </div>
 
-        <!-- MODAL ELIMINAR REGISTRO CONTROLADO -->
         <div id="deleteControlledModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border space-y-4">
                 <div class="flex justify-between items-center border-b pb-2">
@@ -1123,7 +1139,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             </div>
         </div>
 
-        <!-- ==================== VISTA: SURTIDO MÚLTIPLE ==================== -->
         {% elif view == 'terminal' %}
         <div class="space-y-6 max-w-5xl mx-auto">
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
@@ -1280,7 +1295,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             </form>
         </div>
 
-        <!-- ==================== VISTA: GENERAR ETIQUETAS (51x25 mm) ==================== -->
         {% elif view == 'etiquetas' %}
         <div class="space-y-6 max-w-5xl mx-auto">
             <form action="/save_patient_from_label" method="POST" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 no-print">
@@ -1440,7 +1454,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             </div>
         </div>
 
-        <!-- ==================== VISTA: INVENTARIO Y EXISTENCIAS ==================== -->
         {% elif view == 'inventario' %}
         <div class="space-y-6">
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
@@ -1531,7 +1544,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             </div>
         </div>
 
-        <!-- MODAL EDITAR INVENTARIO -->
         <div id="editModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border space-y-4 max-h-[90vh] overflow-y-auto">
                 <div class="flex justify-between items-center border-b pb-2">
@@ -1597,7 +1609,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             </div>
         </div>
 
-        <!-- MODAL ELIMINAR INSUMO -->
         <div id="deleteItemModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border space-y-4">
                 <div class="flex justify-between items-center border-b pb-2">
@@ -1618,7 +1629,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             </div>
         </div>
 
-        <!-- ==================== VISTA: ALTA DE INSUMOS ==================== -->
         {% elif view == 'alta_insumos' %}
         <div class="space-y-6 max-w-xl mx-auto">
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
@@ -1691,7 +1701,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             </div>
         </div>
 
-        <!-- ==================== VISTA: LIMPIEZA ==================== -->
         {% elif view == 'limpieza' %}
         <div class="space-y-6">
             <div class="bg-gradient-to-r from-teal-900 to-slate-900 text-white p-6 rounded-2xl shadow-md border border-teal-800">
@@ -1828,7 +1837,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             </div>
         </div>
 
-        <!-- ==================== VISTA: BITÁCORA ==================== -->
         {% elif view == 'bitacora' %}
         <div class="space-y-6">
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
@@ -1888,7 +1896,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             </div>
         </div>
 
-        <!-- ==================== VISTA: USUARIOS ==================== -->
         {% elif view == 'usuarios' %}
         {% if not is_admin %}
         <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 max-w-md mx-auto text-center space-y-4">
@@ -1923,7 +1930,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         <input type="password" name="pin" id="edit_user_pin" required placeholder="PIN" class="w-full p-2.5 border rounded-xl text-sm outline-none font-mono">
                     </div>
 
-                    <!-- Configuración de Permisos por Administrador -->
                     <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
                         <label class="block text-xs font-bold text-slate-700 uppercase"><i class="fa-solid fa-shield-halved text-blue-600"></i> Qué Puede Hacer (Acciones)</label>
                         <div class="grid grid-cols-2 gap-1 text-xs">
@@ -2217,7 +2223,11 @@ def login():
             session['vistas_permitidas'] = user.vistas_permitidas or ""
             session['acciones_permitidas'] = user.acciones_permitidas or ""
             flash(f"Bienvenido(a), {user.name} ({user.role})", "success")
-            return redirect(url_for('terminal', view='costos'))
+            
+            # Redirigir a la primera vista permitida
+            vistas = [v.strip() for v in (user.vistas_permitidas or "").split(",") if v.strip()]
+            first_view = vistas[0] if vistas else "costos"
+            return redirect(url_for('terminal', view=first_view))
         else:
             flash("PIN incorrecto. Intente de nuevo.", "error")
             
@@ -2318,6 +2328,15 @@ def terminal():
         return redirect(url_for('login'))
 
     view = request.args.get("view", "costos")
+    user_role = session.get('user_role', '')
+    user_vistas = session.get('vistas_permitidas', '')
+
+    # SEGURIDAD BACKEND: Impedir acceso por URL si no tiene la vista permitida
+    if user_role != "Administrador" and view not in user_vistas:
+        flash("No cuenta con permisos para acceder a esta sección.", "error")
+        vistas_disponibles = [v.strip() for v in user_vistas.split(',') if v.strip()]
+        default_view = vistas_disponibles[0] if vistas_disponibles else "costos"
+        return redirect(url_for('terminal', view=default_view))
     
     items = Item.query.order_by(Item.name, Item.lote).all()
     users = User.query.order_by(User.name).all()
@@ -2433,7 +2452,6 @@ def toggle_weekly_task():
         db.session.commit()
     return redirect(url_for("terminal", view="rol_semanal"))
 
-# RUTAS DE SOLICITUDES Y AUTORIZACIONES CON PACIENTE, CONVENIO Y EXPEDIENTE
 @app.route("/submit_insumo_request", methods=["POST"])
 def submit_insumo_request():
     patient_name = request.form.get("patient_name")
@@ -2492,7 +2510,6 @@ def process_insumo_request():
     
     return redirect(url_for("terminal", view="autorizaciones"))
 
-# RUTAS DE REPORTES PDF
 @app.route("/imprimir_costos_pdf")
 def imprimir_costos_pdf():
     filtro_fecha = request.args.get("filtro_fecha", "").strip()
@@ -2623,7 +2640,6 @@ def imprimir_etiqueta_pdf():
     buffer.seek(0)
     return send_file(buffer, as_attachment=False, mimetype="application/pdf", download_name="etiqueta_51x25.pdf")
 
-# RUTAS ADICIONALES DE MOVIMIENTOS Y REGISTROS
 @app.route("/add_cost_cargo_batch", methods=["POST"])
 def add_cost_cargo_batch():
     user = User.query.get(request.form.get("user_id"))
@@ -2797,7 +2813,7 @@ def save_user():
     acciones_str = ",".join(acciones)
 
     vistas = []
-    for v in ['terminal', 'costos', 'etiquetas', 'alta_insumos', 'inventario', 'controlados', 'limpieza', 'rol_semanal', 'solicitud_insumos', 'autorizaciones', 'estado_autorizaciones', 'bitacora']:
+    for v in ['terminal', 'costos', 'etiquetas', 'alta_insumos', 'inventario', 'controlados', 'limpieza', 'rol_semanal', 'solicitud_insumos', 'autorizaciones', 'estado_autorizaciones', 'bitacora', 'usuarios']:
         if request.form.get("vista_" + v):
             vistas.append(v)
     vistas_str = ",".join(vistas)
@@ -2840,55 +2856,22 @@ def delete_movement():
         flash("Movimiento eliminado.", "success")
     return redirect(url_for("terminal", view="bitacora"))
 
-# INICIALIZACIÓN Y AUTO-MIGRACIÓN DE LA BASE DE DATOS
-def seed_database():
-    with app.app_context():
-        db.create_all()
-        
-        # Auto-parche para agregar columnas faltantes en bases de datos existentes en PostgreSQL o SQLite
-        try:
-            with db.engine.connect() as conn:
-                conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS vistas_permitidas VARCHAR(500) DEFAULT ""'))
-                conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS acciones_permitidas VARCHAR(500) DEFAULT ""'))
-                conn.execute(text('ALTER TABLE "insumo_request" ADD COLUMN IF NOT EXISTS patient_name VARCHAR(150) DEFAULT ""'))
-                conn.execute(text('ALTER TABLE "insumo_request" ADD COLUMN IF NOT EXISTS convenio VARCHAR(100) DEFAULT ""'))
-                conn.execute(text('ALTER TABLE "insumo_request" ADD COLUMN IF NOT EXISTS expediente VARCHAR(50) DEFAULT ""'))
-                conn.commit()
-        except Exception as e:
-            print("Nota de migración automática:", e)
-
-        if User.query.count() == 0:
-            db.session.add_all([
-                User(name="David Gonzalez Mendoza", role="Administrador", pin="5678"),
-                User(name="Alfonso Salvador Guzman Reyes", role="Autorizador", pin="1234"),
-                User(name="Hannia Martinez Salas", role="Enfermería", pin="1122")
-            ])
-            db.session.commit()
-            
 # INICIALIZACIÓN Y AUTO-MIGRACIÓN ROBUSTA DE BASE DE DATOS
 def seed_database():
     with app.app_context():
-        # 1. Crear las tablas que no existan
         db.create_all()
         
-        # 2. Ejecutar la alteración de columnas usando SQL directo antes de cualquier consulta del ORM
         try:
             with db.engine.connect() as conn:
-                # Agregar columnas faltantes en la tabla 'user' si ya existía de un despliegue previo
                 conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS vistas_permitidas VARCHAR(500) DEFAULT \'terminal,costos,etiquetas,alta_insumos,inventario,controlados,limpieza,rol_semanal,solicitud_insumos,autorizaciones,estado_autorizaciones,bitacora,usuarios\';'))
                 conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS acciones_permitidas VARCHAR(500) DEFAULT \'surtir,modificar,eliminar,autorizar\';'))
-                
-                # Agregar columnas en 'insumo_request' si aplicara
                 conn.execute(text('ALTER TABLE "insumo_request" ADD COLUMN IF NOT EXISTS patient_name VARCHAR(150) DEFAULT \'\';'))
                 conn.execute(text('ALTER TABLE "insumo_request" ADD COLUMN IF NOT EXISTS convenio VARCHAR(100) DEFAULT \'\';'))
                 conn.execute(text('ALTER TABLE "insumo_request" ADD COLUMN IF NOT EXISTS expediente VARCHAR(50) DEFAULT \'\';'))
-                
                 conn.commit()
-                print("Migración automática de esquema SQL completada exitosamente.")
         except Exception as e:
             print("Aviso de migración de esquema:", e)
 
-        # 3. Insertar usuarios iniciales usando SQL directo para evitar errores de mapeo previo si la tabla estaba desactualizada
         try:
             with db.engine.connect() as conn:
                 user_count = conn.execute(text('SELECT COUNT(*) FROM "user"')).scalar()
@@ -2904,7 +2887,6 @@ def seed_database():
         except Exception as e:
             print("Aviso al sembrar usuarios iniciales:", e)
 
-# Ejecutar la semilla al arrancar el servidor
 seed_database()
 
 if __name__ == "__main__":
