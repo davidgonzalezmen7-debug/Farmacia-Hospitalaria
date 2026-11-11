@@ -41,7 +41,7 @@ db = SQLAlchemy(app)
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
-    role = db.Column(db.String(50), nullable=False) # 'Administrador', 'Autorizador', 'Farmacéutico', 'Enfermería', etc.
+    role = db.Column(db.String(50), nullable=False)
     pin = db.Column(db.String(20), nullable=False, unique=True)
     vistas_permitidas = db.Column(db.String(500), default="terminal,costos,etiquetas,alta_insumos,inventario,controlados,limpieza,rol_semanal,solicitud_insumos,autorizaciones,estado_autorizaciones,bitacora,usuarios")
     acciones_permitidas = db.Column(db.String(500), default="surtir,modificar,eliminar,autorizar")
@@ -74,7 +74,7 @@ class Movement(db.Model):
     warehouse = db.Column(db.String(50), nullable=False)
     service = db.Column(db.String(100), nullable=True)
     patient_name = db.Column(db.String(150), nullable=True)
-    patient_id = db.Column(db.String(50), nullable=True)
+    patient_id = db.Column(db.String(50), nullable=True) # Expediente / Cama
     room = db.Column(db.String(50), nullable=True)
     shift = db.Column(db.String(50), nullable=True)
     is_cost_cargo = db.Column(db.Boolean, default=False)
@@ -179,84 +179,85 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             </div>
         </div>
 
-        <!-- MENÚ DE PESTAÑAS DINÁMICO RESTRINGIDO POR PERMISOS -->
+        <!-- MENÚ DE PESTAÑAS ESTRICTAMENTE FILTRADO POR PERMISOS DE SESIÓN -->
         <div class="bg-slate-950/60 border-t border-white/10 px-4 py-2 overflow-x-auto">
             <nav class="max-w-7xl mx-auto flex flex-wrap gap-1 text-xs font-bold">
-                {% set user_vistas = session.get('vistas_permitidas', '') %}
+                {% set user_vistas = session.get('vistas_permitidas', []) %}
+                {% set is_admin = (session.get('user_role') == 'Administrador') %}
                 
-                {% if 'terminal' in user_vistas or session.get('user_role') == 'Administrador' %}
+                {% if 'terminal' in user_vistas or is_admin %}
                 <a href="/terminal?view=terminal" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'terminal' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
                     <i class="fa-solid fa-prescription-bottle-medical"></i> Surtido Múltiple
                 </a>
                 {% endif %}
 
-                {% if 'costos' in user_vistas or session.get('user_role') == 'Administrador' %}
+                {% if 'costos' in user_vistas or is_admin %}
                 <a href="/terminal?view=costos" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'costos' %}bg-emerald-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-emerald-100{% endif %}">
                     <i class="fa-solid fa-file-invoice-dollar"></i> Cargo Costos
                 </a>
                 {% endif %}
 
-                {% if 'etiquetas' in user_vistas or session.get('user_role') == 'Administrador' %}
+                {% if 'etiquetas' in user_vistas or is_admin %}
                 <a href="/terminal?view=etiquetas" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'etiquetas' %}bg-purple-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-purple-100{% endif %}">
                     <i class="fa-solid fa-tags"></i> Generar Etiquetas
                 </a>
                 {% endif %}
 
-                {% if 'alta_insumos' in user_vistas or session.get('user_role') == 'Administrador' %}
+                {% if 'alta_insumos' in user_vistas or is_admin %}
                 <a href="/terminal?view=alta_insumos" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'alta_insumos' %}bg-emerald-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-emerald-100{% endif %}">
                     <i class="fa-solid fa-plus-circle"></i> Alta Insumos
                 </a>
                 {% endif %}
 
-                {% if 'inventario' in user_vistas or session.get('user_role') == 'Administrador' %}
+                {% if 'inventario' in user_vistas or is_admin %}
                 <a href="/terminal?view=inventario" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'inventario' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
                     <i class="fa-solid fa-boxes-stacked"></i> Inventario
                 </a>
                 {% endif %}
 
-                {% if 'controlados' in user_vistas or session.get('user_role') == 'Administrador' %}
+                {% if 'controlados' in user_vistas or is_admin %}
                 <a href="/terminal?view=controlados" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'controlados' %}bg-rose-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-rose-100{% endif %}">
                     <i class="fa-solid fa-capsules"></i> Controlados
                 </a>
                 {% endif %}
 
-                {% if 'limpieza' in user_vistas or session.get('user_role') == 'Administrador' %}
+                {% if 'limpieza' in user_vistas or is_admin %}
                 <a href="/terminal?view=limpieza" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'limpieza' %}bg-teal-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-teal-100{% endif %}">
                     <i class="fa-solid fa-broom"></i> Limpieza
                 </a>
                 {% endif %}
 
-                {% if 'rol_semanal' in user_vistas or session.get('user_role') == 'Administrador' %}
+                {% if 'rol_semanal' in user_vistas or is_admin %}
                 <a href="/terminal?view=rol_semanal" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'rol_semanal' %}bg-indigo-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-indigo-100{% endif %}">
                     <i class="fa-solid fa-calendar-days"></i> Rol Semanal
                 </a>
                 {% endif %}
                 
-                {% if 'solicitud_insumos' in user_vistas or session.get('user_role') == 'Administrador' %}
+                {% if 'solicitud_insumos' in user_vistas or is_admin %}
                 <a href="/terminal?view=solicitud_insumos" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'solicitud_insumos' %}bg-cyan-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-cyan-100{% endif %}">
                     <i class="fa-solid fa-hand-holding-medical"></i> Solicitud Insumos
                 </a>
                 {% endif %}
 
-                {% if 'autorizaciones' in user_vistas or session.get('user_role') == 'Administrador' %}
+                {% if 'autorizaciones' in user_vistas or is_admin %}
                 <a href="/terminal?view=autorizaciones" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'autorizaciones' %}bg-amber-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-amber-100{% endif %}">
                     <i class="fa-solid fa-list-check"></i> Autorizaciones
                 </a>
                 {% endif %}
 
-                {% if 'estado_autorizaciones' in user_vistas or session.get('user_role') == 'Administrador' %}
+                {% if 'estado_autorizaciones' in user_vistas or is_admin %}
                 <a href="/terminal?view=estado_autorizaciones" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'estado_autorizaciones' %}bg-violet-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-violet-100{% endif %}">
                     <i class="fa-solid fa-clipboard-list"></i> Estado de Autorizaciones
                 </a>
                 {% endif %}
 
-                {% if 'bitacora' in user_vistas or session.get('user_role') == 'Administrador' %}
+                {% if 'bitacora' in user_vistas or is_admin %}
                 <a href="/terminal?view=bitacora" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'bitacora' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
                     <i class="fa-solid fa-clock-rotate-left"></i> Bitácora
                 </a>
                 {% endif %}
 
-                {% if 'usuarios' in user_vistas or session.get('user_role') == 'Administrador' %}
+                {% if 'usuarios' in user_vistas or is_admin %}
                 <a href="/terminal?view=usuarios" class="px-2.5 py-2 rounded-xl transition flex items-center gap-1.5 {% if view == 'usuarios' %}bg-blue-600 text-white shadow{% else %}bg-white/10 hover:bg-white/20 text-blue-100{% endif %}">
                     <i class="fa-solid fa-lock"></i> Usuarios
                 </a>
@@ -667,7 +668,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-700 uppercase mb-1">No. de Expediente</label>
-                            <input type="text" name="patient_id" id="costos_patient_id" required placeholder="Ej. EXP-1092" class="w-full p-2 border rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 outline-none bg-white">
+                            <input type="text" name="patient_id" id="costos_patient_id" required placeholder="Ej. EXP-1092" class="w-full p-2 border rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 outline-none bg-white font-mono">
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Turno de Atención</label>
@@ -782,7 +783,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                 {% for c in matutino_cargos %}
                                 <tr class="hover:bg-slate-50">
                                     <td class="p-2 text-[10px] text-slate-500 font-mono">{{ c.timestamp.strftime('%d/%m/%Y %H:%M') }}</td>
-                                    <td class="p-2 font-medium">{{ c.patient_name }}<br><span class="text-[10px] text-slate-400">Exp: {{ c.patient_id }}</span></td>
+                                    <td class="p-2 font-medium">{{ c.patient_name }}<br><span class="text-[10px] text-slate-400 font-mono">Exp: {{ c.patient_id }}</span></td>
                                     <td class="p-2">{{ c.room }}</td>
                                     <td class="p-2">{{ c.item_name }}</td>
                                     <td class="p-2 text-center font-bold text-emerald-600">{{ c.quantity }}</td>
@@ -820,7 +821,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                 {% for c in vespertino_cargos %}
                                 <tr class="hover:bg-slate-50">
                                     <td class="p-2 text-[10px] text-slate-500 font-mono">{{ c.timestamp.strftime('%d/%m/%Y %H:%M') }}</td>
-                                    <td class="p-2 font-medium">{{ c.patient_name }}<br><span class="text-[10px] text-slate-400">Exp: {{ c.patient_id }}</span></td>
+                                    <td class="p-2 font-medium">{{ c.patient_name }}<br><span class="text-[10px] text-slate-400 font-mono">Exp: {{ c.patient_id }}</span></td>
                                     <td class="p-2">{{ c.room }}</td>
                                     <td class="p-2">{{ c.item_name }}</td>
                                     <td class="p-2 text-center font-bold text-emerald-600">{{ c.quantity }}</td>
@@ -858,7 +859,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                 {% for c in nocturno_a_cargos %}
                                 <tr class="hover:bg-slate-50">
                                     <td class="p-2 text-[10px] text-slate-500 font-mono">{{ c.timestamp.strftime('%d/%m/%Y %H:%M') }}</td>
-                                    <td class="p-2 font-medium">{{ c.patient_name }}<br><span class="text-[10px] text-slate-400">Exp: {{ c.patient_id }}</span></td>
+                                    <td class="p-2 font-medium">{{ c.patient_name }}<br><span class="text-[10px] text-slate-400 font-mono">Exp: {{ c.patient_id }}</span></td>
                                     <td class="p-2">{{ c.room }}</td>
                                     <td class="p-2">{{ c.item_name }}</td>
                                     <td class="p-2 text-center font-bold text-emerald-600">{{ c.quantity }}</td>
@@ -896,7 +897,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                 {% for c in nocturno_b_cargos %}
                                 <tr class="hover:bg-slate-50">
                                     <td class="p-2 text-[10px] text-slate-500 font-mono">{{ c.timestamp.strftime('%d/%m/%Y %H:%M') }}</td>
-                                    <td class="p-2 font-medium">{{ c.patient_name }}<br><span class="text-[10px] text-slate-400">Exp: {{ c.patient_id }}</span></td>
+                                    <td class="p-2 font-medium">{{ c.patient_name }}<br><span class="text-[10px] text-slate-400 font-mono">Exp: {{ c.patient_id }}</span></td>
                                     <td class="p-2">{{ c.room }}</td>
                                     <td class="p-2">{{ c.item_name }}</td>
                                     <td class="p-2 text-center font-bold text-emerald-600">{{ c.quantity }}</td>
@@ -1896,6 +1897,48 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             </div>
         </div>
 
+        <!-- MODAL REVERTIR MOVIMIENTO (PIN ADMIN) -->
+        <div id="revertMovementModalBox" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border space-y-4">
+                <div class="flex justify-between items-center border-b pb-2">
+                    <h3 class="font-bold text-slate-900 text-base text-amber-700">Revertir Movimiento</h3>
+                    <button onclick="closeRevertModal()" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
+                </div>
+                <p class="text-xs text-slate-600">Ingrese el PIN de Administrador para autorizar la reversión de este movimiento:</p>
+                <form action="/revert_movement" method="POST" class="space-y-3">
+                    <input type="hidden" name="movement_id" id="modal_revert_movement_id">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">PIN del Administrador</label>
+                        <input type="password" name="admin_pin" required placeholder="PIN de Administrador" class="w-full p-2.5 border rounded-xl text-center text-lg font-bold tracking-widest outline-none">
+                    </div>
+                    <button type="submit" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 rounded-xl transition">
+                        Autorizar Reversión
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- MODAL ELIMINAR MOVIMIENTO (PIN ADMIN) -->
+        <div id="deleteMovementModalBox" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border space-y-4">
+                <div class="flex justify-between items-center border-b pb-2">
+                    <h3 class="font-bold text-slate-900 text-base text-rose-600">Eliminar Movimiento de Bitácora</h3>
+                    <button onclick="closeDeleteMovementModal()" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
+                </div>
+                <p class="text-xs text-slate-600">Ingrese el PIN de Administrador para confirmar la eliminación definitiva:</p>
+                <form action="/delete_movement" method="POST" class="space-y-3">
+                    <input type="hidden" name="movement_id" id="modal_delete_movement_id">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">PIN del Administrador</label>
+                        <input type="password" name="admin_pin" required placeholder="PIN de Administrador" class="w-full p-2.5 border rounded-xl text-center text-lg font-bold tracking-widest outline-none">
+                    </div>
+                    <button type="submit" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-2.5 rounded-xl transition">
+                        Eliminar Definitivamente
+                    </button>
+                </form>
+            </div>
+        </div>
+
         {% elif view == 'usuarios' %}
         {% if not is_admin %}
         <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 max-w-md mx-auto text-center space-y-4">
@@ -2182,6 +2225,11 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         function deleteControlledModal(id) { document.getElementById('modal_delete_controlled_id').value = id; document.getElementById('deleteControlledModal').classList.remove('hidden'); }
         function closeDeleteControlledModal() { document.getElementById('deleteControlledModal').classList.add('hidden'); }
         
+        function revertMovementModal(id) { document.getElementById('modal_revert_movement_id').value = id; document.getElementById('revertMovementModalBox').classList.remove('hidden'); }
+        function closeRevertModal() { document.getElementById('revertMovementModalBox').classList.add('hidden'); }
+        function deleteMovementModal(id) { document.getElementById('modal_delete_movement_id').value = id; document.getElementById('deleteMovementModalBox').classList.remove('hidden'); }
+        function closeDeleteMovementModal() { document.getElementById('deleteMovementModalBox').classList.add('hidden'); }
+
         function editUser(id, name, role, pin, acciones, vistas) {
             document.getElementById('edit_user_id').value = id;
             document.getElementById('edit_user_name').value = name;
@@ -2194,7 +2242,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 document.getElementById('perm_autorizar').checked = acciones.includes('autorizar');
             }
             if(vistas) {
-                ['terminal', 'costos', 'etiquetas', 'alta_insumos', 'inventario', 'controlados', 'limpieza', 'rol_semanal', 'solicitud_insumos', 'autorizaciones', 'estado_autorizaciones', 'bitacora'].forEach(v => {
+                ['terminal', 'costos', 'etiquetas', 'alta_insumos', 'inventario', 'controlados', 'limpieza', 'rol_semanal', 'solicitud_insumos', 'autorizaciones', 'estado_autorizaciones', 'bitacora', 'usuarios'].forEach(v => {
                     const el = document.getElementById('v_' + v);
                     if(el) el.checked = vistas.includes(v);
                 });
@@ -2220,12 +2268,14 @@ def login():
             session['user_id'] = user.id
             session['user_name'] = user.name
             session['user_role'] = user.role
-            session['vistas_permitidas'] = user.vistas_permitidas or ""
+            # Cargar vistas permitidas limpias como lista en sesión
+            vistas_raw = user.vistas_permitidas or ""
+            session['vistas_permitidas'] = [v.strip() for v in vistas_raw.split(",") if v.strip()]
             session['acciones_permitidas'] = user.acciones_permitidas or ""
+            
             flash(f"Bienvenido(a), {user.name} ({user.role})", "success")
             
-            # Redirigir a la primera vista permitida
-            vistas = [v.strip() for v in (user.vistas_permitidas or "").split(",") if v.strip()]
+            vistas = session['vistas_permitidas']
             first_view = vistas[0] if vistas else "costos"
             return redirect(url_for('terminal', view=first_view))
         else:
@@ -2329,13 +2379,12 @@ def terminal():
 
     view = request.args.get("view", "costos")
     user_role = session.get('user_role', '')
-    user_vistas = session.get('vistas_permitidas', '')
+    user_vistas = session.get('vistas_permitidas', [])
 
-    # SEGURIDAD BACKEND: Impedir acceso por URL si no tiene la vista permitida
+    # Validación estricta de seguridad backend para vistas
     if user_role != "Administrador" and view not in user_vistas:
         flash("No cuenta con permisos para acceder a esta sección.", "error")
-        vistas_disponibles = [v.strip() for v in user_vistas.split(',') if v.strip()]
-        default_view = vistas_disponibles[0] if vistas_disponibles else "costos"
+        default_view = user_vistas[0] if user_vistas else "costos"
         return redirect(url_for('terminal', view=default_view))
     
     items = Item.query.order_by(Item.name, Item.lote).all()
@@ -2510,6 +2559,7 @@ def process_insumo_request():
     
     return redirect(url_for("terminal", view="autorizaciones"))
 
+# RUTAS DE REPORTES PDF ACTUALIZADAS CON EXPEDIENTE
 @app.route("/imprimir_costos_pdf")
 def imprimir_costos_pdf():
     filtro_fecha = request.args.get("filtro_fecha", "").strip()
@@ -2528,8 +2578,8 @@ def imprimir_costos_pdf():
     y = height - 40 * mm
     c.setFont("Helvetica-Bold", 9)
     c.drawString(20 * mm, y, "Fecha/Hora")
-    c.drawString(55 * mm, y, "Paciente / Expediente")
-    c.drawString(105 * mm, y, "Hab.")
+    c.drawString(55 * mm, y, "Paciente")
+    c.drawString(100 * mm, y, "Expediente")
     c.drawString(125 * mm, y, "Insumo / Material")
     c.drawString(185 * mm, y, "Cant.")
     
@@ -2541,9 +2591,9 @@ def imprimir_costos_pdf():
             y = height - 25 * mm
         f_str = cgo.timestamp.strftime('%d/%m/%Y %H:%M') if cgo.timestamp else "--"
         c.drawString(20 * mm, y, f_str)
-        c.drawString(55 * mm, y, f"{cgo.patient_name} (Exp: {cgo.patient_id})"[:28])
-        c.drawString(105 * mm, y, str(cgo.room or "-")[:10])
-        c.drawString(125 * mm, y, str(cgo.item_name)[:35])
+        c.drawString(55 * mm, y, str(cgo.patient_name)[:22])
+        c.drawString(100 * mm, y, str(cgo.patient_id or "-")[:12])
+        c.drawString(125 * mm, y, str(cgo.item_name)[:32])
         c.drawRightString(192 * mm, y, str(cgo.quantity))
         y -= 6.5 * mm
 
@@ -2569,6 +2619,7 @@ def imprimir_turno_pdf():
     c.setFont("Helvetica-Bold", 9)
     c.drawString(20 * mm, y, "Fecha/Hora")
     c.drawString(55 * mm, y, "Paciente")
+    c.drawString(100 * mm, y, "Expediente")
     c.drawString(125 * mm, y, "Insumo")
     c.drawString(185 * mm, y, "Cant.")
     
@@ -2579,8 +2630,9 @@ def imprimir_turno_pdf():
             c.showPage()
             y = height - 25 * mm
         c.drawString(20 * mm, y, cgo.timestamp.strftime('%d/%m/%Y %H:%M') if cgo.timestamp else "--")
-        c.drawString(55 * mm, y, str(cgo.patient_name)[:28])
-        c.drawString(125 * mm, y, str(cgo.item_name)[:35])
+        c.drawString(55 * mm, y, str(cgo.patient_name)[:22])
+        c.drawString(100 * mm, y, str(cgo.patient_id or "-")[:12])
+        c.drawString(125 * mm, y, str(cgo.item_name)[:32])
         c.drawRightString(192 * mm, y, str(cgo.quantity))
         y -= 6.5 * mm
 
@@ -2840,20 +2892,30 @@ def save_user():
 
 @app.route("/revert_movement", methods=["POST"])
 def revert_movement():
+    admin_pin = request.form.get("admin_pin")
+    if admin_pin not in ["5678", "1234"]:
+        flash("PIN de Administrador incorrecto.", "error")
+        return redirect(url_for("terminal", view="bitacora"))
+        
     mov = Movement.query.get(request.form.get("movement_id"))
     if mov:
         db.session.delete(mov)
         db.session.commit()
-        flash("Movimiento revertido.", "success")
+        flash("Movimiento revertido correctamente.", "success")
     return redirect(url_for("terminal", view="bitacora"))
 
 @app.route("/delete_movement", methods=["POST"])
 def delete_movement():
+    admin_pin = request.form.get("admin_pin")
+    if admin_pin not in ["5678", "1234"]:
+        flash("PIN de Administrador incorrecto.", "error")
+        return redirect(url_for("terminal", view="bitacora"))
+        
     mov = Movement.query.get(request.form.get("movement_id"))
     if mov:
         db.session.delete(mov)
         db.session.commit()
-        flash("Movimiento eliminado.", "success")
+        flash("Movimiento eliminado correctamente.", "success")
     return redirect(url_for("terminal", view="bitacora"))
 
 # INICIALIZACIÓN Y AUTO-MIGRACIÓN ROBUSTA DE BASE DE DATOS
