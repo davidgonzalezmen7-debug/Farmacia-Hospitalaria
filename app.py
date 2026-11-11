@@ -461,7 +461,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                         <div class="flex gap-1 justify-center">
                                             <button type="submit" name="accion" value="aprobar" class="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded text-[10px]">Aprobar</button>
                                             <button type="submit" name="accion" value="modificar" class="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded text-[10px]">Modificar/Sustituir</button>
-                                            <button type="submit" name="accion" value="rechazar" class="px-2 py-1 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded text-[10px]">Rechazar</button>
+                                            <button type="submit" name="accion" value="rechazar" class="px-2 py-1 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded text-[10px]">Rechazado</button>
                                         </div>
                                     </form>
                                     {% else %}
@@ -555,9 +555,9 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             <div class="bg-gradient-to-r from-indigo-900 to-slate-900 text-white p-6 rounded-2xl shadow-md border border-indigo-800 flex flex-col md:flex-row justify-between items-center gap-4">
                 <div>
                     <h2 class="text-base font-bold flex items-center gap-2">
-                        <i class="fa-solid fa-calendar-days text-indigo-400"></i> Rol Semanal de Actividades por Usuario (Sin Administrador)
+                        <i class="fa-solid fa-calendar-days text-indigo-400"></i> Rol Semanal de Actividades (Exclusivo para Farmacéuticos)
                     </h2>
-                    <p class="text-xs text-indigo-200">Ventana individual por cada integrante del personal con el detalle de actividades asignadas y su estado.</p>
+                    <p class="text-xs text-indigo-200">Ventana individual por cada integrante del personal con rol de Farmacéutico.</p>
                 </div>
                 <div class="flex gap-2">
                     <a href="/generate_random_rol" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow">
@@ -584,7 +584,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                 </div>
                             </div>
                             <span class="bg-indigo-50 text-indigo-700 text-[10px] px-2.5 py-1 rounded-full font-bold border border-indigo-100">
-                                Personal Operativo
+                                Farmacéutico Asignado
                             </span>
                         </div>
 
@@ -618,7 +618,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                         </td>
                                     </tr>
                                     {% else %}
-                                    <tr><td colspan="4" class="p-4 text-center text-slate-400 italic">Sin tareas asignadas a este usuario.</td></tr>
+                                    <tr><td colspan="4" class="p-4 text-center text-slate-400 italic">Sin tareas asignadas a este farmacéutico.</td></tr>
                                     {% endfor %}
                                 </tbody>
                             </table>
@@ -627,7 +627,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 </div>
                 {% else %}
                 <div class="col-span-full bg-white p-8 rounded-2xl text-center text-slate-400 italic border">
-                    No hay usuarios operativos registrados (excluyendo al Administrador).
+                    No hay usuarios con el rol de Farmacéutico registrados en el sistema.
                 </div>
                 {% endfor %}
             </div>
@@ -2416,7 +2416,9 @@ def terminal():
     items = Item.query.order_by(Item.name, Item.lote).all()
     users = User.query.order_by(User.name).all()
     patients = Patient.query.order_by(Patient.name).all()
-    staff_users = User.query.filter(User.role != "Administrador").order_by(User.name).all()
+    
+    # MODIFICACIÓN SOLICITADA: Filtrar staff_users exclusivamente para rol Farmacéutico
+    staff_users = User.query.filter(User.role == "Farmacéutico").order_by(User.name).all()
     
     if WeeklySchedule.query.count() == 0:
         generar_rol_aleatorio_interno()
@@ -2503,7 +2505,8 @@ def generar_rol_aleatorio_interno():
         "Limpieza de anaqueles", "Limpieza de pasillo", "Limpieza de refrigerador",
         "Desecho de cartón", "Cajas de traslado", "Acomodo de medicamento"
     ]
-    personal = User.query.filter(User.role != "Administrador").all()
+    # MODIFICACIÓN SOLICITADA: Asignar funciones exclusivamente a Farmacéuticos
+    personal = User.query.filter(User.role == "Farmacéutico").all()
     if not personal:
         return
 
@@ -2516,7 +2519,7 @@ def generar_rol_aleatorio_interno():
 @app.route("/generate_random_rol")
 def generate_random_rol():
     generar_rol_aleatorio_interno()
-    flash("Rol semanal aleatorio generado con éxito para el personal operativo.", "success")
+    flash("Rol semanal aleatorio generado con éxito para los farmacéuticos.", "success")
     return redirect(url_for("terminal", view="rol_semanal"))
 
 @app.route("/toggle_weekly_task")
