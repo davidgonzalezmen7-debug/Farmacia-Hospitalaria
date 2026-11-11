@@ -74,7 +74,7 @@ class Movement(db.Model):
     warehouse = db.Column(db.String(50), nullable=False)
     service = db.Column(db.String(100), nullable=True)
     patient_name = db.Column(db.String(150), nullable=True)
-    patient_id = db.Column(db.String(50), nullable=True) # Expediente / Cama
+    patient_id = db.Column(db.String(50), nullable=True)
     room = db.Column(db.String(50), nullable=True)
     shift = db.Column(db.String(50), nullable=True)
     is_cost_cargo = db.Column(db.Boolean, default=False)
@@ -126,6 +126,8 @@ class InsumoRequest(db.Model):
     cantidad_autorizada = db.Column(db.Integer, nullable=True)
     autorizador_nombre = db.Column(db.String(100), nullable=True)
     fecha_respuesta = db.Column(db.DateTime, nullable=True)
+    observaciones = db.Column(db.String(350), nullable=True)
+    comentarios = db.Column(db.String(350), nullable=True)
 
 # -----------------------------------------------------------------------------
 # PLANTILLA HTML COMPLETA E INTEGRADA
@@ -333,6 +335,11 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     </div>
 
                     <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Observaciones</label>
+                        <textarea name="observaciones" rows="2" placeholder="Observaciones adicionales sobre la solicitud..." class="w-full p-2.5 border rounded-xl text-xs outline-none bg-slate-50"></textarea>
+                    </div>
+
+                    <div>
                         <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Contraseña / PIN de Confirmación</label>
                         <input type="password" name="pin_confirmacion" required placeholder="Ingrese su PIN de usuario" class="w-full p-2.5 border rounded-xl text-xs outline-none bg-slate-50 font-mono tracking-widest">
                     </div>
@@ -343,8 +350,10 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 </form>
             </div>
 
+            <!-- HISTORIAL DE SOLICITUDES VISIBLE SOLO PARA ADMINISTRADOR O AUTORIZADOR -->
+            {% if session.get('user_role') in ['Administrador', 'Autorizador'] %}
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                <h3 class="text-xs font-bold text-slate-700 uppercase mb-3"><i class="fa-solid fa-clock-rotate-left"></i> Historial de Solicitudes Realizadas</h3>
+                <h3 class="text-xs font-bold text-slate-700 uppercase mb-3"><i class="fa-solid fa-clock-rotate-left"></i> Historial de Solicitudes Realizadas (Vista Restringida)</h3>
                 <div class="overflow-x-auto">
                     <table class="w-full text-xs text-left text-slate-600">
                         <thead class="bg-slate-50 text-slate-500 uppercase">
@@ -354,6 +363,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                 <th class="p-2">Convenio</th>
                                 <th class="p-2">Insumo Requerido</th>
                                 <th class="p-2 text-center">Cant.</th>
+                                <th class="p-2">Observaciones</th>
                                 <th class="p-2 text-center">Estado</th>
                             </tr>
                         </thead>
@@ -365,6 +375,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                 <td class="p-2">{{ req.convenio }}</td>
                                 <td class="p-2">{{ req.insumo_solicitado }}</td>
                                 <td class="p-2 text-center font-bold">{{ req.cantidad }}</td>
+                                <td class="p-2 text-[11px] text-slate-500">{{ req.observaciones or '-' }}</td>
                                 <td class="p-2 text-center">
                                     {% if req.estado == 'Aprobado' %}
                                         <span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold text-[10px]">Aprobado</span>
@@ -378,12 +389,13 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                 </td>
                             </tr>
                             {% else %}
-                            <tr><td colspan="6" class="p-4 text-center text-slate-400 italic">No hay solicitudes registradas.</td></tr>
+                            <tr><td colspan="7" class="p-4 text-center text-slate-400 italic">No hay solicitudes registradas.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
             </div>
+            {% endif %}
         </div>
 
         {% elif view == 'autorizaciones' %}
@@ -394,7 +406,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
                             <i class="fa-solid fa-list-check text-amber-600"></i> Panel de Autorizaciones de Insumos
                         </h2>
-                        <p class="text-xs text-slate-500">Autorice, modifique mediante sustitución manual o selección del inventario, o rechace solicitudes.</p>
+                        <p class="text-xs text-slate-500">Autorice, modifique mediante sustitución manual o selección del inventario, o rechace solicitudes agregando comentarios.</p>
                     </div>
                 </div>
 
@@ -404,11 +416,11 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                             <tr>
                                 <th class="p-3">Fecha/Hora</th>
                                 <th class="p-3">Paciente / Exp.</th>
-                                <th class="p-3">Convenio</th>
+                                <th class="p-3">Convenio / Obs.</th>
                                 <th class="p-3">Insumo Solicitado</th>
                                 <th class="p-3 text-center">Cant.</th>
                                 <th class="p-3 text-center">Estado</th>
-                                <th class="p-3 text-center">Sustitución y Acciones</th>
+                                <th class="p-3 text-center">Sustitución, Comentarios y Acciones</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
@@ -416,7 +428,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                             <tr class="hover:bg-slate-50">
                                 <td class="p-3 font-mono text-[10px] text-slate-500">{{ req.timestamp.strftime('%d/%m/%Y %H:%M') }}</td>
                                 <td class="p-3 font-bold text-slate-900">{{ req.patient_name }}<br><span class="text-[10px] text-slate-400 font-normal">Exp: {{ req.expediente }}</span></td>
-                                <td class="p-3">{{ req.convenio }}</td>
+                                <td class="p-3">
+                                    <span class="font-bold">{{ req.convenio }}</span>
+                                    {% if req.observaciones %}
+                                        <br><span class="text-[10px] text-slate-500 italic">Obs: {{ req.observaciones }}</span>
+                                    {% endif %}
+                                </td>
                                 <td class="p-3 font-bold text-indigo-900">{{ req.insumo_solicitado }}</td>
                                 <td class="p-3 text-center font-bold text-sm text-slate-900">{{ req.cantidad }}</td>
                                 <td class="p-3 text-center">
@@ -438,6 +455,9 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                             <input type="text" list="items_list" name="insumo_final" value="{{ req.insumo_solicitado }}" placeholder="Sustituir insumo..." class="p-1.5 border rounded text-[11px] bg-white font-medium">
                                             <input type="number" min="1" name="cantidad_final" value="{{ req.cantidad }}" placeholder="Cant." class="p-1.5 border rounded text-[11px] bg-white text-center font-bold">
                                         </div>
+                                        <div>
+                                            <input type="text" name="comentarios" placeholder="Comentarios de autorización..." class="w-full p-1.5 border rounded text-[11px] bg-white">
+                                        </div>
                                         <div class="flex gap-1 justify-center">
                                             <button type="submit" name="accion" value="aprobar" class="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded text-[10px]">Aprobar</button>
                                             <button type="submit" name="accion" value="modificar" class="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded text-[10px]">Modificar/Sustituir</button>
@@ -445,7 +465,10 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                         </div>
                                     </form>
                                     {% else %}
-                                    <span class="text-slate-400 text-[11px] italic">Por: {{ req.autorizador_nombre }} -> <strong>{{ req.insumo_autorizado }}</strong> ({{ req.cantidad_autorizada }})</span>
+                                    <span class="text-slate-500 text-[11px] block">Por: <strong>{{ req.autorizador_nombre }}</strong> -> <strong>{{ req.insumo_autorizado }}</strong> ({{ req.cantidad_autorizada }})</span>
+                                    {% if req.comentarios %}
+                                        <span class="text-[10px] text-indigo-700 italic block mt-0.5">Comentarios: {{ req.comentarios }}</span>
+                                    {% endif %}
                                     {% endif %}
                                 </td>
                             </tr>
@@ -486,7 +509,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                 <th class="p-3 text-center">Estado Actual</th>
                                 <th class="p-3">Insumo Autorizado / Sustituto</th>
                                 <th class="p-3 text-center">Cant. Aut.</th>
-                                <th class="p-3">Autorizador</th>
+                                <th class="p-3">Autorizador / Comentarios</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
@@ -511,7 +534,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                 </td>
                                 <td class="p-3 font-bold text-violet-900">{{ req.insumo_autorizado or '-' }}</td>
                                 <td class="p-3 text-center font-bold text-slate-900">{{ req.cantidad_autorizada if req.cantidad_autorizada is not none else '-' }}</td>
-                                <td class="p-3 text-slate-500 italic">{{ req.autorizador_nombre or 'Pendiente de respuesta' }}</td>
+                                <td class="p-3 text-slate-500">
+                                    <span class="italic">{{ req.autorizador_nombre or 'Pendiente de respuesta' }}</span>
+                                    {% if req.comentarios %}
+                                        <br><span class="text-[10px] text-indigo-700">Coms: {{ req.comentarios }}</span>
+                                    {% endif %}
+                                </td>
                             </tr>
                             {% else %}
                             <tr><td colspan="10" class="p-8 text-center text-slate-400 italic">No hay solicitudes registradas en el sistema.</td></tr>
@@ -2268,7 +2296,6 @@ def login():
             session['user_id'] = user.id
             session['user_name'] = user.name
             session['user_role'] = user.role
-            # Cargar vistas permitidas limpias como lista en sesión
             vistas_raw = user.vistas_permitidas or ""
             session['vistas_permitidas'] = [v.strip() for v in vistas_raw.split(",") if v.strip()]
             session['acciones_permitidas'] = user.acciones_permitidas or ""
@@ -2381,7 +2408,6 @@ def terminal():
     user_role = session.get('user_role', '')
     user_vistas = session.get('vistas_permitidas', [])
 
-    # Validación estricta de seguridad backend para vistas
     if user_role != "Administrador" and view not in user_vistas:
         flash("No cuenta con permisos para acceder a esta sección.", "error")
         default_view = user_vistas[0] if user_vistas else "costos"
@@ -2508,6 +2534,7 @@ def submit_insumo_request():
     expediente = request.form.get("expediente")
     insumo = request.form.get("insumo_solicitado")
     cantidad = int(request.form.get("cantidad", 1))
+    observaciones = request.form.get("observaciones", "").strip()
     solicitante = request.form.get("solicitante_nombre")
     pin = request.form.get("pin_confirmacion")
 
@@ -2523,6 +2550,7 @@ def submit_insumo_request():
         expediente=expediente,
         insumo_solicitado=insumo,
         cantidad=cantidad,
+        observaciones=observaciones,
         solicitante_nombre=solicitante,
         estado="Pendiente"
     ))
@@ -2536,6 +2564,7 @@ def process_insumo_request():
     accion = request.form.get("accion")
     insumo_final = request.form.get("insumo_final")
     cantidad_final = int(request.form.get("cantidad_final", 1))
+    comentarios = request.form.get("comentarios", "").strip()
     
     req = InsumoRequest.query.get(req_id)
     if req:
@@ -2553,13 +2582,14 @@ def process_insumo_request():
             req.cantidad_autorizada = 0
 
         req.autorizador_nombre = session.get('user_name', 'Autorizador')
+        req.comentarios = comentarios
         req.fecha_respuesta = get_local_now()
         db.session.commit()
         flash(f"Solicitud actualizada correctamente a estado: {req.estado}", "success")
     
     return redirect(url_for("terminal", view="autorizaciones"))
 
-# RUTAS DE REPORTES PDF ACTUALIZADAS CON EXPEDIENTE
+# RUTAS DE REPORTES PDF CON EXPEDIENTE
 @app.route("/imprimir_costos_pdf")
 def imprimir_costos_pdf():
     filtro_fecha = request.args.get("filtro_fecha", "").strip()
@@ -2930,6 +2960,8 @@ def seed_database():
                 conn.execute(text('ALTER TABLE "insumo_request" ADD COLUMN IF NOT EXISTS patient_name VARCHAR(150) DEFAULT \'\';'))
                 conn.execute(text('ALTER TABLE "insumo_request" ADD COLUMN IF NOT EXISTS convenio VARCHAR(100) DEFAULT \'\';'))
                 conn.execute(text('ALTER TABLE "insumo_request" ADD COLUMN IF NOT EXISTS expediente VARCHAR(50) DEFAULT \'\';'))
+                conn.execute(text('ALTER TABLE "insumo_request" ADD COLUMN IF NOT EXISTS observaciones VARCHAR(350) DEFAULT \'\';'))
+                conn.execute(text('ALTER TABLE "insumo_request" ADD COLUMN IF NOT EXISTS comentarios VARCHAR(350) DEFAULT \'\';'))
                 conn.commit()
         except Exception as e:
             print("Aviso de migración de esquema:", e)
