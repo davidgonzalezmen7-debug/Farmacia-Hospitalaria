@@ -78,7 +78,7 @@ class Movement(db.Model):
     room = db.Column(db.String(50), nullable=True)
     shift = db.Column(db.String(50), nullable=True)
     is_cost_cargo = db.Column(db.Boolean, default=False)
-    is_particular_anda = db.Column(db.Boolean, default=False) # Nuevo campo para distinguir Particulares/ANDA
+    is_particular_anda = db.Column(db.Boolean, default=False)
     user_name = db.Column(db.String(100), nullable=False)
     notes = db.Column(db.String(200), nullable=True)
 
@@ -2894,17 +2894,18 @@ def imprimir_costos_pdf():
     width, height = letter
 
     c.setFont("Helvetica-Bold", 14)
-    c.drawString(20 * mm, height - 20 * mm, "HOSPITAL OBREGÓN - REPORTE DE CARGOS A COSTOS")
+    c.drawString(15 * mm, height - 20 * mm, "HOSPITAL OBREGÓN - REPORTE DE CARGOS A COSTOS")
     c.setFont("Helvetica", 9)
-    c.drawString(20 * mm, height - 26 * mm, f"Fecha de emisión: {datetime.now(LOCAL_TZ).strftime('%d/%m/%Y %H:%M')} | Total Registros: {len(cargos)}")
+    c.drawString(15 * mm, height - 26 * mm, f"Fecha de emisión: {datetime.now(LOCAL_TZ).strftime('%d/%m/%Y %H:%M')} | Total Registros: {len(cargos)}")
     
+    # Coordenadas corregidas para evitar solapamiento
     y = height - 40 * mm
     c.setFont("Helvetica-Bold", 9)
-    c.drawString(20 * mm, y, "Fecha/Hora")
-    c.drawString(55 * mm, y, "Paciente")
-    c.drawString(100 * mm, y, "Expediente")
-    c.drawString(125 * mm, y, "Insumo / Material")
-    c.drawString(185 * mm, y, "Cant.")
+    c.drawString(15 * mm, y, "Fecha/Hora")
+    c.drawString(45 * mm, y, "Paciente")
+    c.drawString(95 * mm, y, "Expediente")
+    c.drawString(120 * mm, y, "Insumo / Material")
+    c.drawRightString(195 * mm, y, "Cant.")
     
     y -= 6 * mm
     c.setFont("Helvetica", 8)
@@ -2913,11 +2914,11 @@ def imprimir_costos_pdf():
             c.showPage()
             y = height - 25 * mm
         f_str = cgo.timestamp.strftime('%d/%m/%Y %H:%M') if cgo.timestamp else "--"
-        c.drawString(20 * mm, y, f_str)
-        c.drawString(55 * mm, y, str(cgo.patient_name)[:22])
-        c.drawString(100 * mm, y, str(cgo.patient_id or "-")[:12])
-        c.drawString(125 * mm, y, str(cgo.item_name)[:32])
-        c.drawRightString(192 * mm, y, str(cgo.quantity))
+        c.drawString(15 * mm, y, f_str)
+        c.drawString(45 * mm, y, str(cgo.patient_name)[:22])
+        c.drawString(95 * mm, y, str(cgo.patient_id or "-")[:12])
+        c.drawString(120 * mm, y, str(cgo.item_name)[:30])
+        c.drawRightString(195 * mm, y, str(cgo.quantity))
         y -= 6.5 * mm
 
     c.save()
@@ -2938,15 +2939,18 @@ def imprimir_turno_pdf():
 
     titulo_tipo = "PARTICULARES / ANDA" if tipo == "particular" else f"TURNO: {shift.upper()}"
     c.setFont("Helvetica-Bold", 14)
-    c.drawString(20 * mm, height - 20 * mm, f"HOSPITAL OBREGÓN - {titulo_tipo}")
+    c.drawString(15 * mm, height - 20 * mm, f"HOSPITAL OBREGÓN - {titulo_tipo}")
+    c.setFont("Helvetica", 9)
+    c.drawString(15 * mm, height - 26 * mm, f"Fecha de emisión: {datetime.now(LOCAL_TZ).strftime('%d/%m/%Y %H:%M')} | Total Registros: {len(cargos)}")
     
-    y = height - 35 * mm
+    # Coordenadas corregidas para evitar solapamiento
+    y = height - 40 * mm
     c.setFont("Helvetica-Bold", 9)
-    c.drawString(20 * mm, y, "Fecha/Hora")
-    c.drawString(55 * mm, y, "Paciente")
-    c.drawString(100 * mm, y, "Expediente")
-    c.drawString(125 * mm, y, "Insumo")
-    c.drawString(185 * mm, y, "Cant.")
+    c.drawString(15 * mm, y, "Fecha/Hora")
+    c.drawString(45 * mm, y, "Paciente")
+    c.drawString(95 * mm, y, "Expediente")
+    c.drawString(120 * mm, y, "Insumo")
+    c.drawRightString(195 * mm, y, "Cant.")
     
     y -= 6 * mm
     c.setFont("Helvetica", 8)
@@ -2954,11 +2958,11 @@ def imprimir_turno_pdf():
         if y < 25 * mm:
             c.showPage()
             y = height - 25 * mm
-        c.drawString(20 * mm, y, cgo.timestamp.strftime('%d/%m/%Y %H:%M') if cgo.timestamp else "--")
-        c.drawString(55 * mm, y, str(cgo.patient_name)[:22])
-        c.drawString(100 * mm, y, str(cgo.patient_id or "-")[:12])
-        c.drawString(125 * mm, y, str(cgo.item_name)[:32])
-        c.drawRightString(192 * mm, y, str(cgo.quantity))
+        c.drawString(15 * mm, y, cgo.timestamp.strftime('%d/%m/%Y %H:%M') if cgo.timestamp else "--")
+        c.drawString(45 * mm, y, str(cgo.patient_name)[:22])
+        c.drawString(95 * mm, y, str(cgo.patient_id or "-")[:12])
+        c.drawString(120 * mm, y, str(cgo.item_name)[:30])
+        c.drawRightString(195 * mm, y, str(cgo.quantity))
         y -= 6.5 * mm
 
     c.save()
