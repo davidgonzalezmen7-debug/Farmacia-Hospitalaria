@@ -118,7 +118,8 @@ class InsumoRequest(db.Model):
     patient_name = db.Column(db.String(150), nullable=True)
     convenio = db.Column(db.String(100), nullable=True)
     expediente = db.Column(db.String(50), nullable=True)
-    diagnostico = db.Column(db.String(250), nullable=True)  # Campo Diagnóstico Agregado
+    diagnostico = db.Column(db.String(250), nullable=True)
+    tolera_via_oral = db.Column(db.String(10), nullable=True)  # Nuevo campo: 'SI' o 'NO'
     insumo_solicitado = db.Column(db.String(150), nullable=False)
     cantidad = db.Column(db.Integer, nullable=False)
     solicitante_nombre = db.Column(db.String(100), nullable=False)
@@ -182,7 +183,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             </div>
         </div>
 
-        <!-- MENÚ DE PESTAÑAS ESTRICTAMENTE FILTRADO POR PERMISOS DE SESIÓN -->
         <div class="bg-slate-950/60 border-t border-white/10 px-4 py-2 overflow-x-auto">
             <nav class="max-w-7xl mx-auto flex flex-wrap gap-1 text-xs font-bold">
                 {% set user_vistas = session.get('vistas_permitidas', []) %}
@@ -287,9 +287,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             {% endfor %}
         </datalist>
 
+        <!-- DATALIST FILTRADO: SOLO INSUMOS CON STOCK DISPONIBLE (> 0) -->
         <datalist id="items_list">
             {% for item in items %}
-                <option value="{{ item.name }} (Lote: {{ item.lote or 'S/L' }})">Stock Gen: {{ item.stock_general }} | Qx: {{ item.stock_quirofano }} | {{ item.etiqueta }}</option>
+                {% if (item.stock_general or 0) > 0 or (item.stock_quirofano or 0) > 0 %}
+                    <option value="{{ item.name }} (Lote: {{ item.lote or 'S/L' }})">Stock Gen: {{ item.stock_general }} | Qx: {{ item.stock_quirofano }} | {{ item.etiqueta }}</option>
+                {% endif %}
             {% endfor %}
         </datalist>
 
@@ -300,7 +303,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
                         <i class="fa-solid fa-hand-holding-medical text-cyan-600"></i> Solicitud Múltiple de Insumos y Medicamentos
                     </h2>
-                    <p class="text-xs text-slate-500">Complete los datos del paciente, diagnóstico y agregue uno o más medicamentos a la lista de solicitud.</p>
+                    <p class="text-xs text-slate-500">Complete los datos del paciente, diagnóstico, vía oral y agregue uno o más medicamentos con stock disponible.</p>
                 </div>
 
                 <form action="/submit_insumo_request" method="POST" onsubmit="return validateInsumoRequestForm()" class="space-y-4">
@@ -321,21 +324,35 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         </div>
                     </div>
 
-                    <!-- NUEVO CAMPO DIAGNÓSTICO -->
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1"><i class="fa-solid fa-notes-medical text-cyan-600"></i> Diagnóstico del Paciente</label>
-                        <input type="text" name="diagnostico" required placeholder="Ej. Apendicitis aguda / Hipertensión arterial" class="w-full p-2.5 border rounded-xl text-xs outline-none bg-slate-50 font-medium">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1"><i class="fa-solid fa-notes-medical text-cyan-600"></i> Diagnóstico del Paciente</label>
+                            <input type="text" name="diagnostico" required placeholder="Ej. Apendicitis aguda / Hipertensión arterial" class="w-full p-2.5 border rounded-xl text-xs outline-none bg-slate-50 font-medium">
+                        </div>
+                        
+                        <!-- NUEVO APARTADO: TOLERA VÍA ORAL (SÍ / NO) -->
+                        <div class="p-3 bg-cyan-50/50 rounded-xl border border-cyan-200">
+                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1.5"><i class="fa-solid fa-pills text-cyan-600"></i> ¿Tolera Vía Oral?</label>
+                            <div class="flex items-center gap-6 pt-1">
+                                <label class="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer">
+                                    <input type="radio" name="tolera_via_oral" value="SI" required class="w-4 h-4 text-cyan-600"> SÍ
+                                </label>
+                                <label class="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer">
+                                    <input type="radio" name="tolera_via_oral" value="NO" required class="w-4 h-4 text-cyan-600"> NO
+                                </label>
+                            </div>
+                        </div>
                     </div>
 
-                    <!-- BUSCADOR Y AGREGADOR DE MÚLTIPLES MEDICAMENTOS -->
+                    <!-- BUSCADOR Y AGREGADOR DE MÚLTIPLES MEDICAMENTOS (FILTRADO CON STOCK) -->
                     <div class="p-4 bg-cyan-50/60 rounded-xl border border-cyan-200 space-y-3">
                         <h3 class="text-xs font-bold text-cyan-900 uppercase flex items-center gap-1.5">
-                            <i class="fa-solid fa-plus-circle"></i> Agregar Insumos / Medicamentos a la Solicitud
+                            <i class="fa-solid fa-plus-circle"></i> Agregar Insumos / Medicamentos con Stock Disponible
                         </h3>
                         <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
                             <div class="md:col-span-8">
                                 <label class="block text-[11px] font-semibold text-slate-700 mb-1">Seleccionar o Escribir Medicamento / Insumo</label>
-                                <input list="items_list" id="req_temp_item" placeholder="Buscar medicamento o insumo..." class="w-full p-2 border rounded-lg text-xs bg-white outline-none font-medium">
+                                <input list="items_list" id="req_temp_item" placeholder="Buscar medicamento o insumo con stock..." class="w-full p-2 border rounded-lg text-xs bg-white outline-none font-medium">
                             </div>
                             <div class="md:col-span-2">
                                 <label class="block text-[11px] font-semibold text-slate-700 mb-1">Cantidad</label>
@@ -349,7 +366,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         </div>
                     </div>
 
-                    <!-- TABLA DE INSUMOS AGREGADOS A LA SOLICITUD -->
                     <div>
                         <h3 class="text-xs font-bold text-slate-700 uppercase mb-2 flex items-center justify-between">
                             <span><i class="fa-solid fa-list-check text-cyan-600"></i> Insumos Incluidos en esta Solicitud</span>
@@ -397,7 +413,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 </form>
             </div>
 
-            <!-- HISTORIAL DE SOLICITUDES VISIBLE SOLO PARA ADMINISTRADOR O AUTORIZADOR -->
             {% if session.get('user_role') in ['Administrador', 'Autorizador'] %}
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                 <h3 class="text-xs font-bold text-slate-700 uppercase mb-3"><i class="fa-solid fa-clock-rotate-left"></i> Historial de Solicitudes Realizadas (Vista Restringida)</h3>
@@ -407,7 +422,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                             <tr>
                                 <th class="p-2">Fecha/Hora</th>
                                 <th class="p-2">Paciente / Exp.</th>
-                                <th class="p-2">Convenio / Diagnóstico</th>
+                                <th class="p-2">Convenio / Dx / Vía Oral</th>
                                 <th class="p-2">Insumo Requerido</th>
                                 <th class="p-2 text-center">Cant.</th>
                                 <th class="p-2">Observaciones</th>
@@ -424,6 +439,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                     {% if req.diagnostico %}
                                         <br><span class="text-[10px] text-cyan-800 font-semibold">Dx: {{ req.diagnostico }}</span>
                                     {% endif %}
+                                    <br><span class="text-[10px] font-bold text-indigo-700">Tolera Vía Oral: {{ req.tolera_via_oral or 'N/A' }}</span>
                                 </td>
                                 <td class="p-2">{{ req.insumo_solicitado }}</td>
                                 <td class="p-2 text-center font-bold">{{ req.cantidad }}</td>
@@ -468,7 +484,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                             <tr>
                                 <th class="p-3">Fecha/Hora</th>
                                 <th class="p-3">Paciente / Exp.</th>
-                                <th class="p-3">Convenio / Dx / Obs.</th>
+                                <th class="p-3">Convenio / Dx / Vía Oral / Obs.</th>
                                 <th class="p-3">Insumo Solicitado</th>
                                 <th class="p-3 text-center">Cant.</th>
                                 <th class="p-3 text-center">Estado</th>
@@ -485,6 +501,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                     {% if req.diagnostico %}
                                         <br><span class="text-[10px] text-cyan-800 font-semibold">Dx: {{ req.diagnostico }}</span>
                                     {% endif %}
+                                    <br><span class="text-[10px] font-bold text-indigo-700">Tolera Vía Oral: {{ req.tolera_via_oral or 'N/A' }}</span>
                                     {% if req.observaciones %}
                                         <br><span class="text-[10px] text-slate-500 italic">Obs: {{ req.observaciones }}</span>
                                     {% endif %}
@@ -557,7 +574,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                             <tr>
                                 <th class="p-3">Fecha/Hora</th>
                                 <th class="p-3">Paciente / Exp.</th>
-                                <th class="p-3">Convenio / Diagnóstico</th>
+                                <th class="p-3">Convenio / Dx / Vía Oral</th>
                                 <th class="p-3">Solicitante</th>
                                 <th class="p-3">Insumo Requerido</th>
                                 <th class="p-3 text-center">Cant. Req.</th>
@@ -577,6 +594,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                     {% if req.diagnostico %}
                                         <br><span class="text-[10px] text-cyan-800 font-semibold">Dx: {{ req.diagnostico }}</span>
                                     {% endif %}
+                                    <br><span class="text-[10px] font-bold text-indigo-700">Vía Oral: {{ req.tolera_via_oral or 'N/A' }}</span>
                                 </td>
                                 <td class="p-3">{{ req.solicitante_nombre }}</td>
                                 <td class="p-3 font-medium">{{ req.insumo_solicitado }}</td>
@@ -701,7 +719,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
                             <i class="fa-solid fa-file-invoice-dollar text-emerald-600"></i> Cargo Múltiple de Material para Costos
                         </h2>
-                        <p class="text-xs text-slate-500">Agregue varios insumos a la lista de cargo para un paciente y regístrelos por turno.</p>
+                        <p class="text-xs text-slate-500">Agregue varios insumos con stock a la lista de cargo para un paciente y regístrelos por turno.</p>
                     </div>
 
                     <form action="/terminal" method="GET" class="flex flex-wrap items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200 no-print">
@@ -769,9 +787,10 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         </div>
                     </div>
 
+                    <!-- BUSCADOR DE COSTOS FILTRADO CON STOCK DISPONIBLE -->
                     <div class="p-4 bg-emerald-50/60 rounded-xl border border-emerald-200 space-y-3">
                         <h3 class="text-xs font-bold text-emerald-900 uppercase flex items-center gap-1.5">
-                            <i class="fa-solid fa-magnifying-glass"></i> Buscador y Selección de Insumos / Materiales
+                            <i class="fa-solid fa-magnifying-glass"></i> Buscador de Insumos / Materiales (Con Stock)
                         </h3>
                         <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
                             <div class="md:col-span-5">
@@ -1087,11 +1106,13 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
                     <form action="/add_controlled" method="POST" class="space-y-3">
                         <div>
-                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Medicamento Controlado</label>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Medicamento Controlado (Con Stock)</label>
                             <input list="controlled_items_list" name="item_name" required placeholder="Escriba o busque..." class="w-full p-2.5 border rounded-xl text-sm bg-rose-50 focus:bg-white focus:ring-2 focus:ring-rose-500 outline-none font-bold">
                             <datalist id="controlled_items_list">
                                 {% for item in controlled_items %}
-                                    <option value="{{ item.name }} (Lote: {{ item.lote or 'S/L' }})">
+                                    {% if (item.stock_general or 0) > 0 or (item.stock_quirofano or 0) > 0 %}
+                                        <option value="{{ item.name }} (Lote: {{ item.lote or 'S/L' }})">
+                                    {% endif %}
                                 {% endfor %}
                             </datalist>
                         </div>
@@ -1303,15 +1324,16 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     </div>
                 </div>
 
+                <!-- SECCIÓN AGREGAR MEDICAMENTOS CON STOCK DISPONIBLE -->
                 <div class="p-4 bg-indigo-50/40 rounded-xl border border-indigo-100 space-y-3">
                     <h3 class="text-xs font-bold text-indigo-900 uppercase flex items-center gap-1.5">
-                        <i class="fa-solid fa-plus-circle"></i> Agregar Medicamentos al Surtido
+                        <i class="fa-solid fa-plus-circle"></i> Agregar Medicamentos al Surtido (Con Stock Disponible)
                     </h3>
                     
                     <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
                         <div class="md:col-span-4">
                             <label class="block text-[11px] font-semibold text-slate-600 mb-1">Medicamento / Lote</label>
-                            <input list="items_list" id="temp_item" placeholder="Buscar medicamento..." class="w-full p-2 border rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none bg-white font-medium">
+                            <input list="items_list" id="temp_item" placeholder="Buscar medicamento con stock..." class="w-full p-2 border rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none bg-white font-medium">
                         </div>
                         <div class="md:col-span-2">
                             <label class="block text-[11px] font-semibold text-slate-600 mb-1">Vía Admin.</label>
@@ -1432,7 +1454,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                             </div>
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Medicamento / Denominación</label>
+                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Medicamento / Denominación (Con Stock)</label>
                             <input list="items_list" id="lbl_item" placeholder="Seleccione o escriba medicamento..." oninput="updateLabelPreview()" class="w-full p-2 border rounded-lg text-xs bg-slate-50 font-bold outline-none">
                         </div>
                     </div>
@@ -1985,7 +2007,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             </div>
         </div>
 
-        <!-- MODAL REVERTIR MOVIMIENTO (PIN ADMIN) -->
         <div id="revertMovementModalBox" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border space-y-4">
                 <div class="flex justify-between items-center border-b pb-2">
@@ -2006,7 +2027,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             </div>
         </div>
 
-        <!-- MODAL ELIMINAR MOVIMIENTO (PIN ADMIN) -->
         <div id="deleteMovementModalBox" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border space-y-4">
                 <div class="flex justify-between items-center border-b pb-2">
@@ -2136,13 +2156,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             document.getElementById('user_name_hidden').value = name;
         }
 
-        /* LÓGICA DE SOLICITUD MÚLTIPLE DE INSUMOS Y MEDICAMENTOS */
         function addInsumoToRequestCart() {
             const itemInput = document.getElementById('req_temp_item');
             const itemVal = itemInput.value.trim();
             const quantity = parseInt(document.getElementById('req_temp_qty').value) || 1;
 
-            if (!itemVal) { alert('Por favor seleccione o escriba un medicamento o insumo.'); return; }
+            if (!itemVal) { alert('Por favor seleccione o escriba un medicamento o insumo con stock.'); return; }
             insumoReqCart.push({ insumo: itemVal, cantidad: quantity });
             itemInput.value = '';
             document.getElementById('req_temp_qty').value = 1;
@@ -2194,7 +2213,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             const warehouse = document.getElementById('temp_warehouse').value;
             const quantity = parseInt(document.getElementById('temp_quantity').value) || 1;
 
-            if (!itemSearchValue) { alert('Por favor seleccione un medicamento.'); return; }
+            if (!itemSearchValue) { alert('Por favor seleccione un medicamento con stock.'); return; }
 
             cart.push({ item_search: itemSearchValue, via: viaInput, type: type, warehouse: warehouse, quantity: quantity });
             itemInput.value = '';
@@ -2241,7 +2260,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             const warehouse = document.getElementById('costos_temp_warehouse').value;
             const quantity = parseInt(document.getElementById('costos_temp_qty').value) || 1;
 
-            if (!itemVal) { alert('Por favor seleccione un insumo.'); return; }
+            if (!itemVal) { alert('Por favor seleccione un insumo con stock.'); return; }
             costosCart.push({ item_search: itemVal, warehouse: warehouse, quantity: quantity });
             itemInput.value = '';
             document.getElementById('costos_temp_qty').value = 1;
@@ -2639,13 +2658,14 @@ def toggle_weekly_task():
         db.session.commit()
     return redirect(url_for("terminal", view="rol_semanal"))
 
-# RUTA ACTUALIZADA DE ENVIAR SOLICITUDES DE INSUMOS (CON DIAGNÓSTICO Y MÚLTIPLES MEDICAMENTOS)
+# RUTA ACTUALIZADA DE SOLICITUD DE INSUMOS (CON DIAGNÓSTICO, TOLERA VÍA ORAL Y MULTICARGA)
 @app.route("/submit_insumo_request", methods=["POST"])
 def submit_insumo_request():
     patient_name = request.form.get("patient_name")
     convenio = request.form.get("convenio")
     expediente = request.form.get("expediente")
     diagnostico = request.form.get("diagnostico", "").strip()
+    tolera_via_oral = request.form.get("tolera_via_oral", "").strip()
     observaciones = request.form.get("observaciones", "").strip()
     solicitante = request.form.get("solicitante_nombre")
     pin = request.form.get("pin_confirmacion")
@@ -2677,6 +2697,7 @@ def submit_insumo_request():
             convenio=convenio,
             expediente=expediente,
             diagnostico=diagnostico,
+            tolera_via_oral=tolera_via_oral,
             insumo_solicitado=insumo_nombre,
             cantidad=cantidad,
             observaciones=observaciones,
@@ -3091,6 +3112,7 @@ def seed_database():
                 conn.execute(text('ALTER TABLE "insumo_request" ADD COLUMN IF NOT EXISTS convenio VARCHAR(100) DEFAULT \'\';'))
                 conn.execute(text('ALTER TABLE "insumo_request" ADD COLUMN IF NOT EXISTS expediente VARCHAR(50) DEFAULT \'\';'))
                 conn.execute(text('ALTER TABLE "insumo_request" ADD COLUMN IF NOT EXISTS diagnostico VARCHAR(250) DEFAULT \'\';'))
+                conn.execute(text('ALTER TABLE "insumo_request" ADD COLUMN IF NOT EXISTS tolera_via_oral VARCHAR(10) DEFAULT \'\';'))
                 conn.execute(text('ALTER TABLE "insumo_request" ADD COLUMN IF NOT EXISTS observaciones VARCHAR(350) DEFAULT \'\';'))
                 conn.execute(text('ALTER TABLE "insumo_request" ADD COLUMN IF NOT EXISTS comentarios VARCHAR(350) DEFAULT \'\';'))
                 conn.commit()
