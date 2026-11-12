@@ -118,6 +118,7 @@ class InsumoRequest(db.Model):
     patient_name = db.Column(db.String(150), nullable=True)
     convenio = db.Column(db.String(100), nullable=True)
     expediente = db.Column(db.String(50), nullable=True)
+    diagnostico = db.Column(db.String(250), nullable=True)  # Campo Diagnóstico Agregado
     insumo_solicitado = db.Column(db.String(150), nullable=False)
     cantidad = db.Column(db.Integer, nullable=False)
     solicitante_nombre = db.Column(db.String(100), nullable=False)
@@ -293,16 +294,18 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         </datalist>
 
         {% if view == 'solicitud_insumos' %}
-        <div class="max-w-3xl mx-auto space-y-6">
+        <div class="max-w-4xl mx-auto space-y-6">
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                 <div class="border-b pb-3 mb-4">
                     <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
-                        <i class="fa-solid fa-hand-holding-medical text-cyan-600"></i> Solicitud de Insumos y Medicamentos
+                        <i class="fa-solid fa-hand-holding-medical text-cyan-600"></i> Solicitud Múltiple de Insumos y Medicamentos
                     </h2>
-                    <p class="text-xs text-slate-500">Complete los datos del paciente, convenio, expediente e insumo requerido.</p>
+                    <p class="text-xs text-slate-500">Complete los datos del paciente, diagnóstico y agregue uno o más medicamentos a la lista de solicitud.</p>
                 </div>
 
-                <form action="/submit_insumo_request" method="POST" class="space-y-4">
+                <form action="/submit_insumo_request" method="POST" onsubmit="return validateInsumoRequestForm()" class="space-y-4">
+                    <input type="hidden" name="insumos_cart_json" id="insumos_cart_json">
+
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div>
                             <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nombre del Paciente</label>
@@ -318,34 +321,78 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         </div>
                     </div>
 
+                    <!-- NUEVO CAMPO DIAGNÓSTICO -->
                     <div>
-                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Insumo Requerido</label>
-                        <input list="items_list" name="insumo_solicitado" required placeholder="Seleccione o escriba el insumo..." class="w-full p-2.5 border rounded-xl text-xs font-bold outline-none bg-slate-50">
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1"><i class="fa-solid fa-notes-medical text-cyan-600"></i> Diagnóstico del Paciente</label>
+                        <input type="text" name="diagnostico" required placeholder="Ej. Apendicitis aguda / Hipertensión arterial" class="w-full p-2.5 border rounded-xl text-xs outline-none bg-slate-50 font-medium">
+                    </div>
+
+                    <!-- BUSCADOR Y AGREGADOR DE MÚLTIPLES MEDICAMENTOS -->
+                    <div class="p-4 bg-cyan-50/60 rounded-xl border border-cyan-200 space-y-3">
+                        <h3 class="text-xs font-bold text-cyan-900 uppercase flex items-center gap-1.5">
+                            <i class="fa-solid fa-plus-circle"></i> Agregar Insumos / Medicamentos a la Solicitud
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                            <div class="md:col-span-8">
+                                <label class="block text-[11px] font-semibold text-slate-700 mb-1">Seleccionar o Escribir Medicamento / Insumo</label>
+                                <input list="items_list" id="req_temp_item" placeholder="Buscar medicamento o insumo..." class="w-full p-2 border rounded-lg text-xs bg-white outline-none font-medium">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-[11px] font-semibold text-slate-700 mb-1">Cantidad</label>
+                                <input type="number" min="1" id="req_temp_qty" value="1" class="w-full p-2 border rounded-lg text-xs bg-white text-center font-bold outline-none">
+                            </div>
+                            <div class="md:col-span-2">
+                                <button type="button" onclick="addInsumoToRequestCart()" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-2 rounded-lg text-xs transition flex items-center justify-center gap-1 shadow-sm">
+                                    <i class="fa-solid fa-plus"></i> Agregar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TABLA DE INSUMOS AGREGADOS A LA SOLICITUD -->
+                    <div>
+                        <h3 class="text-xs font-bold text-slate-700 uppercase mb-2 flex items-center justify-between">
+                            <span><i class="fa-solid fa-list-check text-cyan-600"></i> Insumos Incluidos en esta Solicitud</span>
+                            <span id="reqCartCountBadge" class="text-[11px] font-semibold bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full">0 medicamentos</span>
+                        </h3>
+                        <div class="overflow-x-auto border rounded-xl bg-white">
+                            <table class="w-full text-xs text-left text-slate-600">
+                                <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b">
+                                    <tr>
+                                        <th class="p-2.5">Medicamento / Insumo Requerido</th>
+                                        <th class="p-2.5 text-center">Cantidad</th>
+                                        <th class="p-2.5 text-center">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="reqCartTableBody" class="divide-y divide-slate-100">
+                                    <tr>
+                                        <td colspan="3" class="p-6 text-center text-slate-400 italic">
+                                            No hay insumos agregados a la lista. Use el selector superior para añadir medicamentos.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
-                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Cantidad</label>
-                            <input type="number" min="1" value="1" name="cantidad" required class="w-full p-2.5 border rounded-xl text-xs font-bold outline-none bg-slate-50 text-center">
-                        </div>
-                        <div>
                             <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nombre del Solicitante</label>
                             <input type="text" name="solicitante_nombre" value="{{ session.get('user_name', '') }}" required placeholder="Su nombre completo" class="w-full p-2.5 border rounded-xl text-xs outline-none bg-slate-50">
                         </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Contraseña / PIN de Confirmación</label>
+                            <input type="password" name="pin_confirmacion" required placeholder="Ingrese su PIN de usuario" class="w-full p-2.5 border rounded-xl text-xs outline-none bg-slate-50 font-mono tracking-widest">
+                        </div>
                     </div>
 
                     <div>
-                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Observaciones</label>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Observaciones Generales</label>
                         <textarea name="observaciones" rows="2" placeholder="Observaciones adicionales sobre la solicitud..." class="w-full p-2.5 border rounded-xl text-xs outline-none bg-slate-50"></textarea>
                     </div>
 
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Contraseña / PIN de Confirmación</label>
-                        <input type="password" name="pin_confirmacion" required placeholder="Ingrese su PIN de usuario" class="w-full p-2.5 border rounded-xl text-xs outline-none bg-slate-50 font-mono tracking-widest">
-                    </div>
-
                     <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3 rounded-xl transition shadow text-xs flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-paper-plane"></i> Enviar Solicitud a Autorizaciones
+                        <i class="fa-solid fa-paper-plane"></i> Enviar Solicitud Múltiple a Autorizaciones
                     </button>
                 </form>
             </div>
@@ -360,7 +407,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                             <tr>
                                 <th class="p-2">Fecha/Hora</th>
                                 <th class="p-2">Paciente / Exp.</th>
-                                <th class="p-2">Convenio</th>
+                                <th class="p-2">Convenio / Diagnóstico</th>
                                 <th class="p-2">Insumo Requerido</th>
                                 <th class="p-2 text-center">Cant.</th>
                                 <th class="p-2">Observaciones</th>
@@ -372,7 +419,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                             <tr class="hover:bg-slate-50">
                                 <td class="p-2 font-mono text-[10px]">{{ req.timestamp.strftime('%d/%m/%Y %H:%M') }}</td>
                                 <td class="p-2 font-bold">{{ req.patient_name }}<br><span class="text-[10px] text-slate-400 font-normal">Exp: {{ req.expediente }}</span></td>
-                                <td class="p-2">{{ req.convenio }}</td>
+                                <td class="p-2">
+                                    <span class="font-bold">{{ req.convenio }}</span>
+                                    {% if req.diagnostico %}
+                                        <br><span class="text-[10px] text-cyan-800 font-semibold">Dx: {{ req.diagnostico }}</span>
+                                    {% endif %}
+                                </td>
                                 <td class="p-2">{{ req.insumo_solicitado }}</td>
                                 <td class="p-2 text-center font-bold">{{ req.cantidad }}</td>
                                 <td class="p-2 text-[11px] text-slate-500">{{ req.observaciones or '-' }}</td>
@@ -416,7 +468,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                             <tr>
                                 <th class="p-3">Fecha/Hora</th>
                                 <th class="p-3">Paciente / Exp.</th>
-                                <th class="p-3">Convenio / Obs.</th>
+                                <th class="p-3">Convenio / Dx / Obs.</th>
                                 <th class="p-3">Insumo Solicitado</th>
                                 <th class="p-3 text-center">Cant.</th>
                                 <th class="p-3 text-center">Estado</th>
@@ -430,6 +482,9 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                 <td class="p-3 font-bold text-slate-900">{{ req.patient_name }}<br><span class="text-[10px] text-slate-400 font-normal">Exp: {{ req.expediente }}</span></td>
                                 <td class="p-3">
                                     <span class="font-bold">{{ req.convenio }}</span>
+                                    {% if req.diagnostico %}
+                                        <br><span class="text-[10px] text-cyan-800 font-semibold">Dx: {{ req.diagnostico }}</span>
+                                    {% endif %}
                                     {% if req.observaciones %}
                                         <br><span class="text-[10px] text-slate-500 italic">Obs: {{ req.observaciones }}</span>
                                     {% endif %}
@@ -502,7 +557,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                             <tr>
                                 <th class="p-3">Fecha/Hora</th>
                                 <th class="p-3">Paciente / Exp.</th>
-                                <th class="p-3">Convenio</th>
+                                <th class="p-3">Convenio / Diagnóstico</th>
                                 <th class="p-3">Solicitante</th>
                                 <th class="p-3">Insumo Requerido</th>
                                 <th class="p-3 text-center">Cant. Req.</th>
@@ -517,7 +572,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                             <tr class="hover:bg-slate-50">
                                 <td class="p-3 font-mono text-[10px] text-slate-500">{{ req.timestamp.strftime('%d/%m/%Y %H:%M') }}</td>
                                 <td class="p-3 font-bold text-slate-900">{{ req.patient_name }}<br><span class="text-[10px] text-slate-400 font-normal">Exp: {{ req.expediente }}</span></td>
-                                <td class="p-3">{{ req.convenio }}</td>
+                                <td class="p-3">
+                                    <span class="font-bold">{{ req.convenio }}</span>
+                                    {% if req.diagnostico %}
+                                        <br><span class="text-[10px] text-cyan-800 font-semibold">Dx: {{ req.diagnostico }}</span>
+                                    {% endif %}
+                                </td>
                                 <td class="p-3">{{ req.solicitante_nombre }}</td>
                                 <td class="p-3 font-medium">{{ req.insumo_solicitado }}</td>
                                 <td class="p-3 text-center font-bold">{{ req.cantidad }}</td>
@@ -2061,6 +2121,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <script>
         let cart = [];
         let costosCart = [];
+        let insumoReqCart = [];
 
         function selectUser(id, name) {
             var elem = document.getElementById('userSelect');
@@ -2073,6 +2134,56 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             var opt = select.options[select.selectedIndex];
             var name = opt.getAttribute('data-name') || '';
             document.getElementById('user_name_hidden').value = name;
+        }
+
+        /* LÓGICA DE SOLICITUD MÚLTIPLE DE INSUMOS Y MEDICAMENTOS */
+        function addInsumoToRequestCart() {
+            const itemInput = document.getElementById('req_temp_item');
+            const itemVal = itemInput.value.trim();
+            const quantity = parseInt(document.getElementById('req_temp_qty').value) || 1;
+
+            if (!itemVal) { alert('Por favor seleccione o escriba un medicamento o insumo.'); return; }
+            insumoReqCart.push({ insumo: itemVal, cantidad: quantity });
+            itemInput.value = '';
+            document.getElementById('req_temp_qty').value = 1;
+            renderInsumoRequestCart();
+        }
+
+        function removeInsumoFromRequestCart(index) {
+            insumoReqCart.splice(index, 1);
+            renderInsumoRequestCart();
+        }
+
+        function renderInsumoRequestCart() {
+            const tbody = document.getElementById('reqCartTableBody');
+            const badge = document.getElementById('reqCartCountBadge');
+            if(!tbody || !badge) return;
+
+            badge.innerText = insumoReqCart.length + ' medicamentos';
+            if (insumoReqCart.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3" class="p-6 text-center text-slate-400 italic">No hay insumos agregados a la lista. Use el selector superior para añadir medicamentos.</td></tr>`;
+                return;
+            }
+            let html = '';
+            insumoReqCart.forEach((item, index) => {
+                html += `
+                    <tr class="hover:bg-slate-50">
+                        <td class="p-2.5 font-bold text-slate-800">${item.insumo}</td>
+                        <td class="p-2.5 text-center font-bold text-sm text-cyan-800">${item.cantidad}</td>
+                        <td class="p-2.5 text-center"><button type="button" onclick="removeInsumoFromRequestCart(${index})" class="px-2 py-1 bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold rounded text-xs transition"><i class="fa-solid fa-trash"></i></button></td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        }
+
+        function validateInsumoRequestForm() {
+            if (insumoReqCart.length === 0) {
+                alert('Debe agregar al menos un medicamento a la lista de solicitud.');
+                return false;
+            }
+            document.getElementById('insumos_cart_json').value = JSON.stringify(insumoReqCart);
+            return true;
         }
 
         function addToCart() {
@@ -2417,7 +2528,6 @@ def terminal():
     users = User.query.order_by(User.name).all()
     patients = Patient.query.order_by(Patient.name).all()
     
-    # MODIFICACIÓN SOLICITADA: Filtrar staff_users exclusivamente para rol Farmacéutico
     staff_users = User.query.filter(User.role == "Farmacéutico").order_by(User.name).all()
     
     if WeeklySchedule.query.count() == 0:
@@ -2505,7 +2615,6 @@ def generar_rol_aleatorio_interno():
         "Limpieza de anaqueles", "Limpieza de pasillo", "Limpieza de refrigerador",
         "Desecho de cartón", "Cajas de traslado", "Acomodo de medicamento"
     ]
-    # MODIFICACIÓN SOLICITADA: Asignar funciones exclusivamente a Farmacéuticos
     personal = User.query.filter(User.role == "Farmacéutico").all()
     if not personal:
         return
@@ -2530,13 +2639,13 @@ def toggle_weekly_task():
         db.session.commit()
     return redirect(url_for("terminal", view="rol_semanal"))
 
+# RUTA ACTUALIZADA DE ENVIAR SOLICITUDES DE INSUMOS (CON DIAGNÓSTICO Y MÚLTIPLES MEDICAMENTOS)
 @app.route("/submit_insumo_request", methods=["POST"])
 def submit_insumo_request():
     patient_name = request.form.get("patient_name")
     convenio = request.form.get("convenio")
     expediente = request.form.get("expediente")
-    insumo = request.form.get("insumo_solicitado")
-    cantidad = int(request.form.get("cantidad", 1))
+    diagnostico = request.form.get("diagnostico", "").strip()
     observaciones = request.form.get("observaciones", "").strip()
     solicitante = request.form.get("solicitante_nombre")
     pin = request.form.get("pin_confirmacion")
@@ -2546,19 +2655,37 @@ def submit_insumo_request():
         flash("PIN de confirmación incorrecto.", "error")
         return redirect(url_for("terminal", view="solicitud_insumos"))
 
-    db.session.add(InsumoRequest(
-        timestamp=get_local_now(),
-        patient_name=patient_name,
-        convenio=convenio,
-        expediente=expediente,
-        insumo_solicitado=insumo,
-        cantidad=cantidad,
-        observaciones=observaciones,
-        solicitante_nombre=solicitante,
-        estado="Pendiente"
-    ))
+    try:
+        insumos_cart = json.loads(request.form.get("insumos_cart_json", "[]"))
+    except:
+        insumos_cart = []
+
+    if not insumos_cart:
+        flash("Debe agregar al menos un insumo a la lista de solicitud.", "error")
+        return redirect(url_for("terminal", view="solicitud_insumos"))
+
+    for item in insumos_cart:
+        insumo_nombre = item.get("insumo", "").strip()
+        cantidad = int(item.get("cantidad", 1))
+
+        if not insumo_nombre:
+            continue
+
+        db.session.add(InsumoRequest(
+            timestamp=get_local_now(),
+            patient_name=patient_name,
+            convenio=convenio,
+            expediente=expediente,
+            diagnostico=diagnostico,
+            insumo_solicitado=insumo_nombre,
+            cantidad=cantidad,
+            observaciones=observaciones,
+            solicitante_nombre=solicitante,
+            estado="Pendiente"
+        ))
+
     db.session.commit()
-    flash("Solicitud enviada con éxito al panel de autorizaciones.", "success")
+    flash(f"Solicitud múltiple ({len(insumos_cart)} medicamentos) enviada con éxito.", "success")
     return redirect(url_for("terminal", view="solicitud_insumos"))
 
 @app.route("/process_insumo_request", methods=["POST"])
@@ -2963,6 +3090,7 @@ def seed_database():
                 conn.execute(text('ALTER TABLE "insumo_request" ADD COLUMN IF NOT EXISTS patient_name VARCHAR(150) DEFAULT \'\';'))
                 conn.execute(text('ALTER TABLE "insumo_request" ADD COLUMN IF NOT EXISTS convenio VARCHAR(100) DEFAULT \'\';'))
                 conn.execute(text('ALTER TABLE "insumo_request" ADD COLUMN IF NOT EXISTS expediente VARCHAR(50) DEFAULT \'\';'))
+                conn.execute(text('ALTER TABLE "insumo_request" ADD COLUMN IF NOT EXISTS diagnostico VARCHAR(250) DEFAULT \'\';'))
                 conn.execute(text('ALTER TABLE "insumo_request" ADD COLUMN IF NOT EXISTS observaciones VARCHAR(350) DEFAULT \'\';'))
                 conn.execute(text('ALTER TABLE "insumo_request" ADD COLUMN IF NOT EXISTS comentarios VARCHAR(350) DEFAULT \'\';'))
                 conn.commit()
