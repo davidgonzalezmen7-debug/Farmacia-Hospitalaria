@@ -78,6 +78,7 @@ class Movement(db.Model):
     room = db.Column(db.String(50), nullable=True)
     shift = db.Column(db.String(50), nullable=True)
     is_cost_cargo = db.Column(db.Boolean, default=False)
+    is_particular_anda = db.Column(db.Boolean, default=False) # Nuevo campo para distinguir Particulares/ANDA
     user_name = db.Column(db.String(100), nullable=False)
     notes = db.Column(db.String(200), nullable=True)
 
@@ -119,7 +120,7 @@ class InsumoRequest(db.Model):
     convenio = db.Column(db.String(100), nullable=True)
     expediente = db.Column(db.String(50), nullable=True)
     diagnostico = db.Column(db.String(250), nullable=True)
-    tolera_via_oral = db.Column(db.String(10), nullable=True)  # Nuevo campo: 'SI' o 'NO'
+    tolera_via_oral = db.Column(db.String(10), nullable=True)
     insumo_solicitado = db.Column(db.String(150), nullable=False)
     cantidad = db.Column(db.Integer, nullable=False)
     solicitante_nombre = db.Column(db.String(100), nullable=False)
@@ -330,7 +331,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                             <input type="text" name="diagnostico" required placeholder="Ej. Apendicitis aguda / Hipertensión arterial" class="w-full p-2.5 border rounded-xl text-xs outline-none bg-slate-50 font-medium">
                         </div>
                         
-                        <!-- NUEVO APARTADO: TOLERA VÍA ORAL (SÍ / NO) -->
+                        <!-- APARTADO: TOLERA VÍA ORAL (SÍ / NO) -->
                         <div class="p-3 bg-cyan-50/50 rounded-xl border border-cyan-200">
                             <label class="block text-xs font-bold text-slate-700 uppercase mb-1.5"><i class="fa-solid fa-pills text-cyan-600"></i> ¿Tolera Vía Oral?</label>
                             <div class="flex items-center gap-6 pt-1">
@@ -717,9 +718,9 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 <div class="border-b pb-4 mb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
                         <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
-                            <i class="fa-solid fa-file-invoice-dollar text-emerald-600"></i> Cargo Múltiple de Material para Costos
+                            <i class="fa-solid fa-file-invoice-dollar text-emerald-600"></i> Cargo Múltiple de Material para Costos y Particulares/ANDA
                         </h2>
-                        <p class="text-xs text-slate-500">Agregue varios insumos con stock a la lista de cargo para un paciente y regístrelos por turno.</p>
+                        <p class="text-xs text-slate-500">Agregue varios insumos con stock a la lista de cargo para un paciente, seleccione el tipo de cargo (General u Hospitalario / Particulares/ANDA) y regístrelos por turno.</p>
                     </div>
 
                     <form action="/terminal" method="GET" class="flex flex-wrap items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200 no-print">
@@ -763,7 +764,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 <form action="/add_cost_cargo_batch" method="POST" onsubmit="return validateCostosBatch()" class="space-y-4">
                     <input type="hidden" name="cart_costos_data" id="cart_costos_data_input">
 
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
                         <div>
                             <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nombre del Paciente</label>
                             <input type="text" list="patients_datalist" name="patient_name" id="costos_patient_name" required placeholder="Ej. Ana Gómez" class="w-full p-2 border rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 outline-none bg-white">
@@ -783,6 +784,13 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                 <option value="Vespertino">⛅ Turno Vespertino</option>
                                 <option value="Nocturno A">🌙 Turno Nocturno A</option>
                                 <option value="Nocturno B">🌌 Turno Nocturno B</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Tipo de Cargo</label>
+                            <select name="tipo_cargo" required class="w-full p-2 border rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 outline-none bg-white font-bold text-indigo-700">
+                                <option value="costo">📋 Costos Hospitalarios</option>
+                                <option value="particular">⭐ Particulares / ANDA</option>
                             </select>
                         </div>
                     </div>
@@ -864,156 +872,276 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 </form>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="bg-white p-5 rounded-2xl shadow-sm border border-amber-200">
-                    <h3 class="text-sm font-bold text-amber-800 flex items-center justify-between border-b pb-3 mb-3">
-                        <span><i class="fa-solid fa-sun text-amber-500 mr-2"></i> Ventana - Turno Matutino</span>
-                        <div class="flex items-center gap-2">
-                            <span class="bg-amber-100 text-amber-800 text-[10px] px-2.5 py-0.5 rounded-full font-bold">{{ matutino_cargos|length }} registros</span>
-                            <a href="/imprimir_turno_pdf?shift=Matutino&filtro_fecha={{ request.args.get('filtro_fecha', '') }}&filtro_dia={{ request.args.get('filtro_dia', '') }}" target="_blank" class="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[11px] font-bold shadow transition flex items-center gap-1">
-                                <i class="fa-solid fa-print"></i> Imprimir Turno
-                            </a>
+            <!-- SECCIÓN DE VENTANAS DE TURNOS: COSTOS Y PARTICULARES/ANDA -->
+            <div class="space-y-4">
+                <h3 class="text-sm font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-2 pt-2">
+                    <i class="fa-solid fa-window-restore text-emerald-600"></i> Ventanas por Turno - Costos Hospitalarios
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-amber-200">
+                        <h3 class="text-sm font-bold text-amber-800 flex items-center justify-between border-b pb-3 mb-3">
+                            <span><i class="fa-solid fa-sun text-amber-500 mr-2"></i> Ventana - Turno Matutino</span>
+                            <div class="flex items-center gap-2">
+                                <span class="bg-amber-100 text-amber-800 text-[10px] px-2.5 py-0.5 rounded-full font-bold">{{ matutino_cargos|length }} registros</span>
+                                <a href="/imprimir_turno_pdf?shift=Matutino&tipo=costo&filtro_fecha={{ request.args.get('filtro_fecha', '') }}&filtro_dia={{ request.args.get('filtro_dia', '') }}" target="_blank" class="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[11px] font-bold shadow transition flex items-center gap-1">
+                                    <i class="fa-solid fa-print"></i> Imprimir Turno
+                                </a>
+                            </div>
+                        </h3>
+                        <div class="overflow-x-auto max-h-72">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-amber-50 text-amber-900 sticky top-0">
+                                    <tr>
+                                        <th class="p-2">Fecha / Hora</th>
+                                        <th class="p-2">Paciente / Exp.</th>
+                                        <th class="p-2">Hab.</th>
+                                        <th class="p-2">Insumo</th>
+                                        <th class="p-2 text-center">Cant.</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100">
+                                    {% for c in matutino_cargos %}
+                                    <tr class="hover:bg-slate-50">
+                                        <td class="p-2 text-[10px] text-slate-500 font-mono">{{ c.timestamp.strftime('%d/%m/%Y %H:%M') }}</td>
+                                        <td class="p-2 font-medium">{{ c.patient_name }}<br><span class="text-[10px] text-slate-400 font-mono">Exp: {{ c.patient_id }}</span></td>
+                                        <td class="p-2">{{ c.room }}</td>
+                                        <td class="p-2">{{ c.item_name }}</td>
+                                        <td class="p-2 text-center font-bold text-emerald-600">{{ c.quantity }}</td>
+                                    </tr>
+                                    {% else %}
+                                    <tr><td colspan="5" class="p-4 text-center text-slate-400 text-xs">Sin cargos registrados para este turno / filtro.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
                         </div>
-                    </h3>
-                    <div class="overflow-x-auto max-h-72">
-                        <table class="w-full text-left text-xs">
-                            <thead class="bg-amber-50 text-amber-900 sticky top-0">
-                                <tr>
-                                    <th class="p-2">Fecha / Hora</th>
-                                    <th class="p-2">Paciente / Exp.</th>
-                                    <th class="p-2">Hab.</th>
-                                    <th class="p-2">Insumo</th>
-                                    <th class="p-2 text-center">Cant.</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-100">
-                                {% for c in matutino_cargos %}
-                                <tr class="hover:bg-slate-50">
-                                    <td class="p-2 text-[10px] text-slate-500 font-mono">{{ c.timestamp.strftime('%d/%m/%Y %H:%M') }}</td>
-                                    <td class="p-2 font-medium">{{ c.patient_name }}<br><span class="text-[10px] text-slate-400 font-mono">Exp: {{ c.patient_id }}</span></td>
-                                    <td class="p-2">{{ c.room }}</td>
-                                    <td class="p-2">{{ c.item_name }}</td>
-                                    <td class="p-2 text-center font-bold text-emerald-600">{{ c.quantity }}</td>
-                                </tr>
-                                {% else %}
-                                <tr><td colspan="5" class="p-4 text-center text-slate-400 text-xs">Sin cargos registrados para este turno / filtro.</td></tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-orange-200">
+                        <h3 class="text-sm font-bold text-orange-800 flex items-center justify-between border-b pb-3 mb-3">
+                            <span><i class="fa-solid fa-cloud-sun text-orange-500 mr-2"></i> Ventana - Turno Vespertino</span>
+                            <div class="flex items-center gap-2">
+                                <span class="bg-orange-100 text-orange-800 text-[10px] px-2.5 py-0.5 rounded-full font-bold">{{ vespertino_cargos|length }} registros</span>
+                                <a href="/imprimir_turno_pdf?shift=Vespertino&tipo=costo&filtro_fecha={{ request.args.get('filtro_fecha', '') }}&filtro_dia={{ request.args.get('filtro_dia', '') }}" target="_blank" class="px-2.5 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-[11px] font-bold shadow transition flex items-center gap-1">
+                                    <i class="fa-solid fa-print"></i> Imprimir Turno
+                                </a>
+                            </div>
+                        </h3>
+                        <div class="overflow-x-auto max-h-72">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-orange-50 text-orange-900 sticky top-0">
+                                    <tr>
+                                        <th class="p-2">Fecha / Hora</th>
+                                        <th class="p-2">Paciente / Exp.</th>
+                                        <th class="p-2">Hab.</th>
+                                        <th class="p-2">Insumo</th>
+                                        <th class="p-2 text-center">Cant.</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100">
+                                    {% for c in vespertino_cargos %}
+                                    <tr class="hover:bg-slate-50">
+                                        <td class="p-2 text-[10px] text-slate-500 font-mono">{{ c.timestamp.strftime('%d/%m/%Y %H:%M') }}</td>
+                                        <td class="p-2 font-medium">{{ c.patient_name }}<br><span class="text-[10px] text-slate-400 font-mono">Exp: {{ c.patient_id }}</span></td>
+                                        <td class="p-2">{{ c.room }}</td>
+                                        <td class="p-2">{{ c.item_name }}</td>
+                                        <td class="p-2 text-center font-bold text-emerald-600">{{ c.quantity }}</td>
+                                    </tr>
+                                    {% else %}
+                                    <tr><td colspan="5" class="p-4 text-center text-slate-400 text-xs">Sin cargos registrados para este turno / filtro.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-indigo-200">
+                        <h3 class="text-sm font-bold text-indigo-800 flex items-center justify-between border-b pb-3 mb-3">
+                            <span><i class="fa-solid fa-moon text-indigo-500 mr-2"></i> Ventana - Turno Nocturno A</span>
+                            <div class="flex items-center gap-2">
+                                <span class="bg-indigo-100 text-indigo-800 text-[10px] px-2.5 py-0.5 rounded-full font-bold">{{ nocturno_a_cargos|length }} registros</span>
+                                <a href="/imprimir_turno_pdf?shift=Nocturno A&tipo=costo&filtro_fecha={{ request.args.get('filtro_fecha', '') }}&filtro_dia={{ request.args.get('filtro_dia', '') }}" target="_blank" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-bold shadow transition flex items-center gap-1">
+                                    <i class="fa-solid fa-print"></i> Imprimir Turno
+                                </a>
+                            </div>
+                        </h3>
+                        <div class="overflow-x-auto max-h-72">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-indigo-50 text-indigo-900 sticky top-0">
+                                    <tr>
+                                        <th class="p-2">Fecha / Hora</th>
+                                        <th class="p-2">Paciente / Exp.</th>
+                                        <th class="p-2">Hab.</th>
+                                        <th class="p-2">Insumo</th>
+                                        <th class="p-2 text-center">Cant.</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100">
+                                    {% for c in nocturno_a_cargos %}
+                                    <tr class="hover:bg-slate-50">
+                                        <td class="p-2 text-[10px] text-slate-500 font-mono">{{ c.timestamp.strftime('%d/%m/%Y %H:%M') }}</td>
+                                        <td class="p-2 font-medium">{{ c.patient_name }}<br><span class="text-[10px] text-slate-400 font-mono">Exp: {{ c.patient_id }}</span></td>
+                                        <td class="p-2">{{ c.room }}</td>
+                                        <td class="p-2">{{ c.item_name }}</td>
+                                        <td class="p-2 text-center font-bold text-emerald-600">{{ c.quantity }}</td>
+                                    </tr>
+                                    {% else %}
+                                    <tr><td colspan="5" class="p-4 text-center text-slate-400 text-xs">Sin cargos registrados para este turno / filtro.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-purple-200">
+                        <h3 class="text-sm font-bold text-purple-800 flex items-center justify-between border-b pb-3 mb-3">
+                            <span><i class="fa-solid fa-star text-purple-500 mr-2"></i> Ventana - Turno Nocturno B</span>
+                            <div class="flex items-center gap-2">
+                                <span class="bg-purple-100 text-purple-800 text-[10px] px-2.5 py-0.5 rounded-full font-bold">{{ nocturno_b_cargos|length }} registros</span>
+                                <a href="/imprimir_turno_pdf?shift=Nocturno B&tipo=costo&filtro_fecha={{ request.args.get('filtro_fecha', '') }}&filtro_dia={{ request.args.get('filtro_dia', '') }}" target="_blank" class="px-2.5 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-[11px] font-bold shadow transition flex items-center gap-1">
+                                    <i class="fa-solid fa-print"></i> Imprimir Turno
+                                </a>
+                            </div>
+                        </h3>
+                        <div class="overflow-x-auto max-h-72">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-purple-50 text-purple-900 sticky top-0">
+                                    <tr>
+                                        <th class="p-2">Fecha / Hora</th>
+                                        <th class="p-2">Paciente / Exp.</th>
+                                        <th class="p-2">Hab.</th>
+                                        <th class="p-2">Insumo</th>
+                                        <th class="p-2 text-center">Cant.</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100">
+                                    {% for c in nocturno_b_cargos %}
+                                    <tr class="hover:bg-slate-50">
+                                        <td class="p-2 text-[10px] text-slate-500 font-mono">{{ c.timestamp.strftime('%d/%m/%Y %H:%M') }}</td>
+                                        <td class="p-2 font-medium">{{ c.patient_name }}<br><span class="text-[10px] text-slate-400 font-mono">Exp: {{ c.patient_id }}</span></td>
+                                        <td class="p-2">{{ c.room }}</td>
+                                        <td class="p-2">{{ c.item_name }}</td>
+                                        <td class="p-2 text-center font-bold text-emerald-600">{{ c.quantity }}</td>
+                                    </tr>
+                                    {% else %}
+                                    <tr><td colspan="5" class="p-4 text-center text-slate-400 text-xs">Sin cargos registrados para este turno / filtro.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
-                <div class="bg-white p-5 rounded-2xl shadow-sm border border-orange-200">
-                    <h3 class="text-sm font-bold text-orange-800 flex items-center justify-between border-b pb-3 mb-3">
-                        <span><i class="fa-solid fa-cloud-sun text-orange-500 mr-2"></i> Ventana - Turno Vespertino</span>
-                        <div class="flex items-center gap-2">
-                            <span class="bg-orange-100 text-orange-800 text-[10px] px-2.5 py-0.5 rounded-full font-bold">{{ vespertino_cargos|length }} registros</span>
-                            <a href="/imprimir_turno_pdf?shift=Vespertino&filtro_fecha={{ request.args.get('filtro_fecha', '') }}&filtro_dia={{ request.args.get('filtro_dia', '') }}" target="_blank" class="px-2.5 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-[11px] font-bold shadow transition flex items-center gap-1">
-                                <i class="fa-solid fa-print"></i> Imprimir Turno
-                            </a>
+                <!-- NUEVAS 3 VENTANAS EXCLUSIVAS PARA CARGOS "PARTICULARES/ANDA" POR TURNO -->
+                <h3 class="text-sm font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-2 pt-6">
+                    <i class="fa-solid fa-star text-indigo-600"></i> Ventanas por Turno - Particulares / ANDA
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-cyan-200">
+                        <h3 class="text-sm font-bold text-cyan-800 flex items-center justify-between border-b pb-3 mb-3">
+                            <span><i class="fa-solid fa-sun text-cyan-500 mr-2"></i> Matutino (Particulares/ANDA)</span>
+                            <div class="flex items-center gap-1">
+                                <span class="bg-cyan-100 text-cyan-800 text-[10px] px-2 py-0.5 rounded-full font-bold">{{ part_matutino_cargos|length }}</span>
+                                <a href="/imprimir_turno_pdf?shift=Matutino&tipo=particular&filtro_fecha={{ request.args.get('filtro_fecha', '') }}&filtro_dia={{ request.args.get('filtro_dia', '') }}" target="_blank" class="px-2 py-1 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg text-[10px] font-bold shadow transition" title="Imprimir Turno">
+                                    <i class="fa-solid fa-print"></i>
+                                </a>
+                            </div>
+                        </h3>
+                        <div class="overflow-x-auto max-h-72">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-cyan-50 text-cyan-900 sticky top-0">
+                                    <tr>
+                                        <th class="p-2">Fecha/Hora</th>
+                                        <th class="p-2">Paciente</th>
+                                        <th class="p-2">Insumo</th>
+                                        <th class="p-2 text-center">Cant.</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100">
+                                    {% for c in part_matutino_cargos %}
+                                    <tr class="hover:bg-slate-50">
+                                        <td class="p-2 text-[10px] text-slate-500 font-mono">{{ c.timestamp.strftime('%d/%m/%Y %H:%M') }}</td>
+                                        <td class="p-2 font-medium">{{ c.patient_name }}</td>
+                                        <td class="p-2">{{ c.item_name }}</td>
+                                        <td class="p-2 text-center font-bold text-cyan-700">{{ c.quantity }}</td>
+                                    </tr>
+                                    {% else %}
+                                    <tr><td colspan="4" class="p-4 text-center text-slate-400 text-xs">Sin registros.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
                         </div>
-                    </h3>
-                    <div class="overflow-x-auto max-h-72">
-                        <table class="w-full text-left text-xs">
-                            <thead class="bg-orange-50 text-orange-900 sticky top-0">
-                                <tr>
-                                    <th class="p-2">Fecha / Hora</th>
-                                    <th class="p-2">Paciente / Exp.</th>
-                                    <th class="p-2">Hab.</th>
-                                    <th class="p-2">Insumo</th>
-                                    <th class="p-2 text-center">Cant.</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-100">
-                                {% for c in vespertino_cargos %}
-                                <tr class="hover:bg-slate-50">
-                                    <td class="p-2 text-[10px] text-slate-500 font-mono">{{ c.timestamp.strftime('%d/%m/%Y %H:%M') }}</td>
-                                    <td class="p-2 font-medium">{{ c.patient_name }}<br><span class="text-[10px] text-slate-400 font-mono">Exp: {{ c.patient_id }}</span></td>
-                                    <td class="p-2">{{ c.room }}</td>
-                                    <td class="p-2">{{ c.item_name }}</td>
-                                    <td class="p-2 text-center font-bold text-emerald-600">{{ c.quantity }}</td>
-                                </tr>
-                                {% else %}
-                                <tr><td colspan="5" class="p-4 text-center text-slate-400 text-xs">Sin cargos registrados para este turno / filtro.</td></tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
                     </div>
-                </div>
 
-                <div class="bg-white p-5 rounded-2xl shadow-sm border border-indigo-200">
-                    <h3 class="text-sm font-bold text-indigo-800 flex items-center justify-between border-b pb-3 mb-3">
-                        <span><i class="fa-solid fa-moon text-indigo-500 mr-2"></i> Ventana - Turno Nocturno A</span>
-                        <div class="flex items-center gap-2">
-                            <span class="bg-indigo-100 text-indigo-800 text-[10px] px-2.5 py-0.5 rounded-full font-bold">{{ nocturno_a_cargos|length }} registros</span>
-                            <a href="/imprimir_turno_pdf?shift=Nocturno A&filtro_fecha={{ request.args.get('filtro_fecha', '') }}&filtro_dia={{ request.args.get('filtro_dia', '') }}" target="_blank" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-bold shadow transition flex items-center gap-1">
-                                <i class="fa-solid fa-print"></i> Imprimir Turno
-                            </a>
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-cyan-200">
+                        <h3 class="text-sm font-bold text-cyan-800 flex items-center justify-between border-b pb-3 mb-3">
+                            <span><i class="fa-solid fa-cloud-sun text-cyan-500 mr-2"></i> Vespertino (Particulares/ANDA)</span>
+                            <div class="flex items-center gap-1">
+                                <span class="bg-cyan-100 text-cyan-800 text-[10px] px-2 py-0.5 rounded-full font-bold">{{ part_vespertino_cargos|length }}</span>
+                                <a href="/imprimir_turno_pdf?shift=Vespertino&tipo=particular&filtro_fecha={{ request.args.get('filtro_fecha', '') }}&filtro_dia={{ request.args.get('filtro_dia', '') }}" target="_blank" class="px-2 py-1 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg text-[10px] font-bold shadow transition" title="Imprimir Turno">
+                                    <i class="fa-solid fa-print"></i>
+                                </a>
+                            </div>
+                        </h3>
+                        <div class="overflow-x-auto max-h-72">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-cyan-50 text-cyan-900 sticky top-0">
+                                    <tr>
+                                        <th class="p-2">Fecha/Hora</th>
+                                        <th class="p-2">Paciente</th>
+                                        <th class="p-2">Insumo</th>
+                                        <th class="p-2 text-center">Cant.</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100">
+                                    {% for c in part_vespertino_cargos %}
+                                    <tr class="hover:bg-slate-50">
+                                        <td class="p-2 text-[10px] text-slate-500 font-mono">{{ c.timestamp.strftime('%d/%m/%Y %H:%M') }}</td>
+                                        <td class="p-2 font-medium">{{ c.patient_name }}</td>
+                                        <td class="p-2">{{ c.item_name }}</td>
+                                        <td class="p-2 text-center font-bold text-cyan-700">{{ c.quantity }}</td>
+                                    </tr>
+                                    {% else %}
+                                    <tr><td colspan="4" class="p-4 text-center text-slate-400 text-xs">Sin registros.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
                         </div>
-                    </h3>
-                    <div class="overflow-x-auto max-h-72">
-                        <table class="w-full text-left text-xs">
-                            <thead class="bg-indigo-50 text-indigo-900 sticky top-0">
-                                <tr>
-                                    <th class="p-2">Fecha / Hora</th>
-                                    <th class="p-2">Paciente / Exp.</th>
-                                    <th class="p-2">Hab.</th>
-                                    <th class="p-2">Insumo</th>
-                                    <th class="p-2 text-center">Cant.</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-100">
-                                {% for c in nocturno_a_cargos %}
-                                <tr class="hover:bg-slate-50">
-                                    <td class="p-2 text-[10px] text-slate-500 font-mono">{{ c.timestamp.strftime('%d/%m/%Y %H:%M') }}</td>
-                                    <td class="p-2 font-medium">{{ c.patient_name }}<br><span class="text-[10px] text-slate-400 font-mono">Exp: {{ c.patient_id }}</span></td>
-                                    <td class="p-2">{{ c.room }}</td>
-                                    <td class="p-2">{{ c.item_name }}</td>
-                                    <td class="p-2 text-center font-bold text-emerald-600">{{ c.quantity }}</td>
-                                </tr>
-                                {% else %}
-                                <tr><td colspan="5" class="p-4 text-center text-slate-400 text-xs">Sin cargos registrados para este turno / filtro.</td></tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
                     </div>
-                </div>
 
-                <div class="bg-white p-5 rounded-2xl shadow-sm border border-purple-200">
-                    <h3 class="text-sm font-bold text-purple-800 flex items-center justify-between border-b pb-3 mb-3">
-                        <span><i class="fa-solid fa-star text-purple-500 mr-2"></i> Ventana - Turno Nocturno B</span>
-                        <div class="flex items-center gap-2">
-                            <span class="bg-purple-100 text-purple-800 text-[10px] px-2.5 py-0.5 rounded-full font-bold">{{ nocturno_b_cargos|length }} registros</span>
-                            <a href="/imprimir_turno_pdf?shift=Nocturno B&filtro_fecha={{ request.args.get('filtro_fecha', '') }}&filtro_dia={{ request.args.get('filtro_dia', '') }}" target="_blank" class="px-2.5 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-[11px] font-bold shadow transition flex items-center gap-1">
-                                <i class="fa-solid fa-print"></i> Imprimir Turno
-                            </a>
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-cyan-200">
+                        <h3 class="text-sm font-bold text-cyan-800 flex items-center justify-between border-b pb-3 mb-3">
+                            <span><i class="fa-solid fa-moon text-cyan-500 mr-2"></i> Nocturno (Particulares/ANDA)</span>
+                            <div class="flex items-center gap-1">
+                                <span class="bg-cyan-100 text-cyan-800 text-[10px] px-2 py-0.5 rounded-full font-bold">{{ part_nocturno_cargos|length }}</span>
+                                <a href="/imprimir_turno_pdf?shift=Nocturno&tipo=particular&filtro_fecha={{ request.args.get('filtro_fecha', '') }}&filtro_dia={{ request.args.get('filtro_dia', '') }}" target="_blank" class="px-2 py-1 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg text-[10px] font-bold shadow transition" title="Imprimir Turno">
+                                    <i class="fa-solid fa-print"></i>
+                                </a>
+                            </div>
+                        </h3>
+                        <div class="overflow-x-auto max-h-72">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-cyan-50 text-cyan-900 sticky top-0">
+                                    <tr>
+                                        <th class="p-2">Fecha/Hora</th>
+                                        <th class="p-2">Paciente</th>
+                                        <th class="p-2">Insumo</th>
+                                        <th class="p-2 text-center">Cant.</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100">
+                                    {% for c in part_nocturno_cargos %}
+                                    <tr class="hover:bg-slate-50">
+                                        <td class="p-2 text-[10px] text-slate-500 font-mono">{{ c.timestamp.strftime('%d/%m/%Y %H:%M') }}</td>
+                                        <td class="p-2 font-medium">{{ c.patient_name }}</td>
+                                        <td class="p-2">{{ c.item_name }}</td>
+                                        <td class="p-2 text-center font-bold text-cyan-700">{{ c.quantity }}</td>
+                                    </tr>
+                                    {% else %}
+                                    <tr><td colspan="4" class="p-4 text-center text-slate-400 text-xs">Sin registros.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
                         </div>
-                    </h3>
-                    <div class="overflow-x-auto max-h-72">
-                        <table class="w-full text-left text-xs">
-                            <thead class="bg-purple-50 text-purple-900 sticky top-0">
-                                <tr>
-                                    <th class="p-2">Fecha / Hora</th>
-                                    <th class="p-2">Paciente / Exp.</th>
-                                    <th class="p-2">Hab.</th>
-                                    <th class="p-2">Insumo</th>
-                                    <th class="p-2 text-center">Cant.</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-100">
-                                {% for c in nocturno_b_cargos %}
-                                <tr class="hover:bg-slate-50">
-                                    <td class="p-2 text-[10px] text-slate-500 font-mono">{{ c.timestamp.strftime('%d/%m/%Y %H:%M') }}</td>
-                                    <td class="p-2 font-medium">{{ c.patient_name }}<br><span class="text-[10px] text-slate-400 font-mono">Exp: {{ c.patient_id }}</span></td>
-                                    <td class="p-2">{{ c.room }}</td>
-                                    <td class="p-2">{{ c.item_name }}</td>
-                                    <td class="p-2 text-center font-bold text-emerald-600">{{ c.quantity }}</td>
-                                </tr>
-                                {% else %}
-                                <tr><td colspan="5" class="p-4 text-center text-slate-400 text-xs">Sin cargos registrados para este turno / filtro.</td></tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
                     </div>
                 </div>
             </div>
@@ -2492,10 +2620,18 @@ def logout():
 # RUTAS DE GESTIÓN Y FILTRADO REAL
 # -----------------------------------------------------------------------------
 
-def obtener_cargos_filtrados(shift_target=None, filtro_fecha=None, filtro_dia=None):
+def obtener_cargos_filtrados(shift_target=None, filtro_fecha=None, filtro_dia=None, tipo="costo"):
     query = Movement.query.filter_by(is_cost_cargo=True)
+    if tipo == "particular":
+        query = query.filter_by(is_particular_anda=True)
+    else:
+        query = query.filter_by(is_particular_anda=False)
+
     if shift_target:
-        query = query.filter_by(shift=shift_target)
+        if tipo == "particular" and shift_target == "Nocturno":
+            query = query.filter(Movement.shift.in_(["Nocturno", "Nocturno A", "Nocturno B"]))
+        else:
+            query = query.filter_by(shift=shift_target)
         
     cargos = query.order_by(Movement.timestamp.desc()).all()
     cargos_filtrados = []
@@ -2562,10 +2698,15 @@ def terminal():
     filtro_fecha = request.args.get("filtro_fecha", "").strip()
     filtro_dia = request.args.get("filtro_dia", "").strip()
 
-    matutino_cargos = obtener_cargos_filtrados("Matutino", filtro_fecha, filtro_dia)
-    vespertino_cargos = obtener_cargos_filtrados("Vespertino", filtro_fecha, filtro_dia)
-    nocturno_a_cargos = obtener_cargos_filtrados("Nocturno A", filtro_fecha, filtro_dia)
-    nocturno_b_cargos = obtener_cargos_filtrados("Nocturno B", filtro_fecha, filtro_dia)
+    matutino_cargos = obtener_cargos_filtrados("Matutino", filtro_fecha, filtro_dia, "costo")
+    vespertino_cargos = obtener_cargos_filtrados("Vespertino", filtro_fecha, filtro_dia, "costo")
+    nocturno_a_cargos = obtener_cargos_filtrados("Nocturno A", filtro_fecha, filtro_dia, "costo")
+    nocturno_b_cargos = obtener_cargos_filtrados("Nocturno B", filtro_fecha, filtro_dia, "costo")
+
+    # Cargos de Particulares/ANDA por turno
+    part_matutino_cargos = obtener_cargos_filtrados("Matutino", filtro_fecha, filtro_dia, "particular")
+    part_vespertino_cargos = obtener_cargos_filtrados("Vespertino", filtro_fecha, filtro_dia, "particular")
+    part_nocturno_cargos = obtener_cargos_filtrados("Nocturno", filtro_fecha, filtro_dia, "particular")
 
     controlled_items = Item.query.filter_by(etiqueta="Controlado").order_by(Item.name).all()
     controlled_logs = ControlledLog.query.order_by(ControlledLog.timestamp.desc()).all()
@@ -2614,6 +2755,9 @@ def terminal():
         vespertino_cargos=vespertino_cargos,
         nocturno_a_cargos=nocturno_a_cargos,
         nocturno_b_cargos=nocturno_b_cargos,
+        part_matutino_cargos=part_matutino_cargos,
+        part_vespertino_cargos=part_vespertino_cargos,
+        part_nocturno_cargos=part_nocturno_cargos,
         controlled_items=controlled_items,
         controlled_logs=controlled_logs,
         cleaning_logs=cleaning_logs,
@@ -2658,7 +2802,6 @@ def toggle_weekly_task():
         db.session.commit()
     return redirect(url_for("terminal", view="rol_semanal"))
 
-# RUTA ACTUALIZADA DE SOLICITUD DE INSUMOS (CON DIAGNÓSTICO, TOLERA VÍA ORAL Y MULTICARGA)
 @app.route("/submit_insumo_request", methods=["POST"])
 def submit_insumo_request():
     patient_name = request.form.get("patient_name")
@@ -2740,7 +2883,6 @@ def process_insumo_request():
     
     return redirect(url_for("terminal", view="autorizaciones"))
 
-# RUTAS DE REPORTES PDF CON EXPEDIENTE
 @app.route("/imprimir_costos_pdf")
 def imprimir_costos_pdf():
     filtro_fecha = request.args.get("filtro_fecha", "").strip()
@@ -2785,16 +2927,18 @@ def imprimir_costos_pdf():
 @app.route("/imprimir_turno_pdf")
 def imprimir_turno_pdf():
     shift = request.args.get("shift", "Matutino").strip()
+    tipo = request.args.get("tipo", "costo").strip()
     filtro_fecha = request.args.get("filtro_fecha", "").strip()
     filtro_dia = request.args.get("filtro_dia", "").strip()
-    cargos = obtener_cargos_filtrados(shift_target=shift, filtro_fecha=filtro_fecha, filtro_dia=filtro_dia)
+    cargos = obtener_cargos_filtrados(shift_target=shift, filtro_fecha=filtro_fecha, filtro_dia=filtro_dia, tipo=tipo)
     
     buffer = io.BytesIO()
     c = canvas.Canvas(buffer, pagesize=letter)
     width, height = letter
 
+    titulo_tipo = "PARTICULARES / ANDA" if tipo == "particular" else f"TURNO: {shift.upper()}"
     c.setFont("Helvetica-Bold", 14)
-    c.drawString(20 * mm, height - 20 * mm, f"HOSPITAL OBREGÓN - TURNO: {shift.upper()}")
+    c.drawString(20 * mm, height - 20 * mm, f"HOSPITAL OBREGÓN - {titulo_tipo}")
     
     y = height - 35 * mm
     c.setFont("Helvetica-Bold", 9)
@@ -2819,7 +2963,7 @@ def imprimir_turno_pdf():
 
     c.save()
     buffer.seek(0)
-    return send_file(buffer, as_attachment=False, mimetype="application/pdf", download_name=f"turno_{shift.lower()}.pdf")
+    return send_file(buffer, as_attachment=False, mimetype="application/pdf", download_name=f"turno_{shift.lower()}_{tipo}.pdf")
 
 @app.route("/imprimir_etiqueta_pdf")
 def imprimir_etiqueta_pdf():
@@ -2884,6 +3028,8 @@ def add_cost_cargo_batch():
     room = request.form.get("room", "").strip()
     patient_id = request.form.get("patient_id", "").strip()
     shift = request.form.get("shift")
+    tipo_cargo = request.form.get("tipo_cargo", "costo")
+    is_particular = (tipo_cargo == "particular")
     
     try:
         cart_items = json.loads(request.form.get("cart_costos_data", "[]"))
@@ -2912,7 +3058,7 @@ def add_cost_cargo_batch():
             timestamp=get_local_now(),
             item_code=item.code,
             item_name=f"{item.name} (Lote: {item.lote or 'S/L'})",
-            type="Salida (Costos)",
+            type="Salida (Costos)" if not is_particular else "Salida (Particular/ANDA)",
             quantity=quantity,
             warehouse=warehouse,
             user_name=user.name,
@@ -2920,7 +3066,8 @@ def add_cost_cargo_batch():
             patient_id=patient_id,
             room=room,
             shift=shift,
-            is_cost_cargo=True
+            is_cost_cargo=True,
+            is_particular_anda=is_particular
         ))
 
     db.session.commit()
@@ -3115,6 +3262,7 @@ def seed_database():
                 conn.execute(text('ALTER TABLE "insumo_request" ADD COLUMN IF NOT EXISTS tolera_via_oral VARCHAR(10) DEFAULT \'\';'))
                 conn.execute(text('ALTER TABLE "insumo_request" ADD COLUMN IF NOT EXISTS observaciones VARCHAR(350) DEFAULT \'\';'))
                 conn.execute(text('ALTER TABLE "insumo_request" ADD COLUMN IF NOT EXISTS comentarios VARCHAR(350) DEFAULT \'\';'))
+                conn.execute(text('ALTER TABLE "movement" ADD COLUMN IF NOT EXISTS is_particular_anda BOOLEAN DEFAULT FALSE;'))
                 conn.commit()
         except Exception as e:
             print("Aviso de migración de esquema:", e)
