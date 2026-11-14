@@ -49,6 +49,10 @@ class User(db.Model):
 class Patient(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(150), unique=True, nullable=False)
+    expediente = db.Column(db.String(50), nullable=True)
+    convenio = db.Column(db.String(100), nullable=True)
+    diagnostico = db.Column(db.String(250), nullable=True)
+    fnac = db.Column(db.String(30), nullable=True)
 
 class Item(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -133,6 +137,21 @@ class InsumoRequest(db.Model):
     fecha_respuesta = db.Column(db.DateTime, nullable=True)
     observaciones = db.Column(db.String(350), nullable=True)
     comentarios = db.Column(db.String(350), nullable=True)
+
+def upsert_patient(name, expediente=None, convenio=None, diagnostico=None, fnac=None):
+    if not name:
+        return
+    clean_name = name.strip()
+    p = Patient.query.filter_by(name=clean_name).first()
+    if not p:
+        p = Patient(name=clean_name, expediente=expediente, convenio=convenio, diagnostico=diagnostico, fnac=fnac)
+        db.session.add(p)
+    else:
+        if expediente: p.expediente = expediente
+        if convenio: p.convenio = convenio
+        if diagnostico: p.diagnostico = diagnostico
+        if fnac: p.fnac = fnac
+    db.session.commit()
 
 # -----------------------------------------------------------------------------
 # PLANTILLA HTML REDISEÑADA Y MODERNA
@@ -297,6 +316,53 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             {% endfor %}
         </datalist>
 
+        <script>
+            const patientsData = {
+                {% for p in patients %}
+                "{{ p.name }}": {
+                    "expediente": "{{ p.expediente or '' }}",
+                    "convenio": "{{ p.convenio or '' }}",
+                    "diagnostico": "{{ p.diagnostico or '' }}",
+                    "fnac": "{{ p.fnac or '' }}"
+                },
+                {% endfor %}
+            };
+
+            function handlePatientSelect(inputElement, type) {
+                const val = inputElement.value.trim();
+                const data = patientsData[val];
+                if (!data) return;
+
+                if (type === 'terminal') {
+                    const expEl = document.getElementById('patient_id');
+                    const dxEl = document.getElementById('patient_diagnostico');
+                    const fnacEl = document.getElementById('patient_fnac');
+                    if (expEl && data.expediente) expEl.value = data.expediente;
+                    if (dxEl && data.diagnostico) dxEl.value = data.diagnostico;
+                    if (fnacEl && data.fnac) fnacEl.value = data.fnac;
+                } else if (type === 'costos') {
+                    const convEl = document.getElementById('costos_convenio');
+                    const expEl = document.getElementById('costos_patient_id');
+                    if (convEl && data.convenio) convEl.value = data.convenio;
+                    if (expEl && data.expediente) expEl.value = data.expediente;
+                } else if (type === 'solicitud') {
+                    const form = inputElement.closest('form');
+                    if (form) {
+                        const convEl = form.querySelector('[name="convenio"]');
+                        const expEl = form.querySelector('[name="expediente"]');
+                        const dxEl = form.querySelector('[name="diagnostico"]');
+                        if (convEl && data.convenio) convEl.value = data.convenio;
+                        if (expEl && data.expediente) expEl.value = data.expediente;
+                        if (dxEl && data.diagnostico) dxEl.value = data.diagnostico;
+                    }
+                } else if (type === 'etiquetas') {
+                    const fnacEl = document.getElementById('lbl_fnac');
+                    if (fnacEl && data.fnac) fnacEl.value = data.fnac;
+                    updateLabelPreview();
+                }
+            }
+        </script>
+
         <datalist id="items_list">
             {% for item in items %}
                 {% if (item.stock_general or 0) > 0 or (item.stock_quirofano or 0) > 0 %}
@@ -312,7 +378,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     <h2 class="text-lg font-black text-slate-900 flex items-center gap-2.5">
                         <i class="fa-solid fa-hand-holding-medical text-cyan-600"></i> Solicitud Múltiple de Insumos y Medicamentos
                     </h2>
-                    <p class="text-xs text-slate-500 mt-1">Complete los datos del paciente, convenio, expediente, diagnóstico y agregue uno o más medicamentos con stock disponible.</p>
+                    <p class="text-xs text-slate-500 mt-1">Seleccione un paciente para autocompletar convenio, expediente y diagnóstico, o complete los datos manualmente.</p>
                 </div>
 
                 <form action="/submit_insumo_request" method="POST" onsubmit="return validateInsumoRequestForm()" class="space-y-5">
@@ -321,7 +387,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div>
                             <label class="block text-xs font-bold text-slate-700 uppercase mb-1.5">Nombre del Paciente</label>
-                            <input type="text" name="patient_name" list="patients_datalist" required placeholder="Nombre completo" class="w-full p-3 border border-slate-200 rounded-2xl text-xs outline-none bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-cyan-500 font-medium">
+                            <input type="text" name="patient_name" list="patients_datalist" onchange="handlePatientSelect(this, 'solicitud')" oninput="handlePatientSelect(this, 'solicitud')" required placeholder="Nombre completo" class="w-full p-3 border border-slate-200 rounded-2xl text-xs outline-none bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-cyan-500 font-medium">
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-700 uppercase mb-1.5">Convenio</label>
@@ -669,7 +735,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         <h2 class="text-lg font-black text-slate-900 flex items-center gap-2.5">
                             <i class="fa-solid fa-file-invoice-dollar text-emerald-600"></i> Cargo Múltiple de Material para Costos y Particulares/ANDA
                         </h2>
-                        <p class="text-xs text-slate-500 mt-1">Agregue insumos con stock, especifique el Convenio y seleccione el tipo de cargo (General u Hospitalario / Particulares/ANDA) por turno.</p>
+                        <p class="text-xs text-slate-500 mt-1">Seleccione un paciente para autocompletar convenio y expediente, o ingrese los datos manualmente.</p>
                     </div>
 
                     <form action="/terminal" method="GET" class="flex flex-wrap items-center gap-2.5 bg-slate-50 p-3 rounded-2xl border border-slate-200 no-print">
@@ -713,11 +779,10 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 <form action="/add_cost_cargo_batch" method="POST" onsubmit="return validateCostosBatch()" class="space-y-5">
                     <input type="hidden" name="cart_costos_data" id="cart_costos_data_input">
 
-                    <!-- CAMPOS DEL PACIENTE, CONVENIO Y HABITACIÓN CON APARTADO DE CONVENIO -->
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3.5 bg-slate-50/80 p-5 rounded-2xl border border-slate-200">
                         <div class="lg:col-span-1">
                             <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nombre Paciente</label>
-                            <input type="text" list="patients_datalist" name="patient_name" id="costos_patient_name" required placeholder="Ej. Ana Gómez" class="w-full p-2.5 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 outline-none bg-white font-medium">
+                            <input type="text" list="patients_datalist" name="patient_name" id="costos_patient_name" onchange="handlePatientSelect(this, 'costos')" oninput="handlePatientSelect(this, 'costos')" required placeholder="Ej. Ana Gómez" class="w-full p-2.5 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 outline-none bg-white font-medium">
                         </div>
                         <div class="lg:col-span-1">
                             <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Convenio</label>
@@ -1350,7 +1415,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 </div>
             </div>
 
-            <!-- FORMULARIO DE SURTIDO MÚLTIPLE (AHORA DESCUENTA INVENTARIO Y REGISTRA BITÁCORA CON DIAGNÓSTICO) -->
+            <!-- FORMULARIO DE SURTIDO MÚLTIPLE (CON AUTOFILL DE PACIENTE) -->
             <form action="/register_batch" method="POST" onsubmit="return validateBatchForm()" class="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-200/80 space-y-6">
                 <input type="hidden" name="cart_data" id="cart_data_input">
 
@@ -1359,7 +1424,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         <h2 class="text-base font-black text-slate-900 flex items-center gap-2">
                             <i class="fa-solid fa-receipt text-blue-600"></i> Dispensación de Receta / Surtido a Paciente
                         </h2>
-                        <p class="text-xs text-slate-500 mt-0.5">Los insumos seleccionados descontarán automáticamente existencias del inventario y se registrarán en la bitácora institucional.</p>
+                        <p class="text-xs text-slate-500 mt-0.5">Seleccione un paciente para autocompletar expediente, fecha de nacimiento y diagnóstico.</p>
                     </div>
                     <span class="text-xs font-bold bg-blue-100 text-blue-800 px-3 py-1 rounded-full shadow-inner hidden sm:inline-block">
                         Multicarga Activa
@@ -1391,7 +1456,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
                         <div>
                             <label class="block text-[11px] font-semibold text-slate-600 mb-1">Nombre del Paciente</label>
-                            <input type="text" list="patients_datalist" name="patient_name" id="patient_name" placeholder="Ej. Juan Pérez" class="w-full p-2.5 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-500 outline-none bg-white font-medium">
+                            <input type="text" list="patients_datalist" name="patient_name" id="patient_name" onchange="handlePatientSelect(this, 'terminal')" oninput="handlePatientSelect(this, 'terminal')" placeholder="Ej. Juan Pérez" class="w-full p-2.5 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-500 outline-none bg-white font-medium">
                         </div>
                         <div>
                             <label class="block text-[11px] font-semibold text-slate-600 mb-1">Fecha de Nacimiento</label>
@@ -1503,7 +1568,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         <h2 class="text-base font-black text-slate-900 flex items-center gap-2.5">
                             <i class="fa-solid fa-tags text-purple-600"></i> Generador de Etiquetas Térmicas (51 x 25 mm)
                         </h2>
-                        <p class="text-xs text-slate-500 mt-0.5">Seleccione el formato y complete los datos para generar la etiqueta térmica exacta.</p>
+                        <p class="text-xs text-slate-500 mt-0.5">Seleccione un paciente para autocompletar su fecha de nacimiento o complete los datos.</p>
                     </div>
                     <div class="flex gap-2.5 w-full sm:w-auto">
                         <button type="submit" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-bold shadow-md transition flex items-center justify-center gap-1.5">
@@ -1530,7 +1595,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     <div class="space-y-3.5">
                         <div>
                             <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nombre del Paciente</label>
-                            <input type="text" id="lbl_patient" name="patient_name" list="patients_datalist" placeholder="Ej. Ventura Carlos Petronilo" oninput="updateLabelPreview()" required class="w-full p-3 border border-slate-200 rounded-2xl text-xs bg-slate-50/50 font-medium outline-none">
+                            <input type="text" id="lbl_patient" name="patient_name" list="patients_datalist" placeholder="Ej. Ventura Carlos Petronilo" onchange="handlePatientSelect(this, 'etiquetas'); updateLabelPreview();" oninput="updateLabelPreview()" required class="w-full p-3 border border-slate-200 rounded-2xl text-xs bg-slate-50/50 font-medium outline-none">
                         </div>
                         <div class="grid grid-cols-2 gap-2.5">
                             <div>
@@ -2486,7 +2551,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         
         function revertMovementModal(id) { document.getElementById('modal_revert_movement_id').value = id; document.getElementById('revertMovementModalBox').classList.remove('hidden'); }
         function closeRevertModal() { document.getElementById('revertMovementModalBox').classList.add('hidden'); }
-        function deleteMovementModal(id) { document.getElementById('modal_delete_movement_id').value = id; document.getElementById('deleteMovementModalBox').classList.remove('hidden'); }
+        function deleteMovementModal(id) { document.getElementById('modal_delete_movement_id').value = id; document.getElementById('deleteMovementModalBox').classList.add('hidden'); }
         function closeDeleteMovementModal() { document.getElementById('deleteMovementModalBox').classList.add('hidden'); }
 
         function editUser(id, name, role, pin, acciones, vistas) {
@@ -2785,6 +2850,8 @@ def submit_insumo_request():
     solicitante = request.form.get("solicitante_nombre")
     pin = request.form.get("pin_confirmacion")
 
+    upsert_patient(patient_name, expediente=expediente, convenio=convenio, diagnostico=diagnostico)
+
     user = User.query.filter_by(name=solicitante).first() or User.query.filter_by(pin=pin).first()
     if not user or user.pin != pin:
         flash("PIN de confirmación incorrecto.", "error")
@@ -2855,6 +2922,17 @@ def process_insumo_request():
     
     return redirect(url_for("terminal", view="autorizaciones"))
 
+@app.route("/save_patient_from_label", methods=["POST"])
+def save_patient_from_label():
+    patient_name = request.form.get("patient_name", "").strip()
+    if patient_name:
+        upsert_patient(
+            patient_name,
+            fnac=request.form.get("fnac", "").strip()
+        )
+        flash(f"Paciente {patient_name} guardado correctamente.", "success")
+    return redirect(url_for("terminal", view="etiquetas"))
+
 @app.route("/imprimir_costos_pdf")
 def imprimir_costos_pdf():
     filtro_fecha = request.args.get("filtro_fecha", "").strip()
@@ -2870,7 +2948,6 @@ def imprimir_costos_pdf():
     c.setFont("Helvetica", 9)
     c.drawString(15 * mm, height - 26 * mm, f"Fecha de emisión: {datetime.now(LOCAL_TZ).strftime('%d/%m/%Y %H:%M')} | Total Registros: {len(cargos)}")
     
-    # Coordenadas ajustadas para incluir Convenio y evitar solapamiento
     y = height - 40 * mm
     c.setFont("Helvetica-Bold", 9)
     c.drawString(15 * mm, y, "Fecha/Hora")
@@ -3011,6 +3088,8 @@ def add_cost_cargo_batch():
     tipo_cargo = request.form.get("tipo_cargo", "costo")
     is_particular = (tipo_cargo == "particular")
     
+    upsert_patient(patient_name, expediente=patient_id, convenio=convenio)
+
     try:
         cart_items = json.loads(request.form.get("cart_costos_data", "[]"))
     except:
@@ -3068,6 +3147,8 @@ def register_batch():
     diagnostico = request.form.get("diagnostico", "").strip()
     service = request.form.get("service", "").strip()
     notes = request.form.get("notes", "").strip()
+
+    upsert_patient(patient_name, expediente=patient_id, diagnostico=diagnostico, fnac=patient_fnac)
 
     try:
         cart_items = json.loads(request.form.get("cart_data", "[]"))
@@ -3296,6 +3377,10 @@ def seed_database():
             with db.engine.connect() as conn:
                 conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS vistas_permitidas VARCHAR(500) DEFAULT \'terminal,costos,etiquetas,alta_insumos,inventario,controlados,limpieza,rol_semanal,solicitud_insumos,autorizaciones,estado_autorizaciones,bitacora,usuarios\';'))
                 conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS acciones_permitidas VARCHAR(500) DEFAULT \'surtir,modificar,eliminar,autorizar\';'))
+                conn.execute(text('ALTER TABLE "patient" ADD COLUMN IF NOT EXISTS expediente VARCHAR(50) DEFAULT \'\';'))
+                conn.execute(text('ALTER TABLE "patient" ADD COLUMN IF NOT EXISTS convenio VARCHAR(100) DEFAULT \'\';'))
+                conn.execute(text('ALTER TABLE "patient" ADD COLUMN IF NOT EXISTS diagnostico VARCHAR(250) DEFAULT \'\';'))
+                conn.execute(text('ALTER TABLE "patient" ADD COLUMN IF NOT EXISTS fnac VARCHAR(30) DEFAULT \'\';'))
                 conn.execute(text('ALTER TABLE "insumo_request" ADD COLUMN IF NOT EXISTS patient_name VARCHAR(150) DEFAULT \'\';'))
                 conn.execute(text('ALTER TABLE "insumo_request" ADD COLUMN IF NOT EXISTS convenio VARCHAR(100) DEFAULT \'\';'))
                 conn.execute(text('ALTER TABLE "insumo_request" ADD COLUMN IF NOT EXISTS expediente VARCHAR(50) DEFAULT \'\';'))
