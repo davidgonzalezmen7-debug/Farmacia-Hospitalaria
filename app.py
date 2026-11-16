@@ -182,12 +182,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <header class="glass-header text-white shadow-xl sticky top-0 z-40 no-print border-b border-blue-900/40">
         <div class="max-w-7xl mx-auto px-4 py-3.5 flex flex-col md:flex-row justify-between items-center gap-4">
             <div class="flex items-center gap-3">
-                <div class="bg-gradient-to-br from-blue-500 to-indigo-600 p-3 rounded-2xl shadow-lg ring-2 ring-white/20">
+                <div class="bg-gradient-to-br from-blue-500 to-indigo-600 p-3 rounded-2xl shadow-lg ring-2 ring-white/25">
                     <i class="fa-solid fa-hospital text-2xl text-white"></i>
                 </div>
                 <div>
                     <h1 class="text-xl font-black tracking-tight text-white flex items-center gap-2">
-                        Farmacia Hospitalaria <span class="text-[10px] bg-cyan-500/30 text-cyan-200 border border-cyan-400/30 px-2 py-0.5 rounded-full font-mono">v3.5 PRO</span>
+                        Hospital Obregón <span class="text-[10px] bg-cyan-500/30 text-cyan-200 border border-cyan-400/30 px-2 py-0.5 rounded-full font-mono">v3.6 PRO</span>
                     </h1>
                     <p class="text-[11px] text-blue-200 font-medium">Terminal Segura de Surtido, Costos e Inventarios</p>
                 </div>
@@ -489,6 +489,28 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
         {% elif view == 'autorizaciones' %}
         <div class="space-y-6">
+            <!-- NUEVO CONTADOR Y VENTANA DE RESUMEN DE SOLICITUDES -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="bg-gradient-to-br from-amber-500 to-orange-600 text-white p-5 rounded-3xl shadow-md flex items-center justify-between">
+                    <div>
+                        <p class="text-xs uppercase font-bold tracking-wider text-amber-100">Solicitudes Pendientes por Confirmar</p>
+                        <h3 class="text-3xl font-black mt-1">{{ pending_count }}</h3>
+                    </div>
+                    <div class="w-12 h-12 rounded-2xl bg-white/25 flex items-center justify-center text-xl shadow-inner">
+                        <i class="fa-solid fa-clock"></i>
+                    </div>
+                </div>
+                <div class="bg-gradient-to-br from-slate-900 to-indigo-950 text-white p-5 rounded-3xl shadow-md flex items-center justify-between">
+                    <div>
+                        <p class="text-xs uppercase font-bold tracking-wider text-slate-300">Total General de Solicitudes</p>
+                        <h3 class="text-3xl font-black mt-1">{{ total_req_count }}</h3>
+                    </div>
+                    <div class="w-12 h-12 rounded-2xl bg-white/15 flex items-center justify-center text-xl shadow-inner">
+                        <i class="fa-solid fa-list-check"></i>
+                    </div>
+                </div>
+            </div>
+
             <div class="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-200/80">
                 <div class="border-b border-slate-100 pb-4 mb-6">
                     <h2 class="text-lg font-black text-slate-900 flex items-center gap-2.5">
@@ -651,7 +673,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     <h2 class="text-lg font-black flex items-center gap-2.5">
                         <i class="fa-solid fa-calendar-days text-indigo-400"></i> Rol Semanal de Actividades (Exclusivo Farmacéuticos)
                     </h2>
-                    <p class="text-xs text-indigo-200 mt-1">Distribución aleatoria automatizada para el personal farmacéutico.</p>
+                    <p class="text-xs text-indigo-200 mt-1">Distribución aleatoria automatizada para el personal farmacéutico con alertas de tareas pendientes.</p>
                 </div>
                 <div class="flex gap-2.5">
                     <a href="/generate_random_rol" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-xs font-bold transition flex items-center gap-1.5 shadow-md">
@@ -665,7 +687,11 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {% for usr in staff_users %}
-                <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200/80 flex flex-col justify-between hover:shadow-md transition">
+                {% set user_tasks = weekly_tasks_by_user.get(usr.name, []) %}
+                {% set pending_tasks_count = namespace(count=0) %}
+                {% for t in user_tasks %}{% if t.estado == 'Pendiente' %}{% set pending_tasks_count.count = pending_tasks_count.count + 1 %}{% endif %}{% endfor %}
+
+                <div class="bg-white p-6 rounded-3xl shadow-sm border {% if pending_tasks_count.count > 0 %}border-amber-300 ring-2 ring-amber-400/20{% else %}border-slate-200/80{% endif %} flex flex-col justify-between hover:shadow-md transition">
                     <div>
                         <div class="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
                             <div class="flex items-center gap-3">
@@ -677,9 +703,17 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                     <span class="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">{{ usr.role }}</span>
                                 </div>
                             </div>
-                            <span class="bg-indigo-50 text-indigo-700 text-[10px] px-3 py-1 rounded-full font-bold border border-indigo-100">
-                                Asignado
-                            </span>
+                            
+                            <!-- ALERTA VISUAL DE TAREAS PENDIENTES -->
+                            {% if pending_tasks_count.count > 0 %}
+                                <span class="bg-amber-100 text-amber-800 text-[10px] px-3 py-1 rounded-full font-extrabold border border-amber-200 flex items-center gap-1.5 animate-pulse">
+                                    <i class="fa-solid fa-triangle-exclamation text-amber-600"></i> Alerta: {{ pending_tasks_count.count }} Pendiente(s)
+                                </span>
+                            {% else %}
+                                <span class="bg-emerald-100 text-emerald-800 text-[10px] px-3 py-1 rounded-full font-bold border border-emerald-200 flex items-center gap-1">
+                                    <i class="fa-solid fa-circle-check"></i> Al Día
+                                </span>
+                            {% endif %}
                         </div>
 
                         <div class="overflow-x-auto">
@@ -693,7 +727,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-slate-100">
-                                    {% set user_tasks = weekly_tasks_by_user.get(usr.name, []) %}
                                     {% for task in user_tasks %}
                                     <tr class="hover:bg-slate-50/60">
                                         <td class="p-2.5 font-bold text-slate-800">{{ task.dia_semana }}</td>
@@ -1656,7 +1689,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                             <div class="text-[7.5px] text-slate-700 leading-tight">F.N: <span id="v1_fnac" class="font-bold">14/07/1967</span> | Hab: <span id="v1_habitacion" class="font-bold">UCI-5</span></div>
                         </div>
                         <div class="text-right flex items-center gap-1 border border-black px-1.5 py-0.5 bg-slate-50 shrink-0 rounded">
-                            <span class="font-extrabold text-[10px] tracking-tighter text-blue-900 leading-none">HD</span>
+                            <span class="font-extrabold text-[10px] tracking-tighter text-blue-900 leading-none">HO</span>
                             <div class="text-[6px] leading-none font-bold uppercase text-slate-800">
                                 Hosp.<br>Obregón
                             </div>
@@ -1683,7 +1716,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     <div class="flex justify-between items-center border-b border-black pb-1">
                         <span class="font-bold text-[7.5px] uppercase text-slate-700">UNIDOSIS HOSPITALARIA</span>
                         <div class="text-right flex items-center gap-1 border border-black px-1.5 py-0.5 bg-slate-50 shrink-0 rounded">
-                            <span class="font-extrabold text-[10px] tracking-tighter text-blue-900 leading-none">HD</span>
+                            <span class="font-extrabold text-[10px] tracking-tighter text-blue-900 leading-none">HO</span>
                             <div class="text-[6px] leading-none font-bold uppercase text-slate-800">
                                 Hosp.<br>Obregón
                             </div>
@@ -2609,7 +2642,7 @@ def login():
     <html lang="es">
     <head>
         <meta charset="UTF-8">
-        <title>Autenticación Requerida - Farmacia Hospitalaria</title>
+        <title>Autenticación Requerida - Hospital Obregón</title>
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     </head>
@@ -2617,9 +2650,9 @@ def login():
         <div class="bg-white/95 backdrop-blur-xl rounded-3xl max-w-md w-full p-8 md:p-10 shadow-2xl space-y-6 border border-white/20">
             <div class="text-center space-y-3">
                 <div class="w-16 h-16 bg-blue-600 text-white rounded-2xl flex items-center justify-center text-2xl mx-auto shadow-lg shadow-blue-600/30">
-                    <i class="fa-solid fa-lock"></i>
+                    <i class="fa-solid fa-hospital"></i>
                 </div>
-                <h1 class="text-xl font-black text-slate-900 tracking-tight">Acceso Institucional</h1>
+                <h1 class="text-xl font-black text-slate-900 tracking-tight">Hospital Obregón</h1>
                 <p class="text-xs text-slate-500 font-medium">Ingrese su PIN de usuario para visualizar el sistema</p>
             </div>
 
@@ -2751,6 +2784,10 @@ def terminal():
     movements = Movement.query.order_by(Movement.timestamp.desc()).all()
     insumo_requests = InsumoRequest.query.order_by(InsumoRequest.timestamp.desc()).all()
 
+    # Contadores para panel de autorizaciones
+    pending_count = InsumoRequest.query.filter_by(estado="Pendiente").count()
+    total_req_count = InsumoRequest.query.count()
+
     is_admin = request.args.get("admin") == "true"
     is_admin_controlled = request.args.get("admin_arqueo") == "true"
 
@@ -2800,6 +2837,8 @@ def terminal():
         cleaning_logs=cleaning_logs,
         movements=movements,
         insumo_requests=insumo_requests,
+        pending_count=pending_count,
+        total_req_count=total_req_count,
         is_admin=is_admin,
         is_admin_controlled=is_admin_controlled,
         today_str=today_str,
@@ -2943,33 +2982,45 @@ def imprimir_costos_pdf():
     c = canvas.Canvas(buffer, pagesize=letter)
     width, height = letter
 
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(15 * mm, height - 20 * mm, "HOSPITAL OBREGÓN - REPORTE DE CARGOS A COSTOS")
+    # ENCABEZADO INSTITUCIONAL CON LOGOTIPO / MARCA HOSPITAL OBREGÓN
+    c.setFillColor(HexColor("#1e3a8a"))
+    c.rect(15 * mm, height - 25 * mm, width - 30 * mm, 12 * mm, fill=1, stroke=0)
+    c.setFillColor(HexColor("#ffffff"))
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(18 * mm, height - 19 * mm, "HOSPITAL OBREGÓN")
     c.setFont("Helvetica", 9)
-    c.drawString(15 * mm, height - 26 * mm, f"Fecha de emisión: {datetime.now(LOCAL_TZ).strftime('%d/%m/%Y %H:%M')} | Total Registros: {len(cargos)}")
+    c.drawRightString(width - 18 * mm, height - 19 * mm, "FARMACIA HOSPITALARIA - REPORTE DE COSTOS")
+
+    c.setFillColor(HexColor("#000000"))
+    c.setFont("Helvetica", 8)
+    c.drawString(15 * mm, height - 33 * mm, f"Fecha de emisión: {datetime.now(LOCAL_TZ).strftime('%d/%m/%Y %H:%M')} | Total Registros: {len(cargos)}")
     
-    y = height - 40 * mm
-    c.setFont("Helvetica-Bold", 9)
-    c.drawString(15 * mm, y, "Fecha/Hora")
+    y = height - 42 * mm
+    c.setFillColor(HexColor("#0f172a"))
+    c.rect(15 * mm, y - 2 * mm, width - 30 * mm, 6 * mm, fill=1, stroke=0)
+    c.setFillColor(HexColor("#ffffff"))
+    c.setFont("Helvetica-Bold", 8)
+    c.drawString(16 * mm, y, "Fecha/Hora")
     c.drawString(42 * mm, y, "Paciente")
     c.drawString(82 * mm, y, "Convenio")
     c.drawString(108 * mm, y, "Exp.")
-    c.drawString(125 * mm, y, "Insumo")
-    c.drawRightString(195 * mm, y, "Cant.")
+    c.drawString(125 * mm, y, "Insumo / Descripción")
+    c.drawRightString(width - 16 * mm, y, "Cant.")
     
-    y -= 6 * mm
+    y -= 8 * mm
+    c.setFillColor(HexColor("#000000"))
     c.setFont("Helvetica", 8)
     for cgo in cargos:
-        if y < 25 * mm:
+        if y < 20 * mm:
             c.showPage()
             y = height - 25 * mm
         f_str = cgo.timestamp.strftime('%d/%m/%Y %H:%M') if cgo.timestamp else "--"
-        c.drawString(15 * mm, y, f_str)
+        c.drawString(16 * mm, y, f_str)
         c.drawString(42 * mm, y, str(cgo.patient_name)[:18])
         c.drawString(82 * mm, y, str(cgo.convenio or "-")[:13])
         c.drawString(108 * mm, y, str(cgo.patient_id or "-")[:8])
-        c.drawString(125 * mm, y, str(cgo.item_name)[:26])
-        c.drawRightString(195 * mm, y, str(cgo.quantity))
+        c.drawString(125 * mm, y, str(cgo.item_name)[:34])
+        c.drawRightString(width - 16 * mm, y, str(cgo.quantity))
         y -= 6.5 * mm
 
     c.save()
@@ -2989,32 +3040,45 @@ def imprimir_turno_pdf():
     width, height = letter
 
     titulo_tipo = "PARTICULARES / ANDA" if tipo == "particular" else f"TURNO: {shift.upper()}"
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(15 * mm, height - 20 * mm, f"HOSPITAL OBREGÓN - {titulo_tipo}")
-    c.setFont("Helvetica", 9)
-    c.drawString(15 * mm, height - 26 * mm, f"Fecha de emisión: {datetime.now(LOCAL_TZ).strftime('%d/%m/%Y %H:%M')} | Total Registros: {len(cargos)}")
     
-    y = height - 40 * mm
-    c.setFont("Helvetica-Bold", 9)
-    c.drawString(15 * mm, y, "Fecha/Hora")
+    # ENCABEZADO INSTITUCIONAL CON LOGOTIPO / MARCA HOSPITAL OBREGÓN
+    c.setFillColor(HexColor("#0f172a"))
+    c.rect(15 * mm, height - 25 * mm, width - 30 * mm, 12 * mm, fill=1, stroke=0)
+    c.setFillColor(HexColor("#ffffff"))
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(18 * mm, height - 19 * mm, "HOSPITAL OBREGÓN")
+    c.setFont("Helvetica", 9)
+    c.drawRightString(width - 18 * mm, height - 19 * mm, f"REPORTE POR TURNO - {titulo_tipo}")
+
+    c.setFillColor(HexColor("#000000"))
+    c.setFont("Helvetica", 8)
+    c.drawString(15 * mm, height - 33 * mm, f"Fecha de emisión: {datetime.now(LOCAL_TZ).strftime('%d/%m/%Y %H:%M')} | Total Registros: {len(cargos)}")
+    
+    y = height - 42 * mm
+    c.setFillColor(HexColor("#1e3a8a"))
+    c.rect(15 * mm, y - 2 * mm, width - 30 * mm, 6 * mm, fill=1, stroke=0)
+    c.setFillColor(HexColor("#ffffff"))
+    c.setFont("Helvetica-Bold", 8)
+    c.drawString(16 * mm, y, "Fecha/Hora")
     c.drawString(42 * mm, y, "Paciente")
     c.drawString(82 * mm, y, "Convenio")
     c.drawString(108 * mm, y, "Exp.")
-    c.drawString(125 * mm, y, "Insumo")
-    c.drawRightString(195 * mm, y, "Cant.")
+    c.drawString(125 * mm, y, "Insumo / Descripción")
+    c.drawRightString(width - 16 * mm, y, "Cant.")
     
-    y -= 6 * mm
+    y -= 8 * mm
+    c.setFillColor(HexColor("#000000"))
     c.setFont("Helvetica", 8)
     for cgo in cargos:
-        if y < 25 * mm:
+        if y < 20 * mm:
             c.showPage()
             y = height - 25 * mm
-        c.drawString(15 * mm, y, cgo.timestamp.strftime('%d/%m/%Y %H:%M') if cgo.timestamp else "--")
+        c.drawString(16 * mm, y, cgo.timestamp.strftime('%d/%m/%Y %H:%M') if cgo.timestamp else "--")
         c.drawString(42 * mm, y, str(cgo.patient_name)[:18])
         c.drawString(82 * mm, y, str(cgo.convenio or "-")[:13])
         c.drawString(108 * mm, y, str(cgo.patient_id or "-")[:8])
-        c.drawString(125 * mm, y, str(cgo.item_name)[:26])
-        c.drawRightString(195 * mm, y, str(cgo.quantity))
+        c.drawString(125 * mm, y, str(cgo.item_name)[:34])
+        c.drawRightString(width - 16 * mm, y, str(cgo.quantity))
         y -= 6.5 * mm
 
     c.save()
@@ -3049,7 +3113,7 @@ def imprimir_etiqueta_pdf():
 
     c.rect(38*mm, 18*mm, 11*mm, 5*mm)
     c.setFont("Helvetica-Bold", 8)
-    c.drawString(38.5*mm, 19.5*mm, "HD")
+    c.drawString(38.5*mm, 19.5*mm, "HO")
 
     c.line(1*mm, 17.5*mm, 50*mm, 17.5*mm)
     c.setFillColor(HexColor("#F1F5F9"))
