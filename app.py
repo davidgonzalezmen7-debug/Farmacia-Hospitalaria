@@ -489,7 +489,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
         {% elif view == 'autorizaciones' %}
         <div class="space-y-6">
-            <!-- CONTADOR Y VENTANA DE RESUMEN DE SOLICITUDES -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div class="bg-gradient-to-br from-amber-500 to-orange-600 text-white p-5 rounded-3xl shadow-md flex items-center justify-between">
                     <div>
@@ -673,7 +672,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     <h2 class="text-lg font-black flex items-center gap-2.5">
                         <i class="fa-solid fa-calendar-days text-indigo-400"></i> Rol Semanal de Actividades (Exclusivo Farmacéuticos)
                     </h2>
-                    <p class="text-xs text-indigo-200 mt-1">Distribución aleatoria automatizada para el personal farmacéutico con alertas de tareas pendientes.</p>
+                    <p class="text-xs text-indigo-200 mt-1">Distribución aleatoria por día para el personal farmacéutico con alertas y tareas diarias independientes.</p>
                 </div>
                 <div class="flex gap-2.5">
                     <a href="/generate_random_rol" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-xs font-bold transition flex items-center gap-1.5 shadow-md">
@@ -688,10 +687,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {% for usr in staff_users %}
                 {% set user_tasks = weekly_tasks_by_user.get(usr.name, []) %}
-                {% set pending_tasks_count = namespace(count=0) %}
-                {% for t in user_tasks %}{% if t.estado == 'Pendiente' %}{% set pending_tasks_count.count = pending_tasks_count.count + 1 %}{% endif %}{% endfor %}
 
-                <div class="bg-white p-6 rounded-3xl shadow-sm border {% if pending_tasks_count.count > 0 %}border-amber-300 ring-2 ring-amber-400/20{% else %}border-slate-200/80{% endif %} flex flex-col justify-between hover:shadow-md transition">
+                <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200/80 flex flex-col justify-between hover:shadow-md transition">
                     <div>
                         <div class="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
                             <div class="flex items-center gap-3">
@@ -703,17 +700,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                     <span class="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">{{ usr.role }}</span>
                                 </div>
                             </div>
-                            
-                            <!-- ALERTA VISUAL DE TAREAS PENDIENTES -->
-                            {% if pending_tasks_count.count > 0 %}
-                                <span class="bg-amber-100 text-amber-800 text-[10px] px-3 py-1 rounded-full font-extrabold border border-amber-200 flex items-center gap-1.5 animate-pulse">
-                                    <i class="fa-solid fa-triangle-exclamation text-amber-600"></i> Alerta: {{ pending_tasks_count.count }} Pendiente(s)
-                                </span>
-                            {% else %}
-                                <span class="bg-emerald-100 text-emerald-800 text-[10px] px-3 py-1 rounded-full font-bold border border-emerald-200 flex items-center gap-1">
-                                    <i class="fa-solid fa-circle-check"></i> Al Día
-                                </span>
-                            {% endif %}
                         </div>
 
                         <div class="overflow-x-auto">
@@ -722,7 +708,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                     <tr>
                                         <th class="p-2.5">Día</th>
                                         <th class="p-2.5">Actividad Asignada</th>
-                                        <th class="p-2.5 text-center">Estado</th>
+                                        <th class="p-2.5 text-center">Estado / Alerta</th>
                                         <th class="p-2.5 text-center">Acción</th>
                                     </tr>
                                 </thead>
@@ -733,9 +719,13 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                         <td class="p-2.5 text-slate-700 font-medium">{{ task.actividad }}</td>
                                         <td class="p-2.5 text-center">
                                             {% if task.estado == 'Completado' %}
-                                                <span class="bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full font-bold text-[10px]">Realizado</span>
+                                                <span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold text-[9px] inline-flex items-center gap-1">
+                                                    <i class="fa-solid fa-circle-check"></i> Al Día
+                                                </span>
                                             {% else %}
-                                                <span class="bg-amber-100 text-amber-800 px-2.5 py-0.5 rounded-full font-bold text-[10px]">Pendiente</span>
+                                                <span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-extrabold text-[9px] inline-flex items-center gap-1 animate-pulse">
+                                                    <i class="fa-solid fa-triangle-exclamation"></i> Pendiente
+                                                </span>
                                             {% endif %}
                                         </td>
                                         <td class="p-2.5 text-center">
@@ -2858,8 +2848,8 @@ def generar_rol_aleatorio_interno():
     if not personal:
         return
 
-    for usr in personal:
-        for dia in dias:
+    for dia in dias:
+        for usr in personal:
             act = random.choice(actividades)
             db.session.add(WeeklySchedule(dia_semana=dia, user_name=usr.name, actividad=act, estado="Pendiente"))
     db.session.commit()
@@ -2867,7 +2857,7 @@ def generar_rol_aleatorio_interno():
 @app.route("/generate_random_rol")
 def generate_random_rol():
     generar_rol_aleatorio_interno()
-    flash("Rol semanal aleatorio generado con éxito para los farmacéuticos.", "success")
+    flash("Rol semanal aleatorio generado con éxito por día.", "success")
     return redirect(url_for("terminal", view="rol_semanal"))
 
 @app.route("/toggle_weekly_task")
@@ -2973,7 +2963,7 @@ def save_patient_from_label():
     return redirect(url_for("terminal", view="etiquetas"))
 
 # -----------------------------------------------------------------------------
-# GENERACIÓN DE PDFS CORREGIDA (SE SEPARARON LAS COORDENADAS PARA EVITAR TRASLAPES)
+# GENERACIÓN DE PDFS CORREGIDA Y REORGANIZADA (SIN TRASLAPES)
 # -----------------------------------------------------------------------------
 
 @app.route("/imprimir_costos_pdf")
@@ -2986,47 +2976,48 @@ def imprimir_costos_pdf():
     c = canvas.Canvas(buffer, pagesize=letter)
     width, height = letter
 
-    # ENCABEZADO INSTITUCIONAL CON LOGOTIPO / MARCA HOSPITAL OBREGÓN
+    # ENCABEZADO INSTITUCIONAL
     c.setFillColor(HexColor("#1e3a8a"))
-    c.rect(15 * mm, height - 25 * mm, width - 30 * mm, 12 * mm, fill=1, stroke=0)
+    c.rect(12 * mm, height - 25 * mm, width - 24 * mm, 12 * mm, fill=1, stroke=0)
     c.setFillColor(HexColor("#ffffff"))
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(18 * mm, height - 19 * mm, "HOSPITAL OBREGÓN")
-    c.setFont("Helvetica", 9)
-    c.drawRightString(width - 18 * mm, height - 19 * mm, "FARMACIA HOSPITALARIA - REPORTE DE COSTOS")
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(15 * mm, height - 19 * mm, "HOSPITAL OBREGÓN")
+    c.setFont("Helvetica", 8.5)
+    c.drawRightString(width - 15 * mm, height - 19 * mm, "FARMACIA HOSPITALARIA - REPORTE DE COSTOS")
 
     c.setFillColor(HexColor("#000000"))
     c.setFont("Helvetica", 8)
-    c.drawString(15 * mm, height - 33 * mm, f"Fecha de emisión: {datetime.now(LOCAL_TZ).strftime('%d/%m/%Y %H:%M')} | Total Registros: {len(cargos)}")
+    c.drawString(12 * mm, height - 32 * mm, f"Fecha de emisión: {datetime.now(LOCAL_TZ).strftime('%d/%m/%Y %H:%M')} | Total Registros: {len(cargos)}")
     
-    y = height - 42 * mm
+    y = height - 41 * mm
     c.setFillColor(HexColor("#0f172a"))
-    c.rect(15 * mm, y - 2 * mm, width - 30 * mm, 6 * mm, fill=1, stroke=0)
+    c.rect(12 * mm, y - 2 * mm, width - 24 * mm, 6 * mm, fill=1, stroke=0)
     c.setFillColor(HexColor("#ffffff"))
-    c.setFont("Helvetica-Bold", 8)
-    # COORDENADAS DE COLUMNAS REAJUSTADAS PARA EVITAR SOLAPAMIENTOS
-    c.drawString(15 * mm, y, "Fecha/Hora")
-    c.drawString(48 * mm, y, "Paciente")
-    c.drawString(88 * mm, y, "Convenio")
-    c.drawString(110 * mm, y, "Exp.")
-    c.drawString(128 * mm, y, "Insumo / Descripción")
-    c.drawRightString(width - 15 * mm, y, "Cant.")
+    c.setFont("Helvetica-Bold", 7.5)
     
-    y -= 8 * mm
+    # COORDENADAS ESTRICTAS SEPARADAS PARA EVITAR CUALQUIER TRASLAPE
+    c.drawString(14 * mm, y, "Fecha/Hora")      # X = 14mm
+    c.drawString(42 * mm, y, "Paciente")        # X = 42mm (ancho máx recomendado ~19 chars)
+    c.drawString(82 * mm, y, "Convenio")        # X = 82mm
+    c.drawString(104 * mm, y, "Exp.")           # X = 104mm
+    c.drawString(120 * mm, y, "Insumo / Descripción") # X = 120mm
+    c.drawRightString(width - 12 * mm, y, "Cant.")
+    
+    y -= 7.5 * mm
     c.setFillColor(HexColor("#000000"))
-    c.setFont("Helvetica", 8)
+    c.setFont("Helvetica", 7.5)
     for cgo in cargos:
-        if y < 20 * mm:
+        if y < 18 * mm:
             c.showPage()
             y = height - 25 * mm
         f_str = cgo.timestamp.strftime('%d/%m/%Y %H:%M') if cgo.timestamp else "--"
-        c.drawString(15 * mm, y, f_str)
-        c.drawString(48 * mm, y, str(cgo.patient_name)[:22])
-        c.drawString(88 * mm, y, str(cgo.convenio or "-")[:12])
-        c.drawString(110 * mm, y, str(cgo.patient_id or "-")[:8])
-        c.drawString(128 * mm, y, str(cgo.item_name)[:34])
-        c.drawRightString(width - 15 * mm, y, str(cgo.quantity))
-        y -= 6.5 * mm
+        c.drawString(14 * mm, y, f_str)
+        c.drawString(42 * mm, y, str(cgo.patient_name)[:19])
+        c.drawString(82 * mm, y, str(cgo.convenio or "-")[:10])
+        c.drawString(104 * mm, y, str(cgo.patient_id or "-")[:7])
+        c.drawString(120 * mm, y, str(cgo.item_name)[:38])
+        c.drawRightString(width - 12 * mm, y, str(cgo.quantity))
+        y -= 6 * mm
 
     c.save()
     buffer.seek(0)
@@ -3046,46 +3037,47 @@ def imprimir_turno_pdf():
 
     titulo_tipo = "PARTICULARES / ANDA" if tipo == "particular" else f"TURNO: {shift.upper()}"
     
-    # ENCABEZADO INSTITUCIONAL CON LOGOTIPO / MARCA HOSPITAL OBREGÓN
+    # ENCABEZADO INSTITUCIONAL
     c.setFillColor(HexColor("#0f172a"))
-    c.rect(15 * mm, height - 25 * mm, width - 30 * mm, 12 * mm, fill=1, stroke=0)
+    c.rect(12 * mm, height - 25 * mm, width - 24 * mm, 12 * mm, fill=1, stroke=0)
     c.setFillColor(HexColor("#ffffff"))
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(18 * mm, height - 19 * mm, "HOSPITAL OBREGÓN")
-    c.setFont("Helvetica", 9)
-    c.drawRightString(width - 18 * mm, height - 19 * mm, f"REPORTE POR TURNO - {titulo_tipo}")
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(15 * mm, height - 19 * mm, "HOSPITAL OBREGÓN")
+    c.setFont("Helvetica", 8.5)
+    c.drawRightString(width - 15 * mm, height - 19 * mm, f"REPORTE POR TURNO - {titulo_tipo}")
 
     c.setFillColor(HexColor("#000000"))
     c.setFont("Helvetica", 8)
-    c.drawString(15 * mm, height - 33 * mm, f"Fecha de emisión: {datetime.now(LOCAL_TZ).strftime('%d/%m/%Y %H:%M')} | Total Registros: {len(cargos)}")
+    c.drawString(12 * mm, height - 32 * mm, f"Fecha de emisión: {datetime.now(LOCAL_TZ).strftime('%d/%m/%Y %H:%M')} | Total Registros: {len(cargos)}")
     
-    y = height - 42 * mm
+    y = height - 41 * mm
     c.setFillColor(HexColor("#1e3a8a"))
-    c.rect(15 * mm, y - 2 * mm, width - 30 * mm, 6 * mm, fill=1, stroke=0)
+    c.rect(12 * mm, y - 2 * mm, width - 24 * mm, 6 * mm, fill=1, stroke=0)
     c.setFillColor(HexColor("#ffffff"))
-    c.setFont("Helvetica-Bold", 8)
-    # COORDENADAS DE COLUMNAS REAJUSTADAS PARA EVITAR SOLAPAMIENTOS
-    c.drawString(15 * mm, y, "Fecha/Hora")
-    c.drawString(48 * mm, y, "Paciente")
-    c.drawString(88 * mm, y, "Convenio")
-    c.drawString(110 * mm, y, "Exp.")
-    c.drawString(128 * mm, y, "Insumo / Descripción")
-    c.drawRightString(width - 15 * mm, y, "Cant.")
+    c.setFont("Helvetica-Bold", 7.5)
     
-    y -= 8 * mm
+    # COORDENADAS ESTRICTAS SEPARADAS PARA EVITAR CUALQUIER TRASLAPE
+    c.drawString(14 * mm, y, "Fecha/Hora")
+    c.drawString(42 * mm, y, "Paciente")
+    c.drawString(82 * mm, y, "Convenio")
+    c.drawString(104 * mm, y, "Exp.")
+    c.drawString(120 * mm, y, "Insumo / Descripción")
+    c.drawRightString(width - 12 * mm, y, "Cant.")
+    
+    y -= 7.5 * mm
     c.setFillColor(HexColor("#000000"))
-    c.setFont("Helvetica", 8)
+    c.setFont("Helvetica", 7.5)
     for cgo in cargos:
-        if y < 20 * mm:
+        if y < 18 * mm:
             c.showPage()
             y = height - 25 * mm
-        c.drawString(15 * mm, y, cgo.timestamp.strftime('%d/%m/%Y %H:%M') if cgo.timestamp else "--")
-        c.drawString(48 * mm, y, str(cgo.patient_name)[:22])
-        c.drawString(88 * mm, y, str(cgo.convenio or "-")[:12])
-        c.drawString(110 * mm, y, str(cgo.patient_id or "-")[:8])
-        c.drawString(128 * mm, y, str(cgo.item_name)[:34])
-        c.drawRightString(width - 15 * mm, y, str(cgo.quantity))
-        y -= 6.5 * mm
+        c.drawString(14 * mm, y, cgo.timestamp.strftime('%d/%m/%Y %H:%M') if cgo.timestamp else "--")
+        c.drawString(42 * mm, y, str(cgo.patient_name)[:19])
+        c.drawString(82 * mm, y, str(cgo.convenio or "-")[:10])
+        c.drawString(104 * mm, y, str(cgo.patient_id or "-")[:7])
+        c.drawString(120 * mm, y, str(cgo.item_name)[:38])
+        c.drawRightString(width - 12 * mm, y, str(cgo.quantity))
+        y -= 6 * mm
 
     c.save()
     buffer.seek(0)
