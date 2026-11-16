@@ -187,7 +187,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 </div>
                 <div>
                     <h1 class="text-xl font-black tracking-tight text-white flex items-center gap-2">
-                        Hospital Obregón <span class="text-[10px] bg-cyan-500/30 text-cyan-200 border border-cyan-400/30 px-2 py-0.5 rounded-full font-mono">v3.6 PRO</span>
+                        Hospital Obregón <span class="text-[10px] bg-cyan-500/30 text-cyan-200 border border-cyan-400/30 px-2 py-0.5 rounded-full font-mono">v3.7 PRO</span>
                     </h1>
                     <p class="text-[11px] text-blue-200 font-medium">Terminal Segura de Surtido, Costos e Inventarios</p>
                 </div>
@@ -489,7 +489,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
         {% elif view == 'autorizaciones' %}
         <div class="space-y-6">
-            <!-- NUEVO CONTADOR Y VENTANA DE RESUMEN DE SOLICITUDES -->
+            <!-- CONTADOR Y VENTANA DE RESUMEN DE SOLICITUDES -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div class="bg-gradient-to-br from-amber-500 to-orange-600 text-white p-5 rounded-3xl shadow-md flex items-center justify-between">
                     <div>
@@ -2972,6 +2972,10 @@ def save_patient_from_label():
         flash(f"Paciente {patient_name} guardado correctamente.", "success")
     return redirect(url_for("terminal", view="etiquetas"))
 
+# -----------------------------------------------------------------------------
+# GENERACIÓN DE PDFS CORREGIDA (SE SEPARARON LAS COORDENADAS PARA EVITAR TRASLAPES)
+# -----------------------------------------------------------------------------
+
 @app.route("/imprimir_costos_pdf")
 def imprimir_costos_pdf():
     filtro_fecha = request.args.get("filtro_fecha", "").strip()
@@ -3000,12 +3004,13 @@ def imprimir_costos_pdf():
     c.rect(15 * mm, y - 2 * mm, width - 30 * mm, 6 * mm, fill=1, stroke=0)
     c.setFillColor(HexColor("#ffffff"))
     c.setFont("Helvetica-Bold", 8)
-    c.drawString(16 * mm, y, "Fecha/Hora")
-    c.drawString(42 * mm, y, "Paciente")
-    c.drawString(82 * mm, y, "Convenio")
-    c.drawString(108 * mm, y, "Exp.")
-    c.drawString(125 * mm, y, "Insumo / Descripción")
-    c.drawRightString(width - 16 * mm, y, "Cant.")
+    # COORDENADAS DE COLUMNAS REAJUSTADAS PARA EVITAR SOLAPAMIENTOS
+    c.drawString(15 * mm, y, "Fecha/Hora")
+    c.drawString(48 * mm, y, "Paciente")
+    c.drawString(88 * mm, y, "Convenio")
+    c.drawString(110 * mm, y, "Exp.")
+    c.drawString(128 * mm, y, "Insumo / Descripción")
+    c.drawRightString(width - 15 * mm, y, "Cant.")
     
     y -= 8 * mm
     c.setFillColor(HexColor("#000000"))
@@ -3015,12 +3020,12 @@ def imprimir_costos_pdf():
             c.showPage()
             y = height - 25 * mm
         f_str = cgo.timestamp.strftime('%d/%m/%Y %H:%M') if cgo.timestamp else "--"
-        c.drawString(16 * mm, y, f_str)
-        c.drawString(42 * mm, y, str(cgo.patient_name)[:18])
-        c.drawString(82 * mm, y, str(cgo.convenio or "-")[:13])
-        c.drawString(108 * mm, y, str(cgo.patient_id or "-")[:8])
-        c.drawString(125 * mm, y, str(cgo.item_name)[:34])
-        c.drawRightString(width - 16 * mm, y, str(cgo.quantity))
+        c.drawString(15 * mm, y, f_str)
+        c.drawString(48 * mm, y, str(cgo.patient_name)[:22])
+        c.drawString(88 * mm, y, str(cgo.convenio or "-")[:12])
+        c.drawString(110 * mm, y, str(cgo.patient_id or "-")[:8])
+        c.drawString(128 * mm, y, str(cgo.item_name)[:34])
+        c.drawRightString(width - 15 * mm, y, str(cgo.quantity))
         y -= 6.5 * mm
 
     c.save()
@@ -3059,12 +3064,13 @@ def imprimir_turno_pdf():
     c.rect(15 * mm, y - 2 * mm, width - 30 * mm, 6 * mm, fill=1, stroke=0)
     c.setFillColor(HexColor("#ffffff"))
     c.setFont("Helvetica-Bold", 8)
-    c.drawString(16 * mm, y, "Fecha/Hora")
-    c.drawString(42 * mm, y, "Paciente")
-    c.drawString(82 * mm, y, "Convenio")
-    c.drawString(108 * mm, y, "Exp.")
-    c.drawString(125 * mm, y, "Insumo / Descripción")
-    c.drawRightString(width - 16 * mm, y, "Cant.")
+    # COORDENADAS DE COLUMNAS REAJUSTADAS PARA EVITAR SOLAPAMIENTOS
+    c.drawString(15 * mm, y, "Fecha/Hora")
+    c.drawString(48 * mm, y, "Paciente")
+    c.drawString(88 * mm, y, "Convenio")
+    c.drawString(110 * mm, y, "Exp.")
+    c.drawString(128 * mm, y, "Insumo / Descripción")
+    c.drawRightString(width - 15 * mm, y, "Cant.")
     
     y -= 8 * mm
     c.setFillColor(HexColor("#000000"))
@@ -3073,12 +3079,12 @@ def imprimir_turno_pdf():
         if y < 20 * mm:
             c.showPage()
             y = height - 25 * mm
-        c.drawString(16 * mm, y, cgo.timestamp.strftime('%d/%m/%Y %H:%M') if cgo.timestamp else "--")
-        c.drawString(42 * mm, y, str(cgo.patient_name)[:18])
-        c.drawString(82 * mm, y, str(cgo.convenio or "-")[:13])
-        c.drawString(108 * mm, y, str(cgo.patient_id or "-")[:8])
-        c.drawString(125 * mm, y, str(cgo.item_name)[:34])
-        c.drawRightString(width - 16 * mm, y, str(cgo.quantity))
+        c.drawString(15 * mm, y, cgo.timestamp.strftime('%d/%m/%Y %H:%M') if cgo.timestamp else "--")
+        c.drawString(48 * mm, y, str(cgo.patient_name)[:22])
+        c.drawString(88 * mm, y, str(cgo.convenio or "-")[:12])
+        c.drawString(110 * mm, y, str(cgo.patient_id or "-")[:8])
+        c.drawString(128 * mm, y, str(cgo.item_name)[:34])
+        c.drawRightString(width - 15 * mm, y, str(cgo.quantity))
         y -= 6.5 * mm
 
     c.save()
