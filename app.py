@@ -53,6 +53,7 @@ class Patient(db.Model):
     convenio = db.Column(db.String(100), nullable=True)
     diagnostico = db.Column(db.String(250), nullable=True)
     fnac = db.Column(db.String(30), nullable=True)
+    habitacion = db.Column(db.String(50), nullable=True)
 
 class Item(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -138,19 +139,20 @@ class InsumoRequest(db.Model):
     observaciones = db.Column(db.String(350), nullable=True)
     comentarios = db.Column(db.String(350), nullable=True)
 
-def upsert_patient(name, expediente=None, convenio=None, diagnostico=None, fnac=None):
+def upsert_patient(name, expediente=None, convenio=None, diagnostico=None, fnac=None, habitacion=None):
     if not name:
         return
     clean_name = name.strip()
     p = Patient.query.filter_by(name=clean_name).first()
     if not p:
-        p = Patient(name=clean_name, expediente=expediente, convenio=convenio, diagnostico=diagnostico, fnac=fnac)
+        p = Patient(name=clean_name, expediente=expediente, convenio=convenio, diagnostico=diagnostico, fnac=fnac, habitacion=habitacion)
         db.session.add(p)
     else:
         if expediente: p.expediente = expediente
         if convenio: p.convenio = convenio
         if diagnostico: p.diagnostico = diagnostico
         if fnac: p.fnac = fnac
+        if habitacion: p.habitacion = habitacion
     db.session.commit()
 
 # -----------------------------------------------------------------------------
@@ -323,7 +325,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     "expediente": "{{ p.expediente or '' }}",
                     "convenio": "{{ p.convenio or '' }}",
                     "diagnostico": "{{ p.diagnostico or '' }}",
-                    "fnac": "{{ p.fnac or '' }}"
+                    "fnac": "{{ p.fnac or '' }}",
+                    "habitacion": "{{ p.habitacion or '' }}"
                 },
                 {% endfor %}
             };
@@ -340,11 +343,14 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     if (expEl && data.expediente) expEl.value = data.expediente;
                     if (dxEl && data.diagnostico) dxEl.value = data.diagnostico;
                     if (fnacEl && data.fnac) fnacEl.value = data.fnac;
+                    if (expEl && data.habitacion && !expEl.value) expEl.value = data.habitacion;
                 } else if (type === 'costos') {
                     const convEl = document.getElementById('costos_convenio');
                     const expEl = document.getElementById('costos_patient_id');
+                    const roomEl = document.getElementById('costos_room');
                     if (convEl && data.convenio) convEl.value = data.convenio;
                     if (expEl && data.expediente) expEl.value = data.expediente;
+                    if (roomEl && data.habitacion) roomEl.value = data.habitacion;
                 } else if (type === 'solicitud') {
                     const form = inputElement.closest('form');
                     if (form) {
@@ -357,7 +363,9 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     }
                 } else if (type === 'etiquetas') {
                     const fnacEl = document.getElementById('lbl_fnac');
+                    const habEl = document.getElementById('lbl_habitacion');
                     if (fnacEl && data.fnac) fnacEl.value = data.fnac;
+                    if (habEl && data.habitacion) habEl.value = data.habitacion;
                     updateLabelPreview();
                 }
             }
@@ -758,7 +766,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         <h2 class="text-lg font-black text-slate-900 flex items-center gap-2.5">
                             <i class="fa-solid fa-file-invoice-dollar text-emerald-600"></i> Cargo Múltiple de Material para Costos y Particulares/ANDA
                         </h2>
-                        <p class="text-xs text-slate-500 mt-1">Seleccione un paciente para autocompletar convenio y expediente, o ingrese los datos manualmente.</p>
+                        <p class="text-xs text-slate-500 mt-1">Seleccione un paciente para autocompletar convenio, habitación y expediente, o ingrese los datos manualmente.</p>
                     </div>
 
                     <form action="/terminal" method="GET" class="flex flex-wrap items-center gap-2.5 bg-slate-50 p-3 rounded-2xl border border-slate-200 no-print">
@@ -1438,7 +1446,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 </div>
             </div>
 
-            <!-- FORMULARIO DE SURTIDO MÚLTIPLE (CON AUTOFILL DE PACIENTE) -->
+            <!-- FORMULARIO DE SURTIDO MÚLTIPLE (CON AUTOFILL DE PACIENTE Y HABITACIÓN) -->
             <form action="/register_batch" method="POST" onsubmit="return validateBatchForm()" class="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-200/80 space-y-6">
                 <input type="hidden" name="cart_data" id="cart_data_input">
 
@@ -1447,7 +1455,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         <h2 class="text-base font-black text-slate-900 flex items-center gap-2">
                             <i class="fa-solid fa-receipt text-blue-600"></i> Dispensación de Receta / Surtido a Paciente
                         </h2>
-                        <p class="text-xs text-slate-500 mt-0.5">Seleccione un paciente para autocompletar expediente, fecha de nacimiento y diagnóstico.</p>
+                        <p class="text-xs text-slate-500 mt-0.5">Seleccione un paciente para autocompletar habitación, expediente, fecha de nacimiento y diagnóstico.</p>
                     </div>
                     <span class="text-xs font-bold bg-blue-100 text-blue-800 px-3 py-1 rounded-full shadow-inner hidden sm:inline-block">
                         Multicarga Activa
@@ -1591,7 +1599,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         <h2 class="text-base font-black text-slate-900 flex items-center gap-2.5">
                             <i class="fa-solid fa-tags text-purple-600"></i> Generador de Etiquetas Térmicas (51 x 25 mm)
                         </h2>
-                        <p class="text-xs text-slate-500 mt-0.5">Seleccione un paciente para autocompletar su fecha de nacimiento o complete los datos.</p>
+                        <p class="text-xs text-slate-500 mt-0.5">Seleccione un paciente para autocompletar su habitación y fecha de nacimiento o complete los datos.</p>
                     </div>
                     <div class="flex gap-2.5 w-full sm:w-auto">
                         <button type="submit" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-bold shadow-md transition flex items-center justify-center gap-1.5">
@@ -1623,11 +1631,11 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         <div class="grid grid-cols-2 gap-2.5">
                             <div>
                                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Fecha Nacimiento</label>
-                                <input type="text" id="lbl_fnac" placeholder="14/07/1967" oninput="updateLabelPreview()" class="w-full p-3 border border-slate-200 rounded-2xl text-xs bg-slate-50/50 outline-none">
+                                <input type="text" id="lbl_fnac" name="fnac" placeholder="14/07/1967" oninput="updateLabelPreview()" class="w-full p-3 border border-slate-200 rounded-2xl text-xs bg-slate-50/50 outline-none">
                             </div>
                             <div>
                                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Habitación / UCI</label>
-                                <input type="text" id="lbl_habitacion" placeholder="UCI-5" oninput="updateLabelPreview()" class="w-full p-3 border border-slate-200 rounded-2xl text-xs bg-slate-50/50 outline-none">
+                                <input type="text" id="lbl_habitacion" name="habitacion" placeholder="UCI-5" oninput="updateLabelPreview()" class="w-full p-3 border border-slate-200 rounded-2xl text-xs bg-slate-50/50 outline-none">
                             </div>
                         </div>
                         <div>
@@ -2574,7 +2582,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         
         function revertMovementModal(id) { document.getElementById('modal_revert_movement_id').value = id; document.getElementById('revertMovementModalBox').classList.remove('hidden'); }
         function closeRevertModal() { document.getElementById('revertMovementModalBox').classList.add('hidden'); }
-        function deleteMovementModal(id) { document.getElementById('modal_delete_movement_id').value = id; document.getElementById('deleteMovementModalBox').classList.add('hidden'); }
+        function deleteMovementModal(id) { document.getElementById('modal_delete_movement_id').value = id; document.getElementById('deleteMovementModalBox').classList.remove('hidden'); }
         function closeDeleteMovementModal() { document.getElementById('deleteMovementModalBox').classList.add('hidden'); }
 
         function editUser(id, name, role, pin, acciones, vistas) {
@@ -2957,13 +2965,14 @@ def save_patient_from_label():
     if patient_name:
         upsert_patient(
             patient_name,
-            fnac=request.form.get("fnac", "").strip()
+            fnac=request.form.get("fnac", "").strip(),
+            habitacion=request.form.get("habitacion", "").strip()
         )
         flash(f"Paciente {patient_name} guardado correctamente.", "success")
     return redirect(url_for("terminal", view="etiquetas"))
 
 # -----------------------------------------------------------------------------
-# GENERACIÓN DE PDFS CORREGIDA Y REORGANIZADA (SIN TRASLAPES)
+# GENERACIÓN DE PDFS CORREGIDA (MULTILÁMINA SIN TRASLAPES)
 # -----------------------------------------------------------------------------
 
 @app.route("/imprimir_costos_pdf")
@@ -2976,40 +2985,46 @@ def imprimir_costos_pdf():
     c = canvas.Canvas(buffer, pagesize=letter)
     width, height = letter
 
-    # ENCABEZADO INSTITUCIONAL
-    c.setFillColor(HexColor("#1e3a8a"))
-    c.rect(12 * mm, height - 25 * mm, width - 24 * mm, 12 * mm, fill=1, stroke=0)
-    c.setFillColor(HexColor("#ffffff"))
-    c.setFont("Helvetica-Bold", 11)
-    c.drawString(15 * mm, height - 19 * mm, "HOSPITAL OBREGÓN")
-    c.setFont("Helvetica", 8.5)
-    c.drawRightString(width - 15 * mm, height - 19 * mm, "FARMACIA HOSPITALARIA - REPORTE DE COSTOS")
+    def draw_header_and_table_headers():
+        # ENCABEZADO INSTITUCIONAL
+        c.setFillColor(HexColor("#1e3a8a"))
+        c.rect(12 * mm, height - 25 * mm, width - 24 * mm, 12 * mm, fill=1, stroke=0)
+        c.setFillColor(HexColor("#ffffff"))
+        c.setFont("Helvetica-Bold", 11)
+        c.drawString(15 * mm, height - 19 * mm, "HOSPITAL OBREGÓN")
+        c.setFont("Helvetica", 8.5)
+        c.drawRightString(width - 15 * mm, height - 19 * mm, "FARMACIA HOSPITALARIA - REPORTE DE COSTOS")
 
-    c.setFillColor(HexColor("#000000"))
-    c.setFont("Helvetica", 8)
-    c.drawString(12 * mm, height - 32 * mm, f"Fecha de emisión: {datetime.now(LOCAL_TZ).strftime('%d/%m/%Y %H:%M')} | Total Registros: {len(cargos)}")
-    
-    y = height - 41 * mm
-    c.setFillColor(HexColor("#0f172a"))
-    c.rect(12 * mm, y - 2 * mm, width - 24 * mm, 6 * mm, fill=1, stroke=0)
-    c.setFillColor(HexColor("#ffffff"))
-    c.setFont("Helvetica-Bold", 7.5)
-    
-    # COORDENADAS ESTRICTAS SEPARADAS PARA EVITAR CUALQUIER TRASLAPE
-    c.drawString(14 * mm, y, "Fecha/Hora")      # X = 14mm
-    c.drawString(42 * mm, y, "Paciente")        # X = 42mm (ancho máx recomendado ~19 chars)
-    c.drawString(82 * mm, y, "Convenio")        # X = 82mm
-    c.drawString(104 * mm, y, "Exp.")           # X = 104mm
-    c.drawString(120 * mm, y, "Insumo / Descripción") # X = 120mm
-    c.drawRightString(width - 12 * mm, y, "Cant.")
-    
-    y -= 7.5 * mm
+        c.setFillColor(HexColor("#000000"))
+        c.setFont("Helvetica", 8)
+        c.drawString(12 * mm, height - 32 * mm, f"Fecha de emisión: {datetime.now(LOCAL_TZ).strftime('%d/%m/%Y %H:%M')} | Total Registros: {len(cargos)}")
+        
+        y_header = height - 41 * mm
+        c.setFillColor(HexColor("#0f172a"))
+        c.rect(12 * mm, y_header - 2 * mm, width - 24 * mm, 6 * mm, fill=1, stroke=0)
+        c.setFillColor(HexColor("#ffffff"))
+        c.setFont("Helvetica-Bold", 7.5)
+        
+        # COORDENADAS ESTRICTAS SEPARADAS PARA EVITAR TRASLAPES
+        c.drawString(14 * mm, y_header, "Fecha/Hora")
+        c.drawString(42 * mm, y_header, "Paciente")
+        c.drawString(82 * mm, y_header, "Convenio")
+        c.drawString(104 * mm, y_header, "Exp.")
+        c.drawString(120 * mm, y_header, "Insumo / Descripción")
+        c.drawRightString(width - 12 * mm, y_header, "Cant.")
+        return height - 50 * mm
+
+    y = draw_header_and_table_headers()
     c.setFillColor(HexColor("#000000"))
     c.setFont("Helvetica", 7.5)
+
     for cgo in cargos:
         if y < 18 * mm:
             c.showPage()
-            y = height - 25 * mm
+            y = draw_header_and_table_headers()
+            c.setFillColor(HexColor("#000000"))
+            c.setFont("Helvetica", 7.5)
+
         f_str = cgo.timestamp.strftime('%d/%m/%Y %H:%M') if cgo.timestamp else "--"
         c.drawString(14 * mm, y, f_str)
         c.drawString(42 * mm, y, str(cgo.patient_name)[:19])
@@ -3036,41 +3051,45 @@ def imprimir_turno_pdf():
     width, height = letter
 
     titulo_tipo = "PARTICULARES / ANDA" if tipo == "particular" else f"TURNO: {shift.upper()}"
-    
-    # ENCABEZADO INSTITUCIONAL
-    c.setFillColor(HexColor("#0f172a"))
-    c.rect(12 * mm, height - 25 * mm, width - 24 * mm, 12 * mm, fill=1, stroke=0)
-    c.setFillColor(HexColor("#ffffff"))
-    c.setFont("Helvetica-Bold", 11)
-    c.drawString(15 * mm, height - 19 * mm, "HOSPITAL OBREGÓN")
-    c.setFont("Helvetica", 8.5)
-    c.drawRightString(width - 15 * mm, height - 19 * mm, f"REPORTE POR TURNO - {titulo_tipo}")
 
-    c.setFillColor(HexColor("#000000"))
-    c.setFont("Helvetica", 8)
-    c.drawString(12 * mm, height - 32 * mm, f"Fecha de emisión: {datetime.now(LOCAL_TZ).strftime('%d/%m/%Y %H:%M')} | Total Registros: {len(cargos)}")
-    
-    y = height - 41 * mm
-    c.setFillColor(HexColor("#1e3a8a"))
-    c.rect(12 * mm, y - 2 * mm, width - 24 * mm, 6 * mm, fill=1, stroke=0)
-    c.setFillColor(HexColor("#ffffff"))
-    c.setFont("Helvetica-Bold", 7.5)
-    
-    # COORDENADAS ESTRICTAS SEPARADAS PARA EVITAR CUALQUIER TRASLAPE
-    c.drawString(14 * mm, y, "Fecha/Hora")
-    c.drawString(42 * mm, y, "Paciente")
-    c.drawString(82 * mm, y, "Convenio")
-    c.drawString(104 * mm, y, "Exp.")
-    c.drawString(120 * mm, y, "Insumo / Descripción")
-    c.drawRightString(width - 12 * mm, y, "Cant.")
-    
-    y -= 7.5 * mm
+    def draw_turno_header():
+        c.setFillColor(HexColor("#0f172a"))
+        c.rect(12 * mm, height - 25 * mm, width - 24 * mm, 12 * mm, fill=1, stroke=0)
+        c.setFillColor(HexColor("#ffffff"))
+        c.setFont("Helvetica-Bold", 11)
+        c.drawString(15 * mm, height - 19 * mm, "HOSPITAL OBREGÓN")
+        c.setFont("Helvetica", 8.5)
+        c.drawRightString(width - 15 * mm, height - 19 * mm, f"REPORTE POR TURNO - {titulo_tipo}")
+
+        c.setFillColor(HexColor("#000000"))
+        c.setFont("Helvetica", 8)
+        c.drawString(12 * mm, height - 32 * mm, f"Fecha de emisión: {datetime.now(LOCAL_TZ).strftime('%d/%m/%Y %H:%M')} | Total Registros: {len(cargos)}")
+        
+        y_header = height - 41 * mm
+        c.setFillColor(HexColor("#1e3a8a"))
+        c.rect(12 * mm, y_header - 2 * mm, width - 24 * mm, 6 * mm, fill=1, stroke=0)
+        c.setFillColor(HexColor("#ffffff"))
+        c.setFont("Helvetica-Bold", 7.5)
+        
+        c.drawString(14 * mm, y_header, "Fecha/Hora")
+        c.drawString(42 * mm, y_header, "Paciente")
+        c.drawString(82 * mm, y_header, "Convenio")
+        c.drawString(104 * mm, y_header, "Exp.")
+        c.drawString(120 * mm, y_header, "Insumo / Descripción")
+        c.drawRightString(width - 12 * mm, y_header, "Cant.")
+        return height - 50 * mm
+
+    y = draw_turno_header()
     c.setFillColor(HexColor("#000000"))
     c.setFont("Helvetica", 7.5)
+
     for cgo in cargos:
         if y < 18 * mm:
             c.showPage()
-            y = height - 25 * mm
+            y = draw_turno_header()
+            c.setFillColor(HexColor("#000000"))
+            c.setFont("Helvetica", 7.5)
+
         c.drawString(14 * mm, y, cgo.timestamp.strftime('%d/%m/%Y %H:%M') if cgo.timestamp else "--")
         c.drawString(42 * mm, y, str(cgo.patient_name)[:19])
         c.drawString(82 * mm, y, str(cgo.convenio or "-")[:10])
@@ -3150,7 +3169,7 @@ def add_cost_cargo_batch():
     tipo_cargo = request.form.get("tipo_cargo", "costo")
     is_particular = (tipo_cargo == "particular")
     
-    upsert_patient(patient_name, expediente=patient_id, convenio=convenio)
+    upsert_patient(patient_name, expediente=patient_id, convenio=convenio, habitacion=room)
 
     try:
         cart_items = json.loads(request.form.get("cart_costos_data", "[]"))
@@ -3210,7 +3229,7 @@ def register_batch():
     service = request.form.get("service", "").strip()
     notes = request.form.get("notes", "").strip()
 
-    upsert_patient(patient_name, expediente=patient_id, diagnostico=diagnostico, fnac=patient_fnac)
+    upsert_patient(patient_name, expediente=patient_id, diagnostico=diagnostico, fnac=patient_fnac, habitacion=patient_id)
 
     try:
         cart_items = json.loads(request.form.get("cart_data", "[]"))
@@ -3232,7 +3251,6 @@ def register_batch():
         if not item:
             continue
 
-        # DESCUENTO AUTOMÁTICO DE INVENTARIO
         if m_type == "Salida":
             if warehouse == "Quirófano":
                 item.stock_quirofano -= quantity
@@ -3247,7 +3265,6 @@ def register_batch():
             else:
                 item.stock_general += quantity
 
-        # REGISTRO EN BITÁCORA INSTITUCIONAL CON DIAGNÓSTICO
         db.session.add(Movement(
             timestamp=get_local_now(),
             item_code=item.code,
@@ -3443,6 +3460,7 @@ def seed_database():
                 conn.execute(text('ALTER TABLE "patient" ADD COLUMN IF NOT EXISTS convenio VARCHAR(100) DEFAULT \'\';'))
                 conn.execute(text('ALTER TABLE "patient" ADD COLUMN IF NOT EXISTS diagnostico VARCHAR(250) DEFAULT \'\';'))
                 conn.execute(text('ALTER TABLE "patient" ADD COLUMN IF NOT EXISTS fnac VARCHAR(30) DEFAULT \'\';'))
+                conn.execute(text('ALTER TABLE "patient" ADD COLUMN IF NOT EXISTS habitacion VARCHAR(50) DEFAULT \'\';'))
                 conn.execute(text('ALTER TABLE "insumo_request" ADD COLUMN IF NOT EXISTS patient_name VARCHAR(150) DEFAULT \'\';'))
                 conn.execute(text('ALTER TABLE "insumo_request" ADD COLUMN IF NOT EXISTS convenio VARCHAR(100) DEFAULT \'\';'))
                 conn.execute(text('ALTER TABLE "insumo_request" ADD COLUMN IF NOT EXISTS expediente VARCHAR(50) DEFAULT \'\';'))
